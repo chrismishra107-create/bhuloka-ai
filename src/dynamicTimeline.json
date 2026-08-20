@@ -1,33 +1,33 @@
 {
-  "totalFrames": 400,
+  "totalFrames": 300,
   "cameraKeyframes": [
     {
       "frame": 0,
-      "lng": 77.23,
-      "lat": 20,
-      "zoom": 2.5,
+      "lng": 78.9629,
+      "lat": 20.5937,
+      "zoom": 4,
       "pitch": 30
     },
     {
-      "frame": 120,
-      "lng": 60,
-      "lat": 15,
-      "zoom": 2,
+      "frame": 100,
+      "lng": 102,
+      "lat": 29,
+      "zoom": 3.5,
+      "pitch": 40
+    },
+    {
+      "frame": 200,
+      "lng": 126.978,
+      "lat": 37.566,
+      "zoom": 4.5,
       "pitch": 35
     },
     {
-      "frame": 250,
-      "lng": 40,
-      "lat": 5,
-      "zoom": 1.8,
-      "pitch": 20
-    },
-    {
-      "frame": 400,
-      "lng": 77.23,
-      "lat": 28.61,
-      "zoom": 5.5,
-      "pitch": 50
+      "frame": 300,
+      "lng": 102,
+      "lat": 29,
+      "zoom": 3,
+      "pitch": 45
     }
   ],
   "highlightCountries": [
@@ -38,88 +38,54 @@
       "isPrimary": true
     },
     {
-      "name": "Brazil",
-      "color": "#009c3b",
-      "startFrame": 40,
-      "isPrimary": false
-    },
-    {
-      "name": "Russia",
-      "color": "#d52b1e",
-      "startFrame": 70,
-      "isPrimary": false
-    },
-    {
-      "name": "China",
-      "color": "#de2910",
-      "startFrame": 100,
-      "isPrimary": false
-    },
-    {
-      "name": "South Africa",
-      "color": "#007a4d",
-      "startFrame": 130,
+      "name": "South Korea",
+      "color": "#0f4c81",
+      "startFrame": 50,
       "isPrimary": false
     }
   ],
   "arrows": [
     {
       "origin": [
-        -47.88,
-        -15.79
-      ],
-      "target": [
         77.23,
         28.61
       ],
-      "frame": 160,
-      "color": "#3b82f6"
+      "target": [
+        126.978,
+        37.566
+      ],
+      "frame": 80,
+      "color": "#10b981"
     },
     {
       "origin": [
-        37.61,
-        55.75
+        126.978,
+        37.566
       ],
       "target": [
         77.23,
         28.61
       ],
-      "frame": 190,
-      "color": "#3b82f6"
-    },
-    {
-      "origin": [
-        116.4,
-        39.9
-      ],
-      "target": [
-        77.23,
-        28.61
-      ],
-      "frame": 220,
-      "color": "#3b82f6"
-    },
-    {
-      "origin": [
-        28.22,
-        -25.74
-      ],
-      "target": [
-        77.23,
-        28.61
-      ],
-      "frame": 250,
-      "color": "#3b82f6"
+      "frame": 140,
+      "color": "#10b981"
     }
   ],
   "blasts": [
     {
       "coordinates": [
+        126.978,
+        37.566
+      ],
+      "frame": 130,
+      "color": "#3b82f6"
+    },
+    {
+      "coordinates": [
         77.23,
         28.61
       ],
-      "frame": 310,
-      "color": "#eab308"
+      "frame": 190,
+      "color": "#ff9933"
     }
   ]
 }

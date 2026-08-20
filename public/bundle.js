@@ -64305,97 +64305,89 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     cameraKeyframes: [
       {
         frame: 0,
-        lng: 76,
-        lat: 30,
-        zoom: 5,
+        lng: 78.9629,
+        lat: 20.5937,
+        zoom: 4,
         pitch: 30
       },
       {
         frame: 100,
-        lng: 74.5,
-        lat: 34,
-        zoom: 6.5,
-        pitch: 45
+        lng: 102,
+        lat: 29,
+        zoom: 3.5,
+        pitch: 40
       },
       {
         frame: 200,
-        lng: 74,
-        lat: 34.5,
-        zoom: 7.5,
-        pitch: 55
+        lng: 126.978,
+        lat: 37.566,
+        zoom: 4.5,
+        pitch: 35
       },
       {
         frame: 300,
-        lng: 74.8,
-        lat: 34.2,
-        zoom: 7,
-        pitch: 60
+        lng: 102,
+        lat: 29,
+        zoom: 3,
+        pitch: 45
       }
     ],
     highlightCountries: [
       {
         name: "India",
-        color: "#00f0ff",
+        color: "#ff9933",
         startFrame: 0,
         isPrimary: true
       },
       {
-        name: "Pakistan",
-        color: "#00ff66",
-        startFrame: 0,
+        name: "South Korea",
+        color: "#0f4c81",
+        startFrame: 50,
         isPrimary: false
       }
     ],
     arrows: [
       {
         origin: [
-          74.7973,
-          34.0837
+          77.23,
+          28.61
         ],
         target: [
-          73.4908,
-          34.37
+          126.978,
+          37.566
         ],
         frame: 80,
-        color: "#ff007f"
+        color: "#10b981"
       },
       {
         origin: [
-          73.0479,
-          33.6844
+          126.978,
+          37.566
         ],
         target: [
-          74.7973,
-          34.0837
+          77.23,
+          28.61
         ],
         frame: 140,
-        color: "#ffff00"
+        color: "#10b981"
       }
     ],
     blasts: [
       {
         coordinates: [
-          73.4908,
-          34.37
+          126.978,
+          37.566
         ],
-        frame: 100,
-        color: "#ff0055"
+        frame: 130,
+        color: "#3b82f6"
       },
       {
         coordinates: [
-          74.09,
-          33.77
+          77.23,
+          28.61
         ],
-        frame: 180,
-        color: "#ff5500"
-      },
-      {
-        coordinates: [
-          74.308,
-          35.9208
-        ],
-        frame: 240,
-        color: "#aa00ff"
+        frame: 190,
+        color: "#ff9933"
       }
     ]
   };
@@ -64431,7 +64423,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       "div",
       {
         style: {
-          backgroundColor: "#050507",
+          backgroundColor: "#090E17",
+          /* Deep Slate Background */
           width: "100vw",
           height: "100vh",
           display: "flex",
@@ -64439,7 +64432,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           alignItems: "center",
           justifyContent: "center",
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          color: "#ffffff",
+          color: "#F8FAFC",
           margin: 0,
           overflow: "hidden",
           position: "relative",
@@ -64456,7 +64449,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                 transform: "translate(-50%, -50%)",
                 width: "700px",
                 height: "700px",
-                background: "radial-gradient(circle, rgba(245,158,11,0.08) 0%, rgba(0,0,0,0) 70%)",
+                background: "radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(9, 14, 23, 0) 70%)",
                 borderRadius: "50%",
                 pointerEvents: "none",
                 zIndex: 1
@@ -64466,17 +64459,22 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "800px", gap: "24px" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { textAlign: "center" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", marginBottom: "8px" }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("svg", { width: "36", height: "36", viewBox: "0 0 24 24", fill: "none", stroke: "#f59e0b", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", style: { filter: "drop-shadow(0px 0px 8px rgba(245, 158, 11, 0.6))" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("svg", { width: "36", height: "36", viewBox: "0 0 24 24", fill: "none", stroke: "#22D3EE", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", style: { filter: "drop-shadow(0px 0px 8px rgba(34, 211, 238, 0.6))" }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("circle", { cx: "12", cy: "12", r: "10" }),
                   /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("path", { d: "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" }),
                   /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("path", { d: "M2 12h20" })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("h1", { style: { fontSize: "38px", fontWeight: 800, letterSpacing: "-0.03em", margin: 0 }, children: [
-                  "Karta",
-                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#f59e0b" }, children: ".ai" })
-                ] })
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("h1", { style: {
+                  fontSize: "38px",
+                  fontWeight: 800,
+                  letterSpacing: "-0.03em",
+                  margin: 0,
+                  backgroundImage: "linear-gradient(to right, #22D3EE, #3B82F6)",
+                  WebkitBackgroundClip: "text",
+                  color: "transparent"
+                }, children: "BhuLoka AI" })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("p", { style: { color: "#71717a", fontSize: "15px", fontWeight: 500 }, children: "Type a prompt. Generate a cinematic map animation." })
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("p", { style: { color: "#94A3B8", fontSize: "15px", fontWeight: 500 }, children: "Type a prompt. Generate a cinematic map animation." })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(
               "form",
@@ -64485,13 +64483,13 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                 style: {
                   display: "flex",
                   alignItems: "center",
-                  background: "rgba(255, 255, 255, 0.04)",
+                  background: "rgba(255, 255, 255, 0.03)",
                   backdropFilter: "blur(20px)",
                   WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
                   borderRadius: "24px",
                   padding: "8px 10px 8px 20px",
-                  boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)",
+                  boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5)",
                   width: "100%",
                   maxWidth: "620px",
                   gap: "10px"
@@ -64504,7 +64502,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                       placeholder: "e.g., Highlight India with a gold border...",
                       value: prompt,
                       onChange: (e63) => setPrompt(e63.target.value),
-                      style: { flex: 1, background: "transparent", border: "none", color: "#ffffff", fontSize: "15px", outline: "none" },
+                      style: { flex: 1, background: "transparent", border: "none", color: "#F8FAFC", fontSize: "15px", outline: "none" },
                       required: true
                     }
                   ),
@@ -64514,8 +64512,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                       type: "submit",
                       disabled: status === "generating",
                       style: {
-                        background: "#ffffff",
-                        color: "#000000",
+                        background: "#F8FAFC",
+                        color: "#0F172A",
                         border: "none",
                         borderRadius: "16px",
                         padding: "12px 22px",
@@ -64531,7 +64529,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { width: "320px", height: "568px", borderRadius: "20px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.1)", boxShadow: "0 20px 50px rgba(0,0,0,0.8)", backgroundColor: "#000000", position: "relative" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { width: "320px", height: "568px", borderRadius: "20px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.08)", boxShadow: "0 20px 50px rgba(0,0,0,0.5)", backgroundColor: "#000000", position: "relative" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
               Player,
               {
                 component: MapAnimation,

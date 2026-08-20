@@ -97,7 +97,7 @@ app.post('/api/generate', (req, res) => {
 app.listen(5000, '0.0.0.0', () => {
   console.log('----------------------------------------------------');
   console.log('🚀 Server active!');
-  console.log('   Karta.ai Studio : http://localhost:5000');
+  console.log('   BhuLoka.ai Studio : http://localhost:5000');
   console.log('   Waitlist Page   : http://localhost:5000/waitlist');
   console.log('----------------------------------------------------');
 });

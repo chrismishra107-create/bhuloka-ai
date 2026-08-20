@@ -19,36 +19,51 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; }
     html, body { overflow-x: hidden; width: 100%; position: relative; }
-    body { background-color: #050507; color: #ffffff; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-    .glow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 600px; height: 600px; background: radial-gradient(circle, rgba(245,158,11,0.09) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; pointer-events: none; z-index: 1; }
-    .container { z-index: 2; width: 100%; max-width: 600px; display: flex; flex-direction: column; align-items: center; text-align: center; }
     
-    .dev-badge { color: #f59e0b; font-weight: 700; margin-bottom: 16px; letter-spacing: 0.05em; text-transform: uppercase; font-size: 13px; background: rgba(245, 158, 11, 0.1); padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(245, 158, 11, 0.2); }
-    h1 { font-size: 42px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 20px; }
-    h1 span { color: #f59e0b; }
+    /* Deep Slate Background */
+    body { background-color: #090E17; color: #F8FAFC; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
     
-    .subtitle { color: #a1a1aa; font-size: 16px; line-height: 1.6; margin-bottom: 36px; font-weight: 500; text-align: center; }
-    .subtitle span { color: #d1d5db; }
+    /* Electric Cyan Glow */
+    .glow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 600px; height: 600px; background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(9, 14, 23, 0) 70%); border-radius: 50%; pointer-events: none; z-index: 1; }
+    
+    .container { z-index: 2; width: 100%; max-width: 580px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    
+    /* Tactical Blue Badge */
+    .dev-badge { color: #22D3EE; font-weight: 700; margin-bottom: 24px; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; background: rgba(34, 211, 238, 0.08); padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(34, 211, 238, 0.2); display: flex; align-items: center; gap: 6px;}
+    
+    h1 { font-size: 46px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 20px; }
+    
+    /* Cyan to Royal Blue Gradient Highlight */
+    h1 span { 
+      background-image: linear-gradient(to right, #22D3EE, #3B82F6); 
+      -webkit-background-clip: text; 
+      color: transparent; 
+    }
+    
+    .subtitle { color: #94A3B8; font-size: 15px; line-height: 1.7; margin-bottom: 36px; font-weight: 400; max-width: 500px; }
+    .subtitle .brand-highlight { color: #22D3EE; font-weight: 600; }
+    .subtitle .call-to-action-text { color: #E2E8F0; display: block; margin-top: 10px; font-weight: 500; }
 
-    .waitlist-form { background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; padding: 8px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); width: 100%; display: flex; gap: 8px; }
-    input[type="email"] { flex: 1; background: transparent; border: none; color: #ffffff; font-size: 15px; padding: 12px 16px; outline: none; font-family: inherit; font-weight: 500; }
-    input::placeholder { color: #52525b; }
-    button { background: #ffffff; color: #000000; border: none; border-radius: 14px; padding: 12px 24px; font-weight: 700; font-size: 14px; cursor: pointer; transition: opacity 0.1s ease; white-space: nowrap; }
+    .waitlist-form { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; padding: 6px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); width: 100%; display: flex; gap: 8px; }
+    input[type="email"] { flex: 1; background: transparent; border: none; color: #F8FAFC; font-size: 14px; padding: 12px 16px; outline: none; font-family: inherit; font-weight: 500; }
+    input::placeholder { color: #64748B; }
+    
+    button { background: #F8FAFC; color: #0F172A; border: none; border-radius: 12px; padding: 12px 22px; font-weight: 700; font-size: 13px; cursor: pointer; transition: opacity 0.1s ease; white-space: nowrap; }
     button:hover { opacity: 0.9; }
 
-    .success-msg { display: none; background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; padding: 24px; text-align: left; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
-    .success-msg h3 { color: #f59e0b; font-size: 18px; font-weight: 700; margin-bottom: 12px; }
-    .success-msg p { color: #d1d5db; font-size: 14px; line-height: 1.6; font-weight: 400; }
+    .success-msg { display: none; background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; padding: 24px; text-align: left; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .success-msg h3 { color: #22D3EE; font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .success-msg p { color: #94A3B8; font-size: 13px; line-height: 1.6; font-weight: 400; }
 
-    .error-msg { color: #ef4444; font-size: 13px; font-weight: 500; margin-top: 10px; display: none; }
+    .error-msg { color: #F87171; font-size: 12px; font-weight: 500; margin-top: 10px; display: none; }
 
     /* Mobile Responsiveness */
     @media (max-width: 480px) {
-      h1 { font-size: 32px; }
+      h1 { font-size: 34px; }
       .subtitle { font-size: 14px; padding: 0 10px; }
-      .waitlist-form { flex-direction: column; padding: 12px; border-radius: 24px; }
-      input[type="email"] { width: 100%; text-align: center; padding: 14px; }
-      button { width: 100%; padding: 14px; border-radius: 16px; }
+      .waitlist-form { flex-direction: column; padding: 10px; border-radius: 20px; }
+      input[type="email"] { width: 100%; text-align: center; padding: 12px; }
+      button { width: 100%; padding: 12px; border-radius: 14px; }
     }
   </style>
 </head>
@@ -56,16 +71,17 @@
   <div class="glow"></div>
   
   <div class="container">
-    <div class="dev-badge">Solo Dev Project</div>
+    <div class="dev-badge">⚡ BhuLoka AI &bull; Early Access v1</div>
     <h1>Skip the After Effects. <br>Generate <span>cinematic maps</span>.</h1>
     
     <p class="subtitle">
-      Hi guys, I'm Chris. If you make documentary or geopolitical content, you know how many hours it takes to manually keyframe maps. I'm building BhuLoka AI to turn text prompts straight into high-retention map videos. <span>Drop your email below to get early access and help me shape v1!</span>
+      Hi guys, This is Chris. If you make documentary or geopolitical content, you know how many hours it takes to manually keyframe maps. I'm building <span class="brand-highlight">BhuLoka AI</span> to turn text prompts straight into high-retention map videos. 
+      <span class="call-to-action-text">Drop your email below to get early access and help me shape v1!</span>
     </p>
     
     <div id="formWrapper" style="width: 100%;">
       <form class="waitlist-form" id="waitlistForm">
-        <input type="email" id="emailInput" placeholder="Enter your email..." required>
+        <input type="email" id="emailInput" placeholder="Enter your email address..." required>
         <button type="submit" id="submitBtn">I'm Interested</button>
       </form>
       <div id="errorBox" class="error-msg"></div>
@@ -78,7 +94,6 @@
   </div>
 
   <script>
-    // This now sends the data to your secure api/waitlist.js file!
     document.getElementById('waitlistForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
