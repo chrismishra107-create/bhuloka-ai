@@ -6,22 +6,34 @@
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
+    "@google/genai": "^2.17.1",
     "@remotion/cli": "4.0.513",
+    "@remotion/player": "^4.0.513",
+    "@remotion/tailwind-v4": "4.0.513",
+    "@supabase/supabase-js": "^2.112.3",
+    "@turf/turf": "^7.4.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "maplibre-gl": "^6.4.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "remotion": "4.0.513",
-    "@remotion/tailwind-v4": "4.0.513",
-    "tailwindcss": "4.0.0"
+    "tailwindcss": "4.0.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   },
   "devDependencies": {
     "@remotion/eslint-config-flat": "4.0.513",
     "@types/react": "19.2.7",
+    "@types/topojson-client": "^3.1.5",
     "@types/web": "0.0.166",
     "eslint": "9.19.0",
     "prettier": "3.8.1",
     "typescript": "5.9.3"
   },
   "scripts": {
+    "render": "remotion render src/index.ts Map3D out/output.mp4 --props=./src/dynamicTimeline.json --concurrency=1",
     "dev": "remotion studio",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",

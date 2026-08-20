@@ -8,7 +8,29 @@
 import { Config } from "@remotion/cli/config";
 import { enableTailwind } from '@remotion/tailwind-v4';
 
+
+Config.setStudioPort(3000);
+Config.setChromiumOpenGlRenderer('angle');
+Config.setConcurrency(1);
+
+
+Config.setStudioPort(3000);
+Config.setChromiumOpenGlRenderer('angle');
+Config.setConcurrency(1);
+
+
+Config.setStudioPort(3000);
+Config.setChromiumOpenGlRenderer('angle');
+
+
+Config.setStudioPort(3000);
+
+
 Config.setRspack(true);
 Config.setVideoImageFormat("jpeg");
 Config.setOverwriteOutput(true);
 Config.overrideBundlerConfig(enableTailwind);
+Config.setVideoImageFormat('jpeg');
+Config.setOverwriteOutput(true);
+Config.setChromiumOpenGlRenderer('angle');
+Config.setConcurrency(1); // Crucial for MapLibre WebGL: prevents race conditions during render

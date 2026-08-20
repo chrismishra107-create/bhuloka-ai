@@ -1,0 +1,125 @@
+{
+  "totalFrames": 400,
+  "cameraKeyframes": [
+    {
+      "frame": 0,
+      "lng": 77.23,
+      "lat": 20,
+      "zoom": 2.5,
+      "pitch": 30
+    },
+    {
+      "frame": 120,
+      "lng": 60,
+      "lat": 15,
+      "zoom": 2,
+      "pitch": 35
+    },
+    {
+      "frame": 250,
+      "lng": 40,
+      "lat": 5,
+      "zoom": 1.8,
+      "pitch": 20
+    },
+    {
+      "frame": 400,
+      "lng": 77.23,
+      "lat": 28.61,
+      "zoom": 5.5,
+      "pitch": 50
+    }
+  ],
+  "highlightCountries": [
+    {
+      "name": "India",
+      "color": "#ff9933",
+      "startFrame": 0,
+      "isPrimary": true
+    },
+    {
+      "name": "Brazil",
+      "color": "#009c3b",
+      "startFrame": 40,
+      "isPrimary": false
+    },
+    {
+      "name": "Russia",
+      "color": "#d52b1e",
+      "startFrame": 70,
+      "isPrimary": false
+    },
+    {
+      "name": "China",
+      "color": "#de2910",
+      "startFrame": 100,
+      "isPrimary": false
+    },
+    {
+      "name": "South Africa",
+      "color": "#007a4d",
+      "startFrame": 130,
+      "isPrimary": false
+    }
+  ],
+  "arrows": [
+    {
+      "origin": [
+        -47.88,
+        -15.79
+      ],
+      "target": [
+        77.23,
+        28.61
+      ],
+      "frame": 160,
+      "color": "#3b82f6"
+    },
+    {
+      "origin": [
+        37.61,
+        55.75
+      ],
+      "target": [
+        77.23,
+        28.61
+      ],
+      "frame": 190,
+      "color": "#3b82f6"
+    },
+    {
+      "origin": [
+        116.4,
+        39.9
+      ],
+      "target": [
+        77.23,
+        28.61
+      ],
+      "frame": 220,
+      "color": "#3b82f6"
+    },
+    {
+      "origin": [
+        28.22,
+        -25.74
+      ],
+      "target": [
+        77.23,
+        28.61
+      ],
+      "frame": 250,
+      "color": "#3b82f6"
+    }
+  ],
+  "blasts": [
+    {
+      "coordinates": [
+        77.23,
+        28.61
+      ],
+      "frame": 310,
+      "color": "#eab308"
+    }
+  ]
+}
