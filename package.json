@@ -36,6 +36,7 @@
     "render": "remotion render src/index.ts Map3D out/output.mp4 --props=./src/dynamicTimeline.json --concurrency=1",
     "dev": "remotion studio",
     "build": "remotion bundle",
+      "build:studio": "node scripts/build-studio.mjs",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
   },

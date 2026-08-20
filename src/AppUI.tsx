@@ -1,12 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Player } from '@remotion/player';
 import { MapAnimation } from './MapAnimation';
 import timelineData from './dynamicTimeline.json';
+import { supabase } from './supabaseClient';
+import { Auth } from './Auth';
 
 export const AppUI: React.FC = () => {
+  const [session, setSession] = useState<any>(null);
+  const [loadingSession, setLoadingSession] = useState(true);
   const [prompt, setPrompt] = useState('');
   const [status, setStatus] = useState<'idle' | 'generating' | 'success'>('idle');
   const [activeTimeline, setActiveTimeline] = useState(timelineData);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoadingSession(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoadingSession(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,10 +50,25 @@ export const AppUI: React.FC = () => {
     }
   };
 
+  // 1. Show a brief clean loading state while checking Supabase auth
+  if (loadingSession) {
+    return (
+      <div style={{ backgroundColor: '#090E17', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22D3EE', fontFamily: 'sans-serif' }}>
+        Loading BhuLoka AI...
+      </div>
+    );
+  }
+
+  // 2. THE BOUNCER: If not logged in, force the Auth screen!
+  if (!session) {
+    return <Auth />;
+  }
+
+  // 3. If logged in, show the Studio
   return (
     <div
       style={{
-        backgroundColor: '#090E17', /* Deep Slate Background */
+        backgroundColor: '#090E17',
         width: '100vw',
         height: '100vh',
         display: 'flex',
@@ -50,6 +83,26 @@ export const AppUI: React.FC = () => {
         padding: '20px',
       }}
     >
+      {/* Sign Out Button in the top-right corner */}
+      <button
+        onClick={() => supabase.auth.signOut()}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          color: '#94A3B8',
+          padding: '8px 16px',
+          borderRadius: '10px',
+          fontSize: '12px',
+          cursor: 'pointer',
+          zIndex: 10,
+        }}
+      >
+        Sign Out
+      </button>
+
       {/* Background Electric Cyan glow */}
       <div
         style={{
@@ -68,10 +121,9 @@ export const AppUI: React.FC = () => {
 
       <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '800px', gap: '24px' }}>
         
-        {/* NEW BRANDING HEADER */}
+        {/* BRANDING HEADER */}
         <div style={{ textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '8px' }}>
-            {/* Tactical Cyan SVG Globe Logo */}
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#22D3EE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0px 0px 8px rgba(34, 211, 238, 0.6))' }}>
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
