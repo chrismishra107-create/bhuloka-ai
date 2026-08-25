@@ -1,91 +1,60 @@
 {
+  "title": "Inter-Korean Conflict Simulation",
   "totalFrames": 300,
   "cameraKeyframes": [
     {
       "frame": 0,
-      "lng": 78.9629,
-      "lat": 20.5937,
-      "zoom": 4,
-      "pitch": 30
-    },
-    {
-      "frame": 100,
-      "lng": 102,
-      "lat": 29,
-      "zoom": 3.5,
+      "lng": 127.7669,
+      "lat": 38.1906,
+      "zoom": 6,
       "pitch": 40
     },
     {
-      "frame": 200,
-      "lng": 126.978,
-      "lat": 37.566,
-      "zoom": 4.5,
-      "pitch": 35
+      "frame": 150,
+      "lng": 127.5,
+      "lat": 37.5,
+      "zoom": 6.5,
+      "pitch": 45
     },
     {
       "frame": 300,
-      "lng": 102,
-      "lat": 29,
-      "zoom": 3,
-      "pitch": 45
+      "lng": 127.7669,
+      "lat": 36.5,
+      "zoom": 6,
+      "pitch": 40
     }
   ],
   "highlightCountries": [
     {
-      "name": "India",
-      "color": "#ff9933",
+      "name": "North Korea",
       "startFrame": 0,
-      "isPrimary": true
+      "color": "#ff3333",
+      "isPrimary": true,
+      "revealStyle": "fade",
+      "endFrame": 300
     },
     {
       "name": "South Korea",
-      "color": "#0f4c81",
-      "startFrame": 50,
-      "isPrimary": false
+      "startFrame": 0,
+      "color": "#3333ff",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "endFrame": 300
     }
   ],
-  "arrows": [
+  "takeovers": [
     {
+      "invader": "North Korea",
+      "target": "South Korea",
+      "startFrame": 60,
+      "duration": 180,
+      "color": "#ff3333",
       "origin": [
-        77.23,
-        28.61
-      ],
-      "target": [
-        126.978,
-        37.566
-      ],
-      "frame": 80,
-      "color": "#10b981"
-    },
-    {
-      "origin": [
-        126.978,
-        37.566
-      ],
-      "target": [
-        77.23,
-        28.61
-      ],
-      "frame": 140,
-      "color": "#10b981"
+        127.510093,
+        40.339852
+      ]
     }
   ],
-  "blasts": [
-    {
-      "coordinates": [
-        126.978,
-        37.566
-      ],
-      "frame": 130,
-      "color": "#3b82f6"
-    },
-    {
-      "coordinates": [
-        77.23,
-        28.61
-      ],
-      "frame": 190,
-      "color": "#ff9933"
-    }
-  ]
+  "arrows": [],
+  "blasts": []
 }

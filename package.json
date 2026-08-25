@@ -26,6 +26,7 @@
   "devDependencies": {
     "@remotion/eslint-config-flat": "4.0.513",
     "@types/react": "19.2.7",
+    "@types/react-dom": "^19.2.4",
     "@types/topojson-client": "^3.1.5",
     "@types/web": "0.0.166",
     "eslint": "9.19.0",
@@ -36,7 +37,7 @@
     "render": "remotion render src/index.ts Map3D out/output.mp4 --props=./src/dynamicTimeline.json --concurrency=1",
     "dev": "remotion studio",
     "build": "remotion bundle",
-      "build:studio": "node scripts/build-studio.mjs",
+    "build:studio": "node scripts/build-studio.mjs",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
   },
