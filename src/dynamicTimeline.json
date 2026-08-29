@@ -1,42 +1,49 @@
 {
-  "title": "Inter-Korean Conflict Simulation",
+  "title": "India getting furious over Russia",
   "totalFrames": 300,
   "cameraKeyframes": [
     {
       "frame": 0,
-      "lng": 127.7669,
-      "lat": 38.1906,
-      "zoom": 6,
+      "lng": 78.9629,
+      "lat": 20.5937,
+      "zoom": 4.5,
       "pitch": 40
     },
     {
-      "frame": 150,
-      "lng": 127.5,
-      "lat": 37.5,
-      "zoom": 6.5,
+      "frame": 100,
+      "lng": 85,
+      "lat": 45,
+      "zoom": 3.5,
+      "pitch": 45
+    },
+    {
+      "frame": 200,
+      "lng": 95,
+      "lat": 55,
+      "zoom": 2.8,
       "pitch": 45
     },
     {
       "frame": 300,
-      "lng": 127.7669,
-      "lat": 36.5,
-      "zoom": 6,
-      "pitch": 40
+      "lng": 105.3188,
+      "lat": 61.524,
+      "zoom": 2.5,
+      "pitch": 45
     }
   ],
   "highlightCountries": [
     {
-      "name": "North Korea",
+      "name": "India",
       "startFrame": 0,
-      "color": "#ff3333",
+      "color": "#ff9933",
       "isPrimary": true,
       "revealStyle": "fade",
       "endFrame": 300
     },
     {
-      "name": "South Korea",
-      "startFrame": 0,
-      "color": "#3333ff",
+      "name": "Russia",
+      "startFrame": 50,
+      "color": "#cc0000",
       "isPrimary": false,
       "revealStyle": "fade",
       "endFrame": 300
@@ -44,17 +51,16 @@
   ],
   "takeovers": [
     {
-      "invader": "North Korea",
-      "target": "South Korea",
-      "startFrame": 60,
+      "invader": "India",
+      "target": "Russia",
+      "startFrame": 100,
       "duration": 180,
-      "color": "#ff3333",
+      "color": "#ff9933",
       "origin": [
-        127.510093,
-        40.339852
+        78.9629,
+        20.5937
       ]
     }
   ],
-  "arrows": [],
-  "blasts": []
+  "arrows": []
 }

@@ -94,6 +94,51 @@ app.post('/api/generate', (req, res) => {
   });
 });
 
+// Full MP4 Download Render
+app.post('/api/render', (req, res) => {
+  const { timeline } = req.body;
+  if (!timeline) return res.status(400).send("Timeline data missing");
+
+  const outDir = path.join(__dirname, 'out');
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+
+  const outputFileName = `tactical_export_${Date.now()}.mp4`;
+  const outputPath = path.join(outDir, outputFileName);
+  const promptPath = path.join(__dirname, 'src', 'currentPrompt.json');
+
+  try {
+    fs.writeFileSync(promptPath, JSON.stringify(timeline, null, 2));
+    console.log(`[Studio] Starting MP4 Export Render for: ${outputFileName}...`);
+
+    // Using Map3D composition identifier
+    const command = `npx remotion render src/index.ts Map3D "${outputPath}" --props="${promptPath}" --concurrency=1`;
+    
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Remotion Error: ${stderr || error.message}`);
+        return res.status(500).send("Backend rendering failed. Check CLI logs.");
+      }
+      
+      console.log(`[Studio] Export complete! Sending MP4 to browser...`);
+      
+      res.download(outputPath, outputFileName, (err) => {
+        if (!err) {
+          try {
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+          } catch (e) {
+            console.error("Cleanup failed:", e);
+          }
+        }
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal server error during render prep");
+  }
+});
+
 app.listen(5000, '0.0.0.0', () => {
   console.log('----------------------------------------------------');
   console.log('🚀 Server active!');

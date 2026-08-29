@@ -1,3 +1,62 @@
 {
-  "prompt": "North Korea attacked south korea with 10 missiles"
+  "title": "North Korea vs South Korea (Manual)",
+  "totalFrames": 300,
+  "highlightCountries": [
+    {
+      "name": "North Korea",
+      "country": "North Korea",
+      "color": "#ef4444",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "enableGlow": true,
+      "glowTarget": "both",
+      "dropShadow": true,
+      "blendMode": "screen",
+      "isPrimary": true,
+      "startFrame": 0,
+      "revealStyle": "ink"
+    },
+    {
+      "name": "South Korea",
+      "country": "South Korea",
+      "color": "#3b82f6",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "enableGlow": true,
+      "glowTarget": "both",
+      "dropShadow": true,
+      "blendMode": "add",
+      "isPrimary": false,
+      "startFrame": 0,
+      "revealStyle": "ink"
+    }
+  ],
+  "takeovers": [],
+  "arrows": [],
+  "labels": [],
+  "cameraKeyframes": [
+    {
+      "frame": 0,
+      "zoom": 1.2,
+      "lat": 38,
+      "lng": 127,
+      "latitude": 38,
+      "longitude": 127,
+      "pitch": 45,
+      "bearing": 0,
+      "easing": "easeInOut"
+    },
+    {
+      "frame": 39,
+      "lat": 38,
+      "lng": 127,
+      "latitude": 38,
+      "longitude": 127,
+      "zoom": 6.2500001303851604,
+      "pitch": 45.5,
+      "bearing": -70,
+      "easing": "easeInOut"
+    }
+  ],
+  "assets": []
 }

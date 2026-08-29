@@ -37,6 +37,19 @@ export interface TakeoverEvent {
   origin: [number, number];
 }
 
+export interface LabelEvent {
+  text: string;
+  lat: number;
+  lng: number;
+  startFrame: number;
+  duration: number;
+  color?: string;
+  bg?: string;
+  size?: number;
+  glow?: boolean;
+  pinned?: boolean;
+}
+
 export interface GeneratedTimeline {
   title: string;
   totalFrames: number;
@@ -45,9 +58,10 @@ export interface GeneratedTimeline {
   takeovers: TakeoverEvent[];
   arrows?: any[];
   blasts?: BlastEvent[];
+  labels?: LabelEvent[];
 }
 
-// 🔥 NEW: Dynamically finds the center of ANY country on Earth
+// 🌍 NEW: Dynamically finds the center of ANY country on Earth
 function getDynamicCountryCenter(countryName: string): [number, number] {
   try {
     const worldPath = path.resolve(__dirname, '..', 'world.json');
@@ -57,7 +71,9 @@ function getDynamicCountryCenter(countryName: string): [number, number] {
       
       const feature = data.features.find((f: any) => {
         const p = f.properties || {};
-        const candidates = [p.ADMIN, p.admin, p.NAME, p.name].filter(Boolean).map(v => String(v).toLowerCase());
+        const candidates = [p.ADMIN, p.admin, p.NAME, p.name]
+          .filter(Boolean)
+          .map(v => String(v).toLowerCase());
         return candidates.some(c => c === norm || c.includes(norm) || norm.includes(c));
       });
 
@@ -68,7 +84,10 @@ function getDynamicCountryCenter(countryName: string): [number, number] {
         const ring = coords[0];
         if (ring && Array.isArray(ring)) {
           let sumLng = 0, sumLat = 0;
-          ring.forEach((pt: [number, number]) => { sumLng += pt[0]; sumLat += pt[1]; });
+          ring.forEach((pt: [number, number]) => { 
+            sumLng += pt[0]; 
+            sumLat += pt[1]; 
+          });
           return [sumLng / ring.length, sumLat / ring.length];
         }
       }
@@ -83,7 +102,7 @@ export async function parseSrtWithGemini(inputContent: string): Promise<Generate
   const promptLower = inputContent.toLowerCase().trim();
 
   // ------------------------------------------------------------------------
-  // 🚨 TIER 1: ZERO-COST FAST PARSER (NOW GLOBALLY DYNAMIC)
+  // 🚀 TIER 1: ZERO-COST FAST PARSER
   // ------------------------------------------------------------------------
   const attackMatch = promptLower.match(/(.+?)\s+(?:invades|invading|attacks|attacking|captures|annexes|strikes)\s+(.+)/i);
   
@@ -118,12 +137,13 @@ export async function parseSrtWithGemini(inputContent: string): Promise<Generate
         }
       ],
       blasts: [],
-      arrows: []
+      arrows: [],
+      labels: []
     };
   }
 
   // ------------------------------------------------------------------------
-  // 🚨 TIER 2: GEMINI API FALLBACK FOR COMPLEX PROMPTS
+  // 🤖 TIER 2: GEMINI API FALLBACK FOR COMPLEX PROMPTS
   // ------------------------------------------------------------------------
   console.log(`\n[Gemini AI] Complex prompt detected. Sending to Google...`);
 
@@ -136,6 +156,7 @@ RULES:
 2. If the prompt implies war, invasion, or capture, YOU MUST populate the "takeovers" array.
 3. The "takeovers" array MUST have "duration": 180.
 4. The invader and target MUST both be listed in "highlightCountries".
+5. Automatically generate "labels" to tag cities, borders, or regions mentioned. Ensure duration is at least 150.
 `;
 
   const response = await ai.models.generateContent({
@@ -210,6 +231,20 @@ RULES:
               }
             } 
           },
+          labels: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT,
+              properties: {
+                text: { type: Type.STRING },
+                lat: { type: Type.NUMBER },
+                lng: { type: Type.NUMBER },
+                startFrame: { type: Type.INTEGER },
+                duration: { type: Type.INTEGER },
+                pinned: { type: Type.BOOLEAN }
+              }
+            } 
+          },
         },
         required: ['title', 'totalFrames', 'cameraKeyframes', 'highlightCountries', 'takeovers'],
       },
@@ -221,11 +256,11 @@ RULES:
 
   let timeline = JSON.parse(text) as GeneratedTimeline;
 
-  // 🚨 ULTIMATE JAVASCRIPT CHOKEHOLD 🚨
+  // 🔥 ULTIMATE JAVASCRIPT CHOKEHOLD 🔥
   const isConflict = promptLower.includes('invade') || promptLower.includes('capture') || promptLower.includes('attack');
 
   if (isConflict && (!timeline.takeovers || timeline.takeovers.length === 0)) {
-    console.log("🚨 AI HALLUCINATED EMPTY TAKEOVERS! Hijacking JSON and forcing injection...");
+    console.log("🔥 AI HALLUCINATED EMPTY TAKEOVERS! Hijacking JSON and forcing injection...");
     
     const words = inputContent.split(' ').map(w => w.trim());
     const attacker = words[0]; 
