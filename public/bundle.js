@@ -64122,15 +64122,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const frame = useCurrentFrame();
     const { width, height } = useVideoConfig();
     const totalFrames = timeline?.totalFrames || 300;
-    const combinedGeoFeatures = (0, import_react121.useMemo)(() => {
-      const worldFeatures = world_default.features || [];
-      const indiaFeatures = india_default.features || [];
-      const filteredWorld = worldFeatures.filter((f2) => {
-        const name = (f2.properties?.NAME || f2.properties?.ADMIN || "").toLowerCase();
-        return name !== "india" && name !== "ind";
-      });
-      return [...filteredWorld, ...indiaFeatures];
-    }, []);
     const rawKeyframes = timeline?.cameraKeyframes || [];
     const validKeyframes = rawKeyframes.filter(
       (k2) => k2 && typeof k2.frame === "number" && typeof k2.lng === "number" && typeof k2.lat === "number"
@@ -64234,12 +64225,22 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       if (!mapRef.current || !mapLoaded || !countryName) return { path: "", center: null };
       const norm = countryName.trim().toLowerCase();
       let geom = null;
-      const matched = combinedGeoFeatures.find((f2) => {
-        const p2 = f2.properties || {};
-        const candidates = [p2.ADMIN, p2.admin, p2.NAME, p2.name, p2.SOVEREIGNT, p2.ISO_A3].filter(Boolean).map((v2) => String(v2).toLowerCase());
-        return candidates.includes(norm);
-      });
-      if (matched) geom = matched.geometry;
+      if (norm === "india" || norm === "ind" || norm === "bharat") {
+        try {
+          const indiaFeature = india_default.features?.[0] || india_default;
+          geom = indiaFeature?.geometry || indiaFeature;
+        } catch (e63) {
+        }
+      }
+      if (!geom) {
+        const features = world_default.features || [];
+        const matched = features.find((f2) => {
+          const p2 = f2.properties || {};
+          const candidates = [p2.ADMIN, p2.admin, p2.NAME, p2.name, p2.SOVEREIGNT, p2.ISO_A3].filter(Boolean).map((v2) => String(v2).toLowerCase());
+          return candidates.includes(norm);
+        });
+        if (matched) geom = matched.geometry;
+      }
       if (!geom) return { path: "", center: null };
       const rings = [];
       if (geom.type === "Polygon") {

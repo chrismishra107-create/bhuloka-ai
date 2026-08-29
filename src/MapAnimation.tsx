@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AbsoluteFill,
   useCurrentFrame,
@@ -30,18 +30,6 @@ export const MapAnimation: React.FC<{
   const { width, height } = useVideoConfig();
 
   const totalFrames = timeline?.totalFrames || 300;
-
-  const combinedGeoFeatures = useMemo(() => {
-    const worldFeatures = (worldData as any).features || [];
-    const indiaFeatures = (indiaData as any).features || [];
-    
-    const filteredWorld = worldFeatures.filter((f: any) => {
-      const name = (f.properties?.NAME || f.properties?.ADMIN || '').toLowerCase();
-      return name !== 'india' && name !== 'ind';
-    });
-    
-    return [...filteredWorld, ...indiaFeatures];
-  }, []);
 
   const rawKeyframes = timeline?.cameraKeyframes || [];
   const validKeyframes = rawKeyframes.filter(
@@ -148,7 +136,6 @@ export const MapAnimation: React.FC<{
     }
   }, [mapStyle]);
 
-  // 🚀 SYNCHRONOUS CAMERA LOCK: Fires during render, before SVGs project
   if (mapRef.current && mapLoaded) {
     mapRef.current.jumpTo({ 
       center: [currentLng, currentLat], 
@@ -163,15 +150,26 @@ export const MapAnimation: React.FC<{
     const norm = countryName.trim().toLowerCase();
     let geom: any = null;
 
-    const matched = combinedGeoFeatures.find((f: any) => {
-      const p = f.properties || {};
-      const candidates = [p.ADMIN, p.admin, p.NAME, p.name, p.SOVEREIGNT, p.ISO_A3]
-        .filter(Boolean)
-        .map((v) => String(v).toLowerCase());
-      return candidates.includes(norm);
-    });
+    // 🇮🇳 THE UNBREAKABLE INDIA OVERRIDE
+    if (norm === 'india' || norm === 'ind' || norm === 'bharat') {
+      try { 
+        const indiaFeature = (indiaData as any).features?.[0] || indiaData; 
+        geom = indiaFeature?.geometry || indiaFeature; 
+      } catch (e) {}
+    }
 
-    if (matched) geom = matched.geometry;
+    if (!geom) {
+      const features = (worldData as any).features || [];
+      const matched = features.find((f: any) => {
+        const p = f.properties || {};
+        const candidates = [p.ADMIN, p.admin, p.NAME, p.name, p.SOVEREIGNT, p.ISO_A3]
+          .filter(Boolean)
+          .map((v) => String(v).toLowerCase());
+        return candidates.includes(norm);
+      });
+      if (matched) geom = matched.geometry;
+    }
+
     if (!geom) return { path: '', center: null };
     
     const rings: [number, number][][] = [];
