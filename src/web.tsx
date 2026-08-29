@@ -38,7 +38,9 @@ const WebApp: React.FC = () => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragPos = useRef<{x: number, y: number} | null>(null);
   const activePointers = useRef<Map<number, {x: number, y: number}>>(new Map());
-  const previousPinch = useRef<{ dist: number, angle: number, centerY: number } | null>(null);
+  
+  // 🔥 UPGRADED: 2-Finger Math Ref 🔥
+  const previousPinch = useRef<{ dist: number, angle: number, centerY: number, centerX: number } | null>(null);
   
   const [targetLat, setTargetLat] = useState<number>(38.0);
   const [targetLng, setTargetLng] = useState<number>(127.0);
@@ -671,86 +673,110 @@ const WebApp: React.FC = () => {
                 />
 
                 {isLiveEdit && (
-                  <div 
-                    onContextMenu={(e) => e.preventDefault()} 
-                    onWheel={(e) => {
-                      setTargetZoom(z => Math.max(0.5, Math.min(15, z - (e.nativeEvent as WheelEvent).deltaY * 0.005)));
-                    }}
-                    onPointerDown={(e) => { 
-                      activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      if (activePointers.current.size === 1) {
-                        setIsDragging(true);
-                        dragPos.current = { x: e.clientX, y: e.clientY };
-                      } else if (activePointers.current.size === 2) {
-                        setIsDragging(false);
-                        const pts = Array.from(activePointers.current.values());
-                        const dx = pts[0].x - pts[1].x;
-                        const dy = pts[0].y - pts[1].y;
-                        previousPinch.current = { dist: Math.hypot(dx, dy), angle: Math.atan2(dy, dx), centerY: (pts[0].y + pts[1].y) / 2 };
-                      }
-                    }}
-                    onPointerUp={(e) => { 
-                      activePointers.current.delete(e.pointerId);
-                      e.currentTarget.releasePointerCapture(e.pointerId);
-                      if (activePointers.current.size < 2) previousPinch.current = null;
-                      if (activePointers.current.size === 0) setIsDragging(false);
-                      if (activePointers.current.size === 1) {
-                        const remainingPt = Array.from(activePointers.current.values())[0];
-                        dragPos.current = { x: remainingPt.x, y: remainingPt.y };
-                        setIsDragging(true);
-                      }
-                    }}
-                    onPointerLeave={(e) => { 
-                      activePointers.current.delete(e.pointerId);
-                      if (activePointers.current.size < 2) previousPinch.current = null;
-                      if (activePointers.current.size === 0) setIsDragging(false);
-                    }}
-                    onPointerMove={(e) => {
-                      if (!activePointers.current.has(e.pointerId)) return;
-                      activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-                      if (activePointers.current.size === 1 && isDragging && dragPos.current) {
-                        const dx = e.clientX - dragPos.current.x;
-                        const dy = e.clientY - dragPos.current.y;
-                        dragPos.current = { x: e.clientX, y: e.clientY };
-
-                        if (e.buttons === 2 || e.shiftKey || e.altKey) {
-                          setTargetPitch(p => Math.max(0, Math.min(85, p - dy * 0.4)));
-                          setTargetBearing(b => b + dx * 0.8);
-                        } else {
-                          const panSens = 0.2 / Math.max(0.5, targetZoom);
-                          setTargetLng(l => l - dx * panSens);
-                          setTargetLat(l => Math.max(-85, Math.min(85, l + dy * panSens)));
+                  <>
+                    <div 
+                      onContextMenu={(e) => e.preventDefault()} 
+                      onWheel={(e) => {
+                        setTargetZoom(z => Math.max(0.5, Math.min(15, z - (e.nativeEvent as WheelEvent).deltaY * 0.005)));
+                      }}
+                      onPointerDown={(e) => { 
+                        activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        if (activePointers.current.size === 1) {
+                          setIsDragging(true);
+                          dragPos.current = { x: e.clientX, y: e.clientY };
+                        } else if (activePointers.current.size === 2) {
+                          setIsDragging(false);
+                          const pts = Array.from(activePointers.current.values());
+                          const dx = pts[0].x - pts[1].x;
+                          const dy = pts[0].y - pts[1].y;
+                          previousPinch.current = { 
+                            dist: Math.hypot(dx, dy), 
+                            angle: Math.atan2(dy, dx), 
+                            centerY: (pts[0].y + pts[1].y) / 2,
+                            centerX: (pts[0].x + pts[1].x) / 2
+                          };
                         }
-                      } else if (activePointers.current.size === 2 && previousPinch.current) {
-                        const pts = Array.from(activePointers.current.values());
-                        const dx = pts[0].x - pts[1].x;
-                        const dy = pts[0].y - pts[1].y;
-                        const currentDist = Math.hypot(dx, dy);
-                        const currentAngle = Math.atan2(dy, dx);
-                        const currentCenterY = (pts[0].y + pts[1].y) / 2;
+                      }}
+                      onPointerUp={(e) => { 
+                        activePointers.current.delete(e.pointerId);
+                        e.currentTarget.releasePointerCapture(e.pointerId);
+                        if (activePointers.current.size < 2) previousPinch.current = null;
+                        if (activePointers.current.size === 0) setIsDragging(false);
+                        if (activePointers.current.size === 1) {
+                          const remainingPt = Array.from(activePointers.current.values())[0];
+                          dragPos.current = { x: remainingPt.x, y: remainingPt.y };
+                          setIsDragging(true);
+                        }
+                      }}
+                      onPointerLeave={(e) => { 
+                        activePointers.current.delete(e.pointerId);
+                        if (activePointers.current.size < 2) previousPinch.current = null;
+                        if (activePointers.current.size === 0) setIsDragging(false);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!activePointers.current.has(e.pointerId)) return;
+                        activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-                        const distDiff = currentDist - previousPinch.current.dist;
-                        let angleDiff = currentAngle - previousPinch.current.angle;
-                        const yDiff = currentCenterY - previousPinch.current.centerY;
+                        if (activePointers.current.size === 1 && isDragging && dragPos.current) {
+                          const dx = e.clientX - dragPos.current.x;
+                          const dy = e.clientY - dragPos.current.y;
+                          dragPos.current = { x: e.clientX, y: e.clientY };
 
-                        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                          if (e.buttons === 2 || e.shiftKey || e.altKey) {
+                            setTargetPitch(p => Math.max(0, Math.min(85, p - dy * 0.4)));
+                            setTargetBearing(b => b + dx * 0.8);
+                          } else {
+                            const panSens = 0.2 / Math.max(0.5, targetZoom);
+                            setTargetLng(l => l - dx * panSens);
+                            setTargetLat(l => Math.max(-85, Math.min(85, l + dy * panSens)));
+                          }
+                        } else if (activePointers.current.size === 2 && previousPinch.current) {
+                          const pts = Array.from(activePointers.current.values());
+                          const dx = pts[0].x - pts[1].x;
+                          const dy = pts[0].y - pts[1].y;
+                          const currentDist = Math.hypot(dx, dy);
+                          const currentAngle = Math.atan2(dy, dx);
+                          const currentCenterY = (pts[0].y + pts[1].y) / 2;
+                          const currentCenterX = (pts[0].x + pts[1].x) / 2;
 
-                        setTargetZoom(z => Math.max(0.5, Math.min(15, z + distDiff * 0.015)));
-                        setTargetBearing(b => b + angleDiff * (180 / Math.PI));
-                        
-                        if (Math.abs(yDiff) > Math.abs(distDiff) * 0.5) { setTargetPitch(p => Math.max(0, Math.min(85, p - yDiff * 0.2))); }
-                        previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY };
-                      }
-                    }}
-                    style={{ position: 'absolute', inset: 0, cursor: isDragging ? 'grabbing' : 'grab', zIndex: 50, touchAction: 'none' }}
-                  >
-                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '28px', height: '28px', border: '1.5px solid rgba(56,189,248,0.5)', borderRadius: '50%', pointerEvents: 'none' }}>
-                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '4px', height: '4px', background: pathStartCoord ? '#ef4444' : '#38bdf8', borderRadius: '50%' }} />
+                          const distDiff = currentDist - previousPinch.current.dist;
+                          let angleDiff = currentAngle - previousPinch.current.angle;
+                          const yDiff = currentCenterY - previousPinch.current.centerY;
+                          const xDiff = currentCenterX - previousPinch.current.centerX;
+
+                          if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                          if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                          // Mobile-calibrated sensitivity
+                          setTargetZoom(z => Math.max(0.5, Math.min(15, z + distDiff * 0.01)));
+                          setTargetBearing(b => b + angleDiff * 60);
+                          
+                          if (Math.abs(yDiff) > 2) { 
+                            setTargetPitch(p => Math.max(0, Math.min(85, p - yDiff * 0.4))); 
+                          }
+                          
+                          const panSens = 0.1 / Math.max(0.5, targetZoom);
+                          setTargetLng(l => l - xDiff * panSens);
+                          setTargetLat(l => Math.max(-85, Math.min(85, l + yDiff * panSens)));
+
+                          previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY, centerX: currentCenterX };
+                        }
+                      }}
+                      style={{ position: 'absolute', inset: 0, cursor: isDragging ? 'grabbing' : 'grab', zIndex: 50, touchAction: 'none' }}
+                    >
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '28px', height: '28px', border: '1.5px solid rgba(56,189,248,0.5)', borderRadius: '50%', pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '4px', height: '4px', background: pathStartCoord ? '#ef4444' : '#38bdf8', borderRadius: '50%' }} />
+                      </div>
                     </div>
-                  </div>
+                    
+                    {/* Mobile Controls HUD */}
+                    <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', padding: '8px 16px', borderRadius: '12px', fontSize: '10px', color: '#8e8e93', fontWeight: 600, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', gap: '12px', zIndex: 55 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>📱 <strong style={{ color: '#fff' }}>1 Finger</strong> Pan</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🤏 <strong style={{ color: '#fff' }}>2 Fingers</strong> Zoom/Twist</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>↕️ <strong style={{ color: '#fff' }}>2 Fingers</strong> Tilt</span>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

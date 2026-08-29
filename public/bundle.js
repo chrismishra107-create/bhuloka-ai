@@ -65145,82 +65145,111 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                 autoPlay: true
               }
             ),
-            isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-              "div",
-              {
-                onContextMenu: (e63) => e63.preventDefault(),
-                onWheel: (e63) => {
-                  setTargetZoom((z2) => Math.max(0.5, Math.min(15, z2 - e63.nativeEvent.deltaY * 5e-3)));
-                },
-                onPointerDown: (e63) => {
-                  activePointers.current.set(e63.pointerId, { x: e63.clientX, y: e63.clientY });
-                  e63.currentTarget.setPointerCapture(e63.pointerId);
-                  if (activePointers.current.size === 1) {
-                    setIsDragging(true);
-                    dragPos.current = { x: e63.clientX, y: e63.clientY };
-                  } else if (activePointers.current.size === 2) {
-                    setIsDragging(false);
-                    const pts = Array.from(activePointers.current.values());
-                    const dx2 = pts[0].x - pts[1].x;
-                    const dy2 = pts[0].y - pts[1].y;
-                    previousPinch.current = { dist: Math.hypot(dx2, dy2), angle: Math.atan2(dy2, dx2), centerY: (pts[0].y + pts[1].y) / 2 };
-                  }
-                },
-                onPointerUp: (e63) => {
-                  activePointers.current.delete(e63.pointerId);
-                  e63.currentTarget.releasePointerCapture(e63.pointerId);
-                  if (activePointers.current.size < 2) previousPinch.current = null;
-                  if (activePointers.current.size === 0) setIsDragging(false);
-                  if (activePointers.current.size === 1) {
-                    const remainingPt = Array.from(activePointers.current.values())[0];
-                    dragPos.current = { x: remainingPt.x, y: remainingPt.y };
-                    setIsDragging(true);
-                  }
-                },
-                onPointerLeave: (e63) => {
-                  activePointers.current.delete(e63.pointerId);
-                  if (activePointers.current.size < 2) previousPinch.current = null;
-                  if (activePointers.current.size === 0) setIsDragging(false);
-                },
-                onPointerMove: (e63) => {
-                  if (!activePointers.current.has(e63.pointerId)) return;
-                  activePointers.current.set(e63.pointerId, { x: e63.clientX, y: e63.clientY });
-                  if (activePointers.current.size === 1 && isDragging && dragPos.current) {
-                    const dx2 = e63.clientX - dragPos.current.x;
-                    const dy2 = e63.clientY - dragPos.current.y;
-                    dragPos.current = { x: e63.clientX, y: e63.clientY };
-                    if (e63.buttons === 2 || e63.shiftKey || e63.altKey) {
-                      setTargetPitch((p2) => Math.max(0, Math.min(85, p2 - dy2 * 0.4)));
-                      setTargetBearing((b4) => b4 + dx2 * 0.8);
-                    } else {
-                      const panSens = 0.2 / Math.max(0.5, targetZoom);
-                      setTargetLng((l2) => l2 - dx2 * panSens);
-                      setTargetLat((l2) => Math.max(-85, Math.min(85, l2 + dy2 * panSens)));
+            isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+                "div",
+                {
+                  onContextMenu: (e63) => e63.preventDefault(),
+                  onWheel: (e63) => {
+                    setTargetZoom((z2) => Math.max(0.5, Math.min(15, z2 - e63.nativeEvent.deltaY * 5e-3)));
+                  },
+                  onPointerDown: (e63) => {
+                    activePointers.current.set(e63.pointerId, { x: e63.clientX, y: e63.clientY });
+                    e63.currentTarget.setPointerCapture(e63.pointerId);
+                    if (activePointers.current.size === 1) {
+                      setIsDragging(true);
+                      dragPos.current = { x: e63.clientX, y: e63.clientY };
+                    } else if (activePointers.current.size === 2) {
+                      setIsDragging(false);
+                      const pts = Array.from(activePointers.current.values());
+                      const dx2 = pts[0].x - pts[1].x;
+                      const dy2 = pts[0].y - pts[1].y;
+                      previousPinch.current = {
+                        dist: Math.hypot(dx2, dy2),
+                        angle: Math.atan2(dy2, dx2),
+                        centerY: (pts[0].y + pts[1].y) / 2,
+                        centerX: (pts[0].x + pts[1].x) / 2
+                      };
                     }
-                  } else if (activePointers.current.size === 2 && previousPinch.current) {
-                    const pts = Array.from(activePointers.current.values());
-                    const dx2 = pts[0].x - pts[1].x;
-                    const dy2 = pts[0].y - pts[1].y;
-                    const currentDist = Math.hypot(dx2, dy2);
-                    const currentAngle = Math.atan2(dy2, dx2);
-                    const currentCenterY = (pts[0].y + pts[1].y) / 2;
-                    const distDiff = currentDist - previousPinch.current.dist;
-                    let angleDiff = currentAngle - previousPinch.current.angle;
-                    const yDiff = currentCenterY - previousPinch.current.centerY;
-                    if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                    setTargetZoom((z2) => Math.max(0.5, Math.min(15, z2 + distDiff * 0.015)));
-                    setTargetBearing((b4) => b4 + angleDiff * (180 / Math.PI));
-                    if (Math.abs(yDiff) > Math.abs(distDiff) * 0.5) {
-                      setTargetPitch((p2) => Math.max(0, Math.min(85, p2 - yDiff * 0.2)));
+                  },
+                  onPointerUp: (e63) => {
+                    activePointers.current.delete(e63.pointerId);
+                    e63.currentTarget.releasePointerCapture(e63.pointerId);
+                    if (activePointers.current.size < 2) previousPinch.current = null;
+                    if (activePointers.current.size === 0) setIsDragging(false);
+                    if (activePointers.current.size === 1) {
+                      const remainingPt = Array.from(activePointers.current.values())[0];
+                      dragPos.current = { x: remainingPt.x, y: remainingPt.y };
+                      setIsDragging(true);
                     }
-                    previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY };
-                  }
-                },
-                style: { position: "absolute", inset: 0, cursor: isDragging ? "grabbing" : "grab", zIndex: 50, touchAction: "none" },
-                children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "28px", height: "28px", border: "1.5px solid rgba(56,189,248,0.5)", borderRadius: "50%", pointerEvents: "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "4px", height: "4px", background: pathStartCoord ? "#ef4444" : "#38bdf8", borderRadius: "50%" } }) })
-              }
-            )
+                  },
+                  onPointerLeave: (e63) => {
+                    activePointers.current.delete(e63.pointerId);
+                    if (activePointers.current.size < 2) previousPinch.current = null;
+                    if (activePointers.current.size === 0) setIsDragging(false);
+                  },
+                  onPointerMove: (e63) => {
+                    if (!activePointers.current.has(e63.pointerId)) return;
+                    activePointers.current.set(e63.pointerId, { x: e63.clientX, y: e63.clientY });
+                    if (activePointers.current.size === 1 && isDragging && dragPos.current) {
+                      const dx2 = e63.clientX - dragPos.current.x;
+                      const dy2 = e63.clientY - dragPos.current.y;
+                      dragPos.current = { x: e63.clientX, y: e63.clientY };
+                      if (e63.buttons === 2 || e63.shiftKey || e63.altKey) {
+                        setTargetPitch((p2) => Math.max(0, Math.min(85, p2 - dy2 * 0.4)));
+                        setTargetBearing((b4) => b4 + dx2 * 0.8);
+                      } else {
+                        const panSens = 0.2 / Math.max(0.5, targetZoom);
+                        setTargetLng((l2) => l2 - dx2 * panSens);
+                        setTargetLat((l2) => Math.max(-85, Math.min(85, l2 + dy2 * panSens)));
+                      }
+                    } else if (activePointers.current.size === 2 && previousPinch.current) {
+                      const pts = Array.from(activePointers.current.values());
+                      const dx2 = pts[0].x - pts[1].x;
+                      const dy2 = pts[0].y - pts[1].y;
+                      const currentDist = Math.hypot(dx2, dy2);
+                      const currentAngle = Math.atan2(dy2, dx2);
+                      const currentCenterY = (pts[0].y + pts[1].y) / 2;
+                      const currentCenterX = (pts[0].x + pts[1].x) / 2;
+                      const distDiff = currentDist - previousPinch.current.dist;
+                      let angleDiff = currentAngle - previousPinch.current.angle;
+                      const yDiff = currentCenterY - previousPinch.current.centerY;
+                      const xDiff = currentCenterX - previousPinch.current.centerX;
+                      if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                      if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                      setTargetZoom((z2) => Math.max(0.5, Math.min(15, z2 + distDiff * 0.01)));
+                      setTargetBearing((b4) => b4 + angleDiff * 60);
+                      if (Math.abs(yDiff) > 2) {
+                        setTargetPitch((p2) => Math.max(0, Math.min(85, p2 - yDiff * 0.4)));
+                      }
+                      const panSens = 0.1 / Math.max(0.5, targetZoom);
+                      setTargetLng((l2) => l2 - xDiff * panSens);
+                      setTargetLat((l2) => Math.max(-85, Math.min(85, l2 + yDiff * panSens)));
+                      previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY, centerX: currentCenterX };
+                    }
+                  },
+                  style: { position: "absolute", inset: 0, cursor: isDragging ? "grabbing" : "grab", zIndex: 50, touchAction: "none" },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "28px", height: "28px", border: "1.5px solid rgba(56,189,248,0.5)", borderRadius: "50%", pointerEvents: "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "4px", height: "4px", background: pathStartCoord ? "#ef4444" : "#38bdf8", borderRadius: "50%" } }) })
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "absolute", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(10px)", padding: "8px 16px", borderRadius: "12px", fontSize: "10px", color: "#8e8e93", fontWeight: 600, pointerEvents: "none", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 10px 30px rgba(0,0,0,0.5)", display: "flex", gap: "12px", zIndex: 55 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { display: "flex", alignItems: "center", gap: "4px" }, children: [
+                  "\u{1F4F1} ",
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { style: { color: "#fff" }, children: "1 Finger" }),
+                  " Pan"
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { display: "flex", alignItems: "center", gap: "4px" }, children: [
+                  "\u{1F90F} ",
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { style: { color: "#fff" }, children: "2 Fingers" }),
+                  " Zoom/Twist"
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { display: "flex", alignItems: "center", gap: "4px" }, children: [
+                  "\u2195\uFE0F ",
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("strong", { style: { color: "#fff" }, children: "2 Fingers" }),
+                  " Tilt"
+                ] })
+              ] })
+            ] })
           ] }) }),
           isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, display: "flex", flexDirection: "column", gap: "14px", borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: rightPanelJSX })
         ] }),

@@ -25,7 +25,7 @@
       "enableGlow": true,
       "glowTarget": "both",
       "dropShadow": true,
-      "blendMode": "add",
+      "blendMode": "screen",
       "isPrimary": false,
       "startFrame": 0,
       "revealStyle": "ink"
@@ -37,24 +37,13 @@
   "cameraKeyframes": [
     {
       "frame": 0,
-      "zoom": 1.2,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "pitch": 45,
-      "bearing": 0,
-      "easing": "easeInOut"
-    },
-    {
-      "frame": 39,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "zoom": 6.2500001303851604,
-      "pitch": 45.5,
-      "bearing": -70,
+      "lat": 37.37499999999998,
+      "lng": 125.9583333333335,
+      "latitude": 37.37499999999998,
+      "longitude": 125.9583333333335,
+      "zoom": 1.1249999906867743,
+      "pitch": 52,
+      "bearing": 89,
       "easing": "easeInOut"
     }
   ],
