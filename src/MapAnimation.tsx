@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import {
   AbsoluteFill,
   useCurrentFrame,
@@ -48,11 +48,8 @@ export const MapAnimation: React.FC<{
   
   const strictlySortedKeyframes: any[] = [];
   let lastFrame = -1;
-  [...keyframes].sort((a, b) => a.frame - b.frame).forEach((kf) => {
-    if (kf.frame > lastFrame) { 
-      strictlySortedKeyframes.push(kf); 
-      lastFrame = kf.frame; 
-    }
+  [...keyframes].sort((a, b) => a.frame - b.frame).forEach(kf => {
+     if (kf.frame > lastFrame) { strictlySortedKeyframes.push(kf); lastFrame = kf.frame; }
   });
 
   const frameIndices = strictlySortedKeyframes.map((k) => k.frame);
@@ -81,52 +78,26 @@ export const MapAnimation: React.FC<{
     const buildRasterStyle = (url: string, saturation: number, contrast: number, brightnessMin: number, brightnessMax: number) => ({
       version: 8,
       sources: { raster_tiles: { type: 'raster', tiles: [url], tileSize: 256 } },
-      layers: [{ 
-        id: 'base-layer', 
-        type: 'raster', 
-        source: 'raster_tiles', 
-        paint: { 
-          'raster-saturation': saturation, 
-          'raster-contrast': contrast, 
-          'raster-brightness-min': brightnessMin, 
-          'raster-brightness-max': brightnessMax 
-        } 
-      }]
+      layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles', paint: { 'raster-saturation': saturation, 'raster-contrast': contrast, 'raster-brightness-min': brightnessMin, 'raster-brightness-max': brightnessMax } }]
     });
   
     switch (styleId) {
-      case 'dark': 
-        return buildRasterStyle('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', 0, 0, 0, 1);
-      case 'light': 
-        return buildRasterStyle('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', 0, 0, 0, 1);
-      case 'street': 
-        return buildRasterStyle('https://tile.openstreetmap.org/{z}/{x}/{y}.png', 0, 0, 0, 1);
-      default: 
-        return buildRasterStyle('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', -0.85, 0.25, 0.15, 0.8);
+      case 'dark': return buildRasterStyle('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', 0, 0, 0, 1);
+      case 'light': return buildRasterStyle('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', 0, 0, 0, 1);
+      case 'street': return buildRasterStyle('https://tile.openstreetmap.org/{z}/{x}/{y}.png', 0, 0, 0, 1);
+      default: return buildRasterStyle('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', -0.85, 0.25, 0.15, 0.8);
     }
   };
 
   useEffect(() => {
     if (!mapContainer.current) return;
     const map = new maplibregl.Map({
-      container: mapContainer.current, 
-      fadeDuration: 0, 
-      maxTileCacheSize: 5000,
-      renderWorldCopies: false,
+      container: mapContainer.current, fadeDuration: 0, maxTileCacheSize: 5000, renderWorldCopies: false,
       style: getStyleDef(mapStyle),
-      center: [safeLngs[0], safeLats[0]], 
-      zoom: safeZooms[0], 
-      pitch: safePitches[0], 
-      bearing: safeBearings[0], 
-      interactive: false, 
-      attributionControl: false,
+      center: [safeLngs[0], safeLats[0]], zoom: safeZooms[0], pitch: safePitches[0], bearing: safeBearings[0], interactive: false, attributionControl: false,
     });
 
-    map.on('load', () => { 
-      mapRef.current = map; 
-      setMapLoaded(true); 
-      continueRender(initialHandle); 
-    });
+    map.on('load', () => { mapRef.current = map; setMapLoaded(true); continueRender(initialHandle); });
     return () => map.remove();
   }, []);
 
@@ -136,35 +107,25 @@ export const MapAnimation: React.FC<{
     }
   }, [mapStyle]);
 
-  if (mapRef.current && mapLoaded) {
-    mapRef.current.jumpTo({ 
-      center: [currentLng, currentLat], 
-      zoom: currentZoom, 
-      pitch: currentPitch, 
-      bearing: currentBearing 
-    });
-  }
+  useLayoutEffect(() => {
+    if (!mapRef.current || !mapLoaded) return;
+    mapRef.current.jumpTo({ center: [currentLng, currentLat], zoom: currentZoom, pitch: currentPitch, bearing: currentBearing });
+  }, [currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded]);
 
   const getCountryGeometry = (countryName: string) => {
     if (!mapRef.current || !mapLoaded || !countryName) return { path: '', center: null as [number, number] | null };
     const norm = countryName.trim().toLowerCase();
     let geom: any = null;
 
-    // 🇮🇳 THE UNBREAKABLE INDIA OVERRIDE
     if (norm === 'india' || norm === 'ind' || norm === 'bharat') {
-      try { 
-        const indiaFeature = (indiaData as any).features?.[0] || indiaData; 
-        geom = indiaFeature?.geometry || indiaFeature; 
-      } catch (e) {}
+      try { const indiaFeature = (indiaData as any).features?.[0] || indiaData; geom = indiaFeature?.geometry || indiaFeature; } catch (e) {}
     }
 
     if (!geom) {
       const features = (worldData as any).features || [];
       const matched = features.find((f: any) => {
         const p = f.properties || {};
-        const candidates = [p.ADMIN, p.admin, p.NAME, p.name, p.SOVEREIGNT, p.ISO_A3]
-          .filter(Boolean)
-          .map((v) => String(v).toLowerCase());
+        const candidates = [p.ADMIN, p.admin, p.NAME, p.name, p.SOVEREIGNT, p.ISO_A3].filter(Boolean).map((v) => String(v).toLowerCase());
         return candidates.includes(norm);
       });
       if (matched) geom = matched.geometry;
@@ -173,25 +134,18 @@ export const MapAnimation: React.FC<{
     if (!geom) return { path: '', center: null };
     
     const rings: [number, number][][] = [];
-    if (geom.type === 'Polygon') {
-      geom.coordinates.forEach((r: any) => rings.push(r));
-    } else if (geom.type === 'MultiPolygon') {
-      geom.coordinates.forEach((poly: any) => poly.forEach((r: any) => rings.push(r)));
-    }
+    if (geom.type === 'Polygon') geom.coordinates.forEach((r: any) => rings.push(r));
+    else if (geom.type === 'MultiPolygon') geom.coordinates.forEach((poly: any) => poly.forEach((r: any) => rings.push(r)));
 
     const map = mapRef.current;
-    let totalX = 0; 
-    let totalY = 0; 
-    let pointCount = 0;
+    let totalX = 0; let totalY = 0; let pointCount = 0;
 
     const valid = rings.map((ring) => {
       const points = ring.map((coord: [number, number]) => {
         const p = map.project(coord);
         if (!p || isNaN(p.x) || isNaN(p.y) || p.y < -3000 || p.y > height + 3000) return null;
-        totalX += coord[0]; 
-        totalY += coord[1]; 
-        pointCount++;
-        return `${Math.round(p.x * 10) / 10},${Math.round(p.y * 10) / 10}`;
+        totalX += coord[0]; totalY += coord[1]; pointCount++;
+        return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
       }).filter(Boolean);
       if (points.length < 3) return '';
       return `M ${points.join(' L ')} Z`;
@@ -208,7 +162,7 @@ export const MapAnimation: React.FC<{
   const labels = (timeline as any).labels || [];
 
   const mapBlendMode = (mode: string) => {
-    const m = (mode || 'screen').toLowerCase();
+    const m = (mode || 'normal').toLowerCase();
     if (m === 'add') return 'color-dodge'; 
     return m;
   };
@@ -221,71 +175,61 @@ export const MapAnimation: React.FC<{
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#040711', overflow: 'hidden' }}>
-      <div 
-        ref={mapContainer} 
-        style={{ 
-          width: `${width}px`, 
-          height: `${height}px`, 
-          position: 'absolute', 
-          top: 0, 
-          left: 0,
-          transform: 'translateZ(0)'
-        }} 
-      />
-      
-      <div 
-        style={{ 
-          position: 'absolute', 
-          inset: 0, 
-          background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', 
-          pointerEvents: 'none', 
-          zIndex: 10 
-        }} 
-      />
+      <div ref={mapContainer} style={{ width: `${width}px`, height: `${height}px`, position: 'absolute', top: 0, left: 0 }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
 
       {mapLoaded && (
         <>
+          <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+            <defs>
+              <filter id="tactical-shadow" x="-40%" y="-40%" width="180%" height="180%">
+                <feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#000000" floodOpacity="0.95" />
+              </filter>
+              <filter id="ae-frontline-edge" x="-50%" y="-50%" width="200%" height="200%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="90" xChannelSelector="R" yChannelSelector="G" />
+              </filter>
+              <radialGradient id="frontline-gradient">
+                <stop offset="0%" stopColor="white" stopOpacity="1" />
+                <stop offset="65%" stopColor="white" stopOpacity="0.85" />
+                <stop offset="100%" stopColor="white" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+          </svg>
+
           {rawCountries.map((country: any, idx: number) => {
             if (frame < (country.startFrame || 0)) return null;
-            const isUnderTakeover = takeovers.some((t: any) => (t.target || '').toLowerCase() === (country.name || country.country || '').toLowerCase());
-            if (isUnderTakeover) return null;
+            const isTarget = takeovers.some((t: any) => (t.target || '').toLowerCase() === country.name.toLowerCase());
+            if (isTarget) return null; 
 
-            const { path } = getCountryGeometry(country.name || country.country);
+            const { path } = getCountryGeometry(country.name);
             if (!path) return null;
             
             const fillColor = country.color || '#1e3a8a'; 
             const strokeColor = country.strokeColor || '#ffffff';
-            const strokeWidth = typeof country.strokeWidth === 'number' ? country.strokeWidth : 2;
-            const enableGlow = country.enableGlow ?? true;
+            const strokeWidth = typeof country.strokeWidth === 'number' ? country.strokeWidth : 0;
+            const enableGlow = country.enableGlow === undefined ? true : country.enableGlow; 
+            const glowIntensity = typeof country.glowIntensity === 'number' ? country.glowIntensity : 20;
             const blendMode = mapBlendMode(country.blendMode);
+            const glowTarget = country.glowTarget || 'both';
+            const dropShadow = country.dropShadow === undefined ? true : country.dropShadow;
 
             return (
-              <svg 
-                key={`country-layer-${idx}`} 
-                style={{ 
-                  position: 'absolute', 
-                  inset: 0, 
-                  width: '100%', 
-                  height: '100%', 
-                  pointerEvents: 'none', 
-                  mixBlendMode: blendMode as any, 
-                  zIndex: 20 
-                }}
-              >
-                {enableGlow && (
+              <svg key={`base-${idx}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: blendMode as any, zIndex: 20 }}>
+                {dropShadow && <path d={path} fill="#000000" opacity={0.8} style={{ filter: 'blur(15px)' }} transform="translate(0, 15)" />}
+                {enableGlow && (glowTarget === 'fill' || glowTarget === 'both') && (
                   <>
-                    <path d={path} fill={fillColor} opacity={0.4} style={{ filter: 'blur(16px)' }} />
-                    <path d={path} fill={fillColor} opacity={0.6} style={{ filter: 'blur(6px)' }} />
+                    <path d={path} fill={fillColor} opacity={0.4} style={{ filter: `blur(${Math.max(2, glowIntensity)}px)` }} />
+                    <path d={path} fill={fillColor} opacity={0.6} style={{ filter: `blur(${Math.max(2, glowIntensity / 2.5)}px)` }} />
                   </>
                 )}
-                <path 
-                  d={path} 
-                  fill={fillColor} 
-                  stroke={strokeColor} 
-                  strokeWidth={strokeWidth} 
-                  strokeLinejoin="round" 
-                  opacity={0.9} 
-                />
+                {enableGlow && (glowTarget === 'stroke' || glowTarget === 'both') && strokeWidth > 0 && (
+                  <>
+                    <path d={path} fill="none" stroke={strokeColor} strokeWidth={strokeWidth * 3} opacity={0.5} style={{ filter: `blur(${Math.max(2, glowIntensity)}px)` }} />
+                    <path d={path} fill="none" stroke={strokeColor} strokeWidth={strokeWidth * 1.5} opacity={0.8} style={{ filter: `blur(${Math.max(2, glowIntensity / 3)}px)` }} />
+                  </>
+                )}
+                <path d={path} fill={glowTarget === 'stroke' ? 'transparent' : fillColor} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinejoin="round" opacity={0.9} />
               </svg>
             );
           })}
@@ -297,74 +241,64 @@ export const MapAnimation: React.FC<{
             if (!targetGeo.path) return null;
 
             const invaderName = takeover.attacker || takeover.invader;
-            const targetData: any = rawCountries.find((c: any) => (c.name || c.country || '').toLowerCase() === (takeover.target || '').toLowerCase()) || {};
-            const invaderData: any = rawCountries.find((c: any) => (c.name || c.country || '').toLowerCase() === (invaderName || '').toLowerCase()) || {};
+            const targetData: any = rawCountries.find((c: any) => c.name.toLowerCase() === (takeover.target || '').toLowerCase()) || {};
+            const invaderData: any = rawCountries.find((c: any) => c.name.toLowerCase() === (invaderName || '').toLowerCase()) || {};
 
             const tFill = targetData.color || '#1e3a8a';
-            const iFill = invaderData.color || takeover.color || '#ef4444';
             const tBlend = mapBlendMode(targetData.blendMode);
+            
+            const iFill = invaderData.color || takeover.color || '#ef4444';
             const iBlend = mapBlendMode(invaderData.blendMode || 'screen');
 
             if (frame < takeoverStart) {
               return (
-                <svg key={`target-pre-${idx}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: tBlend as any, zIndex: 20 }}>
-                  <path d={targetGeo.path} fill={tFill} opacity={0.85} stroke="#ffffff" strokeWidth={1.5} />
+                <svg key={`target-base-${idx}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', mixBlendMode: tBlend as any, zIndex: 20 }}>
+                  <path d={targetGeo.path} fill={tFill} opacity={0.85} />
                 </svg>
               );
             }
 
             const elapsed = frame - takeoverStart;
-            const radius = interpolate(
-              elapsed, 
-              [0, takeoverDuration], 
-              [0, Math.max(width, height) * 1.4], 
-              { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.1, 0.25, 1) }
-            );
+            const radius = interpolate(elapsed, [0, takeoverDuration], [0, Math.max(width, height) * 1.5], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
 
-            let cx = width / 2; 
-            let cy = height / 2;
-            if (invaderData.name || invaderData.country) {
-              const invaderGeo = getCountryGeometry(invaderData.name || invaderData.country);
-              if (invaderGeo.center) {
-                const proj = mapRef.current?.project(invaderGeo.center);
-                if (proj && !isNaN(proj.x) && !isNaN(proj.y)) { 
-                  cx = proj.x; 
-                  cy = proj.y; 
-                }
-              }
+            let cx = width / 2; let cy = height / 2;
+            if (invaderData.name) {
+               const invaderGeo = getCountryGeometry(invaderData.name);
+               if (invaderGeo.center) {
+                  const proj = mapRef.current?.project(invaderGeo.center);
+                  if (proj && !isNaN(proj.x) && !isNaN(proj.y)) { cx = proj.x; cy = proj.y; }
+               }
             }
 
             return (
-              <React.Fragment key={`takeover-${idx}`}>
-                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: tBlend as any, zIndex: 20 }}>
-                  <path d={targetGeo.path} fill={tFill} opacity={0.85} stroke="#ffffff" strokeWidth={1} />
+              <React.Fragment key={`takeover-layer-${idx}`}>
+                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', mixBlendMode: tBlend as any, zIndex: 20 }}>
+                  <path d={targetGeo.path} fill={tFill} opacity={0.85} />
                 </svg>
-                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: iBlend as any, zIndex: 21 }}>
+                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', mixBlendMode: iBlend as any, zIndex: 21 }}>
                   <defs>
-                    <clipPath id={`takeover-clip-${idx}`}>
-                      <circle cx={cx} cy={cy} r={radius} />
-                    </clipPath>
+                    <mask id={`frontline-mask-${idx}`}>
+                      <rect x="-3000" y="-3000" width="10000" height="10000" fill="black" />
+                      <circle cx={cx} cy={cy} r={radius} fill="url(#frontline-gradient)" filter="url(#ae-frontline-edge)" />
+                    </mask>
                   </defs>
-                  <g clipPath={`url(#takeover-clip-${idx})`}>
-                    <path d={targetGeo.path} fill={iFill} opacity={0.95} stroke="#ffffff" strokeWidth={2} />
+                  <g mask={`url(#frontline-mask-${idx})`}>
+                    <path d={targetGeo.path} fill={iFill} opacity={0.9} />
                   </g>
                 </svg>
               </React.Fragment>
             );
           })}
 
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 30, shapeRendering: 'geometricPrecision' }}>
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 40, shapeRendering: 'geometricPrecision' }}>
             {arrows.map((arrow: any, idx: number) => {
               const startF = arrow.startFrame || arrow.frame || 0;
               if (frame < startF) return null;
               
-              let c1 = arrow.origin; 
-              let c2 = arrow.target;
+              let c1 = arrow.origin; let c2 = arrow.target;
               if (arrow.sourceName && arrow.targetName) {
-                const geo1 = getCountryGeometry(arrow.sourceName); 
-                const geo2 = getCountryGeometry(arrow.targetName);
-                if (geo1.center) c1 = geo1.center; 
-                if (geo2.center) c2 = geo2.center;
+                 const geo1 = getCountryGeometry(arrow.sourceName); const geo2 = getCountryGeometry(arrow.targetName);
+                 if (geo1.center) c1 = geo1.center; if (geo2.center) c2 = geo2.center;
               }
               if (!c1 || !c2) return null;
               
@@ -372,51 +306,44 @@ export const MapAnimation: React.FC<{
               const p2 = mapRef.current?.project(c2 as [number, number]);
               if (!p1 || !p2 || isNaN(p1.x) || isNaN(p2.x)) return null;
 
-              const dx = p2.x - p1.x; 
-              const dy = p2.y - p1.y;
+              const dx = p2.x - p1.x; const dy = p2.y - p1.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
               if (dist < 1) return null;
 
-              const nx = -dy / dist; 
-              const ny = dx / dist; 
-              const arcHeight = dist * 0.35;
-              const midX = (p1.x + p2.x) / 2 + nx * arcHeight; 
-              const midY = (p1.y + p2.y) / 2 + ny * arcHeight;
+              const nx = -dy / dist; const ny = dx / dist; const arcHeight = dist * 0.38;
+              const midX = (p1.x + p2.x) / 2 + nx * arcHeight; const midY = (p1.y + p2.y) / 2 + ny * arcHeight;
               const pathD = `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
 
-              const t = interpolate(
-                frame - startF, 
-                [0, 45], 
-                [0, 1], 
-                { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.1, 0.25, 1) }
-              );
+              const t = interpolate(frame - startF, [0, 45], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
               
               if (arrow.type === 'missile') {
                 const headPos = getBezierPoint(t, [p1.x, p1.y], [midX, midY], [p2.x, p2.y]);
                 return (
                   <g key={`missile-${idx}`}>
-                    <path d={pathD} fill="none" stroke="#ffffff" strokeWidth="3" opacity={0.8} strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} />
+                    <path d={pathD} fill="none" stroke="#ffffff" strokeWidth="3" opacity={0.6} strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} style={{ filter: 'blur(1px)' }} />
+                    <path d={pathD} fill="none" stroke="#ef4444" strokeWidth="8" opacity={0.3} strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} style={{ filter: 'blur(6px)' }} />
                     {t < 1 && (
                       <g transform={`translate(${headPos[0]}, ${headPos[1]})`}>
-                        <circle cx="0" cy="0" r="8" fill="#ef4444" opacity={0.7} />
-                        <circle cx="0" cy="0" r="4" fill="#ffffff" />
+                        <circle cx="0" cy="0" r="12" fill="#ef4444" opacity={0.6} style={{ filter: 'blur(8px)' }} />
+                        <circle cx="0" cy="0" r="6" fill="#ffffff" style={{ filter: 'blur(2px)' }} />
+                        <circle cx="0" cy="0" r="3" fill="#ffffff" />
                       </g>
                     )}
                     {t === 1 && (
                       <g transform={`translate(${p2.x}, ${p2.y})`}>
-                        <circle cx="0" cy="0" r={interpolate(frame - startF - 45, [0, 15], [0, 80], { extrapolateRight: 'clamp', easing: Easing.out(Easing.exp) })} fill="none" stroke="#ef4444" strokeWidth={interpolate(frame - startF - 45, [0, 15], [8, 0], { extrapolateRight: 'clamp' })} />
-                        <circle cx="0" cy="0" r={interpolate(frame - startF - 45, [0, 10], [0, 30], { extrapolateRight: 'clamp' })} fill="#ffffff" opacity={interpolate(frame - startF - 45, [0, 10], [1, 0], { extrapolateRight: 'clamp' })} />
+                        <circle cx="0" cy="0" r={interpolate(frame - startF - 45, [0, 15], [0, 100], {extrapolateRight: 'clamp', easing: Easing.out(Easing.exp)})} fill="none" stroke="#ef4444" strokeWidth={interpolate(frame - startF - 45, [0, 15], [10, 0], {extrapolateRight: 'clamp'})} style={{ filter: 'blur(4px)' }} />
+                        <circle cx="0" cy="0" r={interpolate(frame - startF - 45, [0, 10], [0, 40], {extrapolateRight: 'clamp'})} fill="#ffffff" opacity={interpolate(frame - startF - 45, [0, 10], [1, 0], {extrapolateRight: 'clamp'})} style={{ filter: 'blur(2px)' }} />
                       </g>
                     )}
                   </g>
                 );
               } else {
-                const sourceData = rawCountries.find((c: any) => (c.name || c.country || '').toLowerCase() === (arrow.sourceName || '').toLowerCase());
+                const sourceData = rawCountries.find((c: any) => c.name.toLowerCase() === (arrow.sourceName || '').toLowerCase());
                 const arrowColor = arrow.color || sourceData?.color || "#ef4444";
                 return (
-                  <g key={`arrow-${idx}`}>
-                    <path d={pathD} fill="none" stroke={arrowColor} strokeWidth="5" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} />
-                    <path d={pathD} fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} />
+                  <g key={`arrow-${idx}`} filter="url(#tactical-shadow)">
+                    <path d={pathD} fill="none" stroke={arrowColor} strokeWidth="6" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} />
+                    <path d={pathD} fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} />
                   </g>
                 );
               }
@@ -428,9 +355,9 @@ export const MapAnimation: React.FC<{
               if (!p || isNaN(p.x) || isNaN(p.y)) return null;
 
               if (asset.type === 'pin') {
-                const dropY = interpolate(frame - asset.startFrame, [0, 15], [-40, 0], { extrapolateRight: 'clamp', easing: Easing.bounce });
+                const dropY = interpolate(frame - asset.startFrame, [0, 15], [-50, 0], { extrapolateRight: 'clamp', easing: Easing.bounce });
                 return (
-                  <g key={asset.id} transform={`translate(${p.x}, ${p.y + dropY})`}>
+                  <g key={asset.id} transform={`translate(${p.x}, ${p.y + dropY})`} filter="url(#tactical-shadow)">
                     <path d="M0 -24 C -8 -24, -14 -18, -14 -10 C -14 0, 0 12, 0 12 C 0 12, 14 0, 14 -10 C 14 -18, 8 -24, 0 -24 Z" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
                     <circle cx="0" cy="-12" r="4" fill="#ffffff" />
                   </g>
@@ -438,13 +365,13 @@ export const MapAnimation: React.FC<{
               }
               
               if (asset.type === 'explosion') {
-                const ringR = interpolate(frame - asset.startFrame, [0, 20], [0, 70], { extrapolateRight: 'clamp', easing: Easing.out(Easing.exp) });
+                const ringR = interpolate(frame - asset.startFrame, [0, 20], [0, 80], { extrapolateRight: 'clamp', easing: Easing.out(Easing.exp) });
                 const opacity = interpolate(frame - asset.startFrame, [0, 20], [1, 0], { extrapolateRight: 'clamp' });
                 return (
                   <g key={asset.id} transform={`translate(${p.x}, ${p.y})`}>
-                    <circle cx="0" cy="0" r={ringR} fill="none" stroke="#f59e0b" strokeWidth={opacity * 10} />
-                    <circle cx="0" cy="0" r={ringR * 0.7} fill="none" stroke="#ffffff" strokeWidth={opacity * 4} />
-                    <circle cx="0" cy="0" r={ringR * 0.3} fill="#ef4444" opacity={opacity} />
+                    <circle cx="0" cy="0" r={ringR} fill="none" stroke="#f59e0b" strokeWidth={opacity * 15} style={{ filter: 'blur(6px)' }} />
+                    <circle cx="0" cy="0" r={ringR * 0.8} fill="none" stroke="#ffffff" strokeWidth={opacity * 5} />
+                    <circle cx="0" cy="0" r={ringR * 0.3} fill="#ef4444" opacity={opacity} style={{ filter: 'blur(8px)' }} />
                   </g>
                 );
               }
@@ -452,7 +379,7 @@ export const MapAnimation: React.FC<{
             })}
           </svg>
 
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 40 }}>
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 70 }}>
             {labels.map((l: any, i: number) => {
               if (frame < (l.startFrame || 0)) return null;
               const p = mapRef.current?.project([l.lng, l.lat]);
@@ -460,68 +387,24 @@ export const MapAnimation: React.FC<{
               if (frame > (l.startFrame + (l.duration || 150)) && !l.pinned) return null;
 
               return (
-                <div 
-                  key={l.id || `lbl-${i}`} 
-                  style={{ 
-                    position: 'absolute', 
-                    left: `${p.x}px`, 
-                    top: `${p.y}px`, 
-                    transform: 'translate(-50%, -100%)', 
-                    background: l.bg || 'rgba(0,0,0,0.75)', 
-                    color: l.color || '#ffffff', 
-                    fontSize: `${l.size || 24}px`, 
-                    fontWeight: 700, 
-                    padding: '4px 12px', 
-                    borderRadius: '8px', 
-                    border: l.glow ? `1.5px solid ${l.color || '#ffffff'}` : '1px solid rgba(255,255,255,0.2)', 
-                    boxShadow: l.glow ? `0 0 12px ${l.color || '#ffffff'}80` : '0 4px 12px rgba(0,0,0,0.5)', 
-                    whiteSpace: 'nowrap', 
-                    marginTop: '-10px',
-                    pointerEvents: 'none'
-                  }}
-                >
+                <div key={l.id || `lbl-${i}`} style={{ position: 'absolute', left: `${p.x}px`, top: `${p.y}px`, transform: 'translate(-50%, -100%)', background: l.bg || 'rgba(0,0,0,0.7)', color: l.color || '#ffffff', fontSize: `${l.size || 24}px`, fontWeight: 700, padding: '4px 12px', borderRadius: '8px', border: l.glow ? `1px solid ${l.color || '#ffffff'}` : 'none', boxShadow: l.glow ? `0 0 15px ${l.color || '#ffffff'}80` : 'none', whiteSpace: 'nowrap', marginTop: '-10px' }}>
                   {l.text}
-                  <div 
-                    style={{ 
-                      position: 'absolute', 
-                      bottom: '-4px', 
-                      left: '50%', 
-                      transform: 'translateX(-50%)', 
-                      borderTop: `4px solid ${l.bg || 'rgba(0,0,0,0.75)'}`, 
-                      borderLeft: '4px solid transparent', 
-                      borderRight: '4px solid transparent' 
-                    }} 
-                  />
+                  <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', borderTop: `4px solid ${l.bg || 'rgba(0,0,0,0.7)'}`, borderLeft: '4px solid transparent', borderRight: '4px solid transparent' }} />
                 </div>
               );
             })}
           </div>
 
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 50 }}>
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 60 }}>
             {rawCountries.map((country: any, idx: number) => {
               if (frame < (country.startFrame || 0)) return null;
-              const { path } = getCountryGeometry(country.name || country.country);
+              const { path } = getCountryGeometry(country.name);
               if (!path) return null;
-              const isSelected = selectedCountry === (country.name || country.country);
+              const isSelected = selectedCountry === country.name;
               return (
                 <g key={`hitbox-${idx}`}>
-                  {isSelected && (
-                    <path 
-                      d={path} 
-                      fill="none" 
-                      stroke="#ffffff" 
-                      strokeWidth="2.5" 
-                      strokeDasharray="6 6" 
-                    />
-                  )}
-                  <path 
-                    d={path} 
-                    fill="transparent" 
-                    stroke="transparent" 
-                    strokeWidth="20" 
-                    style={{ cursor: 'crosshair' }} 
-                    onClick={() => setSelectedCountry(country.name || country.country)} 
-                  />
+                  {isSelected && <path d={path} fill="none" stroke="#ffffff" strokeWidth="3" strokeDasharray="8 8" />}
+                  <path d={path} fill="transparent" stroke="transparent" strokeWidth="20" style={{ cursor: 'crosshair' }} onClick={() => setSelectedCountry(country.name)} />
                 </g>
               );
             })}
