@@ -64121,6 +64121,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [selectedCountry, setSelectedCountry] = (0, import_react121.useState)(null);
     const frame = useCurrentFrame();
     const { width, height } = useVideoConfig();
+    const { isRendering } = getRemotionEnvironment();
     const totalFrames = timeline?.totalFrames || 300;
     const rawKeyframes = timeline?.cameraKeyframes || [];
     const validKeyframes = rawKeyframes.filter(
@@ -64181,8 +64182,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       const map = new Ap2({
         container: mapContainer.current,
         fadeDuration: 0,
-        maxTileCacheSize: 5e3,
+        maxTileCacheSize: isRendering ? 5e3 : 20,
         renderWorldCopies: false,
+        pixelRatio: isRendering ? 2 : 0.5,
+        // Drops preview quality for buttery phone speed
         style: getStyleDef(mapStyle),
         center: [safeLngs[0], safeLats[0]],
         zoom: safeZooms[0],
@@ -64267,9 +64270,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     };
     return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(AbsoluteFill, { style: { backgroundColor: "#040711", overflow: "hidden" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { ref: mapContainer, style: { width: `${width}px`, height: `${height}px`, position: "absolute", top: 0, left: 0 } }),
-      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)", pointerEvents: "none", zIndex: 10 } }),
+      isRendering && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)", pointerEvents: "none", zIndex: 10 } }),
       mapLoaded && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(import_jsx_runtime59.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", width: 0, height: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("defs", { children: [
+        isRendering && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", width: 0, height: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("defs", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("filter", { id: "tactical-shadow", x: "-40%", y: "-40%", width: "180%", height: "180%", children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feDropShadow", { dx: "0", dy: "10", stdDeviation: "12", floodColor: "#000000", floodOpacity: "0.95" }) }),
           /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("filter", { id: "ae-frontline-edge", x: "-50%", y: "-50%", width: "200%", height: "200%", children: [
             /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feTurbulence", { type: "fractalNoise", baseFrequency: "0.035", numOctaves: "4", result: "noise" }),
@@ -64296,14 +64299,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           const glowTarget = country.glowTarget || "both";
           const dropShadow = country.dropShadow === void 0 ? true : country.dropShadow;
           return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", mixBlendMode: blendMode, zIndex: 20 }, children: [
-            dropShadow && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "#000000", opacity: 0.8, style: { filter: "blur(15px)" }, transform: "translate(0, 15)" }),
-            enableGlow && (glowTarget === "fill" || glowTarget === "both") && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(import_jsx_runtime59.Fragment, { children: [
+            dropShadow && isRendering && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "#000000", opacity: 0.8, style: { filter: "blur(15px)" }, transform: "translate(0, 15)" }),
+            enableGlow && isRendering && (glowTarget === "fill" || glowTarget === "both") && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(import_jsx_runtime59.Fragment, { children: [
               /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: fillColor, opacity: 0.4, style: { filter: `blur(${Math.max(2, glowIntensity)}px)` } }),
               /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: fillColor, opacity: 0.6, style: { filter: `blur(${Math.max(2, glowIntensity / 2.5)}px)` } })
-            ] }),
-            enableGlow && (glowTarget === "stroke" || glowTarget === "both") && strokeWidth > 0 && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(import_jsx_runtime59.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "none", stroke: strokeColor, strokeWidth: strokeWidth * 3, opacity: 0.5, style: { filter: `blur(${Math.max(2, glowIntensity)}px)` } }),
-              /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "none", stroke: strokeColor, strokeWidth: strokeWidth * 1.5, opacity: 0.8, style: { filter: `blur(${Math.max(2, glowIntensity / 3)}px)` } })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: glowTarget === "stroke" ? "transparent" : fillColor, stroke: strokeColor, strokeWidth, strokeLinejoin: "round", opacity: 0.9 })
           ] }, `base-${idx}`);
@@ -64342,7 +64341,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", mixBlendMode: iBlend, zIndex: 21 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("defs", { children: /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("mask", { id: `frontline-mask-${idx}`, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("rect", { x: "-3000", y: "-3000", width: "10000", height: "10000", fill: "black" }),
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: cx2, cy: cy2, r: radius, fill: "url(#frontline-gradient)", filter: "url(#ae-frontline-edge)" })
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: cx2, cy: cy2, r: radius, fill: isRendering ? "url(#frontline-gradient)" : "white", filter: isRendering ? "url(#ae-frontline-edge)" : "" })
               ] }) }),
               /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("g", { mask: `url(#frontline-mask-${idx})`, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: targetGeo.path, fill: iFill, opacity: 0.9 }) })
             ] })
@@ -64378,22 +64377,22 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             if (arrow.type === "missile") {
               const headPos = getBezierPoint(t3, [p1.x, p1.y], [midX, midY], [p2.x, p2.y]);
               return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ffffff", strokeWidth: "3", opacity: 0.6, strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100, style: { filter: "blur(1px)" } }),
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ef4444", strokeWidth: "8", opacity: 0.3, strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100, style: { filter: "blur(6px)" } }),
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ffffff", strokeWidth: "3", opacity: 0.6, strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100, style: { filter: isRendering ? "blur(1px)" : "none" } }),
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ef4444", strokeWidth: "8", opacity: 0.3, strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100, style: { filter: isRendering ? "blur(6px)" : "none" } }),
                 t3 < 1 && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${headPos[0]}, ${headPos[1]})`, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "12", fill: "#ef4444", opacity: 0.6, style: { filter: "blur(8px)" } }),
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "6", fill: "#ffffff", style: { filter: "blur(2px)" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "12", fill: "#ef4444", opacity: 0.6, style: { filter: isRendering ? "blur(8px)" : "none" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "6", fill: "#ffffff", style: { filter: isRendering ? "blur(2px)" : "none" } }),
                   /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "3", fill: "#ffffff" })
                 ] }),
                 t3 === 1 && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${p2.x}, ${p2.y})`, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: interpolate(frame - startF - 45, [0, 15], [0, 100], { extrapolateRight: "clamp", easing: Easing.out(Easing.exp) }), fill: "none", stroke: "#ef4444", strokeWidth: interpolate(frame - startF - 45, [0, 15], [10, 0], { extrapolateRight: "clamp" }), style: { filter: "blur(4px)" } }),
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: interpolate(frame - startF - 45, [0, 10], [0, 40], { extrapolateRight: "clamp" }), fill: "#ffffff", opacity: interpolate(frame - startF - 45, [0, 10], [1, 0], { extrapolateRight: "clamp" }), style: { filter: "blur(2px)" } })
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: interpolate(frame - startF - 45, [0, 15], [0, 100], { extrapolateRight: "clamp", easing: Easing.out(Easing.exp) }), fill: "none", stroke: "#ef4444", strokeWidth: interpolate(frame - startF - 45, [0, 15], [10, 0], { extrapolateRight: "clamp" }), style: { filter: isRendering ? "blur(4px)" : "none" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: interpolate(frame - startF - 45, [0, 10], [0, 40], { extrapolateRight: "clamp" }), fill: "#ffffff", opacity: interpolate(frame - startF - 45, [0, 10], [1, 0], { extrapolateRight: "clamp" }), style: { filter: isRendering ? "blur(2px)" : "none" } })
                 ] })
               ] }, `missile-${idx}`);
             } else {
               const sourceData = rawCountries.find((c4) => c4.name.toLowerCase() === (arrow.sourceName || "").toLowerCase());
               const arrowColor = arrow.color || sourceData?.color || "#ef4444";
-              return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { filter: "url(#tactical-shadow)", children: [
+              return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { filter: isRendering ? "url(#tactical-shadow)" : "", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: arrowColor, strokeWidth: "6", strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100 }),
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ffffff", strokeWidth: "2", strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100 })
               ] }, `arrow-${idx}`);
@@ -64405,7 +64404,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             if (!p2 || isNaN(p2.x) || isNaN(p2.y)) return null;
             if (asset.type === "pin") {
               const dropY = interpolate(frame - asset.startFrame, [0, 15], [-50, 0], { extrapolateRight: "clamp", easing: Easing.bounce });
-              return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${p2.x}, ${p2.y + dropY})`, filter: "url(#tactical-shadow)", children: [
+              return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${p2.x}, ${p2.y + dropY})`, filter: isRendering ? "url(#tactical-shadow)" : "", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: "M0 -24 C -8 -24, -14 -18, -14 -10 C -14 0, 0 12, 0 12 C 0 12, 14 0, 14 -10 C 14 -18, 8 -24, 0 -24 Z", fill: "#ef4444", stroke: "#ffffff", strokeWidth: "2" }),
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "-12", r: "4", fill: "#ffffff" })
               ] }, asset.id);
@@ -64414,9 +64413,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
               const ringR = interpolate(frame - asset.startFrame, [0, 20], [0, 80], { extrapolateRight: "clamp", easing: Easing.out(Easing.exp) });
               const opacity2 = interpolate(frame - asset.startFrame, [0, 20], [1, 0], { extrapolateRight: "clamp" });
               return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${p2.x}, ${p2.y})`, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR, fill: "none", stroke: "#f59e0b", strokeWidth: opacity2 * 15, style: { filter: "blur(6px)" } }),
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR, fill: "none", stroke: "#f59e0b", strokeWidth: opacity2 * 15, style: { filter: isRendering ? "blur(6px)" : "none" } }),
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR * 0.8, fill: "none", stroke: "#ffffff", strokeWidth: opacity2 * 5 }),
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR * 0.3, fill: "#ef4444", opacity: opacity2, style: { filter: "blur(8px)" } })
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR * 0.3, fill: "#ef4444", opacity: opacity2, style: { filter: isRendering ? "blur(8px)" : "none" } })
               ] }, asset.id);
             }
             return null;
@@ -64427,7 +64426,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           const p2 = mapRef.current?.project([l2.lng, l2.lat]);
           if (!p2 || isNaN(p2.x) || isNaN(p2.y)) return null;
           if (frame > l2.startFrame + (l2.duration || 150) && !l2.pinned) return null;
-          return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("div", { style: { position: "absolute", left: `${p2.x}px`, top: `${p2.y}px`, transform: "translate(-50%, -100%)", background: l2.bg || "rgba(0,0,0,0.7)", color: l2.color || "#ffffff", fontSize: `${l2.size || 24}px`, fontWeight: 700, padding: "4px 12px", borderRadius: "8px", border: l2.glow ? `1px solid ${l2.color || "#ffffff"}` : "none", boxShadow: l2.glow ? `0 0 15px ${l2.color || "#ffffff"}80` : "none", whiteSpace: "nowrap", marginTop: "-10px" }, children: [
+          return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("div", { style: { position: "absolute", left: `${p2.x}px`, top: `${p2.y}px`, transform: "translate(-50%, -100%)", background: l2.bg || "rgba(0,0,0,0.7)", color: l2.color || "#ffffff", fontSize: `${l2.size || 24}px`, fontWeight: 700, padding: "4px 12px", borderRadius: "8px", border: l2.glow && isRendering ? `1px solid ${l2.color || "#ffffff"}` : "none", boxShadow: l2.glow && isRendering ? `0 0 15px ${l2.color || "#ffffff"}80` : "none", whiteSpace: "nowrap", marginTop: "-10px" }, children: [
             l2.text,
             /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", bottom: "-4px", left: "50%", transform: "translateX(-50%)", borderTop: `4px solid ${l2.bg || "rgba(0,0,0,0.7)"}`, borderLeft: "4px solid transparent", borderRight: "4px solid transparent" } })
           ] }, l2.id || `lbl-${i2}`);

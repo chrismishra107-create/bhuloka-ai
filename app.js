@@ -7,11 +7,9 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
-// Serve static assets from public folder
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/out', express.static(path.join(__dirname, 'out')));
 
-// Force root URL to serve the compiled React Studio HTML directly
 app.get('/', (req, res) => {
   const studioPath = path.join(__dirname, 'public', 'studio.html');
   if (fs.existsSync(studioPath)) {
@@ -20,7 +18,6 @@ app.get('/', (req, res) => {
   res.status(404).send('studio.html not found in public folder. Did you run your build?');
 });
 
-// Waitlist Route
 app.get('/waitlist', (req, res) => {
   const filePath = path.join(__dirname, 'public', 'landing.html');
   if (!fs.existsSync(filePath)) {
@@ -35,7 +32,6 @@ app.get('/waitlist', (req, res) => {
   res.send(html);
 });
 
-// Pipeline endpoint for video generation (Full MP4 Render)
 app.post('/api/run-pipeline', (req, res) => {
   const { prompt } = req.body;
   console.log(`\n[Studio] Processing Prompt: "${prompt}"`);
@@ -66,7 +62,6 @@ app.post('/api/run-pipeline', (req, res) => {
   });
 });
 
-// Live Endpoint for the React UI Player
 app.post('/api/generate', (req, res) => {
   const { prompt } = req.body;
   console.log(`\n[Live Studio] AI generating timeline for: "${prompt}"`);
@@ -94,7 +89,6 @@ app.post('/api/generate', (req, res) => {
   });
 });
 
-// Full MP4 Download Render
 app.post('/api/render', (req, res) => {
   const { timeline } = req.body;
   if (!timeline) return res.status(400).send("Timeline data missing");
@@ -110,15 +104,15 @@ app.post('/api/render', (req, res) => {
 
   try {
     fs.writeFileSync(promptPath, JSON.stringify(timeline, null, 2));
-    console.log(`[Studio] Starting MP4 Export Render for: ${outputFileName}...`);
+    console.log(`[Studio] Starting Memory-Safe MP4 Export Render for: ${outputFileName}...`);
 
-    // Using Map3D composition identifier
-    const command = `npx remotion render src/index.ts Map3D "${outputPath}" --props="${promptPath}" --concurrency=1`;
+    // 🔥 MEMORY SAFE FLAGS: --concurrency=1 prevents Render.com's 512MB RAM from overflowing instantly
+    const command = `npx remotion render src/index.ts Map3D "${outputPath}" --props="${promptPath}" --concurrency=1 --gl=angle`;
     
     exec(command, (error, stdout, stderr) => {
       if (error) {
         console.error(`Remotion Error: ${stderr || error.message}`);
-        return res.status(500).send("Backend rendering failed. Check CLI logs.");
+        return res.status(500).send("Backend rendering failed on Render.com due to memory limit. Use Remotion Lambda.");
       }
       
       console.log(`[Studio] Export complete! Sending MP4 to browser...`);

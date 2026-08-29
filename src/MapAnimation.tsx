@@ -7,6 +7,7 @@ import {
   useVideoConfig,
   delayRender,
   continueRender,
+  getRemotionEnvironment,
 } from 'remotion';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -28,6 +29,9 @@ export const MapAnimation: React.FC<{
 
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
+  
+  // 🔥 GEOLAYERS TRICK: Detects if we are live previewing or exporting MP4
+  const { isRendering } = getRemotionEnvironment();
 
   const totalFrames = timeline?.totalFrames || 300;
 
@@ -92,9 +96,18 @@ export const MapAnimation: React.FC<{
   useEffect(() => {
     if (!mapContainer.current) return;
     const map = new maplibregl.Map({
-      container: mapContainer.current, fadeDuration: 0, maxTileCacheSize: 5000, renderWorldCopies: false,
+      container: mapContainer.current, 
+      fadeDuration: 0, 
+      maxTileCacheSize: isRendering ? 5000 : 20, 
+      renderWorldCopies: false,
+      pixelRatio: isRendering ? 2 : 0.5, // Drops preview quality for buttery phone speed
       style: getStyleDef(mapStyle),
-      center: [safeLngs[0], safeLats[0]], zoom: safeZooms[0], pitch: safePitches[0], bearing: safeBearings[0], interactive: false, attributionControl: false,
+      center: [safeLngs[0], safeLats[0]], 
+      zoom: safeZooms[0], 
+      pitch: safePitches[0], 
+      bearing: safeBearings[0], 
+      interactive: false, 
+      attributionControl: false,
     });
 
     map.on('load', () => { mapRef.current = map; setMapLoaded(true); continueRender(initialHandle); });
@@ -176,26 +189,31 @@ export const MapAnimation: React.FC<{
   return (
     <AbsoluteFill style={{ backgroundColor: '#040711', overflow: 'hidden' }}>
       <div ref={mapContainer} style={{ width: `${width}px`, height: `${height}px`, position: 'absolute', top: 0, left: 0 }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
+      
+      {isRendering && (
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
+      )}
 
       {mapLoaded && (
         <>
-          <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-            <defs>
-              <filter id="tactical-shadow" x="-40%" y="-40%" width="180%" height="180%">
-                <feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#000000" floodOpacity="0.95" />
-              </filter>
-              <filter id="ae-frontline-edge" x="-50%" y="-50%" width="200%" height="200%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" result="noise" />
-                <feDisplacementMap in="SourceGraphic" in2="noise" scale="90" xChannelSelector="R" yChannelSelector="G" />
-              </filter>
-              <radialGradient id="frontline-gradient">
-                <stop offset="0%" stopColor="white" stopOpacity="1" />
-                <stop offset="65%" stopColor="white" stopOpacity="0.85" />
-                <stop offset="100%" stopColor="white" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-          </svg>
+          {isRendering && (
+            <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+              <defs>
+                <filter id="tactical-shadow" x="-40%" y="-40%" width="180%" height="180%">
+                  <feDropShadow dx="0" dy="10" stdDeviation="12" floodColor="#000000" floodOpacity="0.95" />
+                </filter>
+                <filter id="ae-frontline-edge" x="-50%" y="-50%" width="200%" height="200%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" result="noise" />
+                  <feDisplacementMap in="SourceGraphic" in2="noise" scale="90" xChannelSelector="R" yChannelSelector="G" />
+                </filter>
+                <radialGradient id="frontline-gradient">
+                  <stop offset="0%" stopColor="white" stopOpacity="1" />
+                  <stop offset="65%" stopColor="white" stopOpacity="0.85" />
+                  <stop offset="100%" stopColor="white" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+            </svg>
+          )}
 
           {rawCountries.map((country: any, idx: number) => {
             if (frame < (country.startFrame || 0)) return null;
@@ -216,19 +234,16 @@ export const MapAnimation: React.FC<{
 
             return (
               <svg key={`base-${idx}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: blendMode as any, zIndex: 20 }}>
-                {dropShadow && <path d={path} fill="#000000" opacity={0.8} style={{ filter: 'blur(15px)' }} transform="translate(0, 15)" />}
-                {enableGlow && (glowTarget === 'fill' || glowTarget === 'both') && (
+                {dropShadow && isRendering && <path d={path} fill="#000000" opacity={0.8} style={{ filter: 'blur(15px)' }} transform="translate(0, 15)" />}
+                
+                {/* Performance gate: Bypasses expensive glow blurs during live preview */}
+                {enableGlow && isRendering && (glowTarget === 'fill' || glowTarget === 'both') && (
                   <>
                     <path d={path} fill={fillColor} opacity={0.4} style={{ filter: `blur(${Math.max(2, glowIntensity)}px)` }} />
                     <path d={path} fill={fillColor} opacity={0.6} style={{ filter: `blur(${Math.max(2, glowIntensity / 2.5)}px)` }} />
                   </>
                 )}
-                {enableGlow && (glowTarget === 'stroke' || glowTarget === 'both') && strokeWidth > 0 && (
-                  <>
-                    <path d={path} fill="none" stroke={strokeColor} strokeWidth={strokeWidth * 3} opacity={0.5} style={{ filter: `blur(${Math.max(2, glowIntensity)}px)` }} />
-                    <path d={path} fill="none" stroke={strokeColor} strokeWidth={strokeWidth * 1.5} opacity={0.8} style={{ filter: `blur(${Math.max(2, glowIntensity / 3)}px)` }} />
-                  </>
-                )}
+                
                 <path d={path} fill={glowTarget === 'stroke' ? 'transparent' : fillColor} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinejoin="round" opacity={0.9} />
               </svg>
             );
@@ -279,7 +294,7 @@ export const MapAnimation: React.FC<{
                   <defs>
                     <mask id={`frontline-mask-${idx}`}>
                       <rect x="-3000" y="-3000" width="10000" height="10000" fill="black" />
-                      <circle cx={cx} cy={cy} r={radius} fill="url(#frontline-gradient)" filter="url(#ae-frontline-edge)" />
+                      <circle cx={cx} cy={cy} r={radius} fill={isRendering ? "url(#frontline-gradient)" : "white"} filter={isRendering ? "url(#ae-frontline-edge)" : ""} />
                     </mask>
                   </defs>
                   <g mask={`url(#frontline-mask-${idx})`}>
@@ -320,19 +335,19 @@ export const MapAnimation: React.FC<{
                 const headPos = getBezierPoint(t, [p1.x, p1.y], [midX, midY], [p2.x, p2.y]);
                 return (
                   <g key={`missile-${idx}`}>
-                    <path d={pathD} fill="none" stroke="#ffffff" strokeWidth="3" opacity={0.6} strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} style={{ filter: 'blur(1px)' }} />
-                    <path d={pathD} fill="none" stroke="#ef4444" strokeWidth="8" opacity={0.3} strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} style={{ filter: 'blur(6px)' }} />
+                    <path d={pathD} fill="none" stroke="#ffffff" strokeWidth="3" opacity={0.6} strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} style={{ filter: isRendering ? 'blur(1px)' : 'none' }} />
+                    <path d={pathD} fill="none" stroke="#ef4444" strokeWidth="8" opacity={0.3} strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} style={{ filter: isRendering ? 'blur(6px)' : 'none' }} />
                     {t < 1 && (
                       <g transform={`translate(${headPos[0]}, ${headPos[1]})`}>
-                        <circle cx="0" cy="0" r="12" fill="#ef4444" opacity={0.6} style={{ filter: 'blur(8px)' }} />
-                        <circle cx="0" cy="0" r="6" fill="#ffffff" style={{ filter: 'blur(2px)' }} />
+                        <circle cx="0" cy="0" r="12" fill="#ef4444" opacity={0.6} style={{ filter: isRendering ? 'blur(8px)' : 'none' }} />
+                        <circle cx="0" cy="0" r="6" fill="#ffffff" style={{ filter: isRendering ? 'blur(2px)' : 'none' }} />
                         <circle cx="0" cy="0" r="3" fill="#ffffff" />
                       </g>
                     )}
                     {t === 1 && (
                       <g transform={`translate(${p2.x}, ${p2.y})`}>
-                        <circle cx="0" cy="0" r={interpolate(frame - startF - 45, [0, 15], [0, 100], {extrapolateRight: 'clamp', easing: Easing.out(Easing.exp)})} fill="none" stroke="#ef4444" strokeWidth={interpolate(frame - startF - 45, [0, 15], [10, 0], {extrapolateRight: 'clamp'})} style={{ filter: 'blur(4px)' }} />
-                        <circle cx="0" cy="0" r={interpolate(frame - startF - 45, [0, 10], [0, 40], {extrapolateRight: 'clamp'})} fill="#ffffff" opacity={interpolate(frame - startF - 45, [0, 10], [1, 0], {extrapolateRight: 'clamp'})} style={{ filter: 'blur(2px)' }} />
+                        <circle cx="0" cy="0" r={interpolate(frame - startF - 45, [0, 15], [0, 100], {extrapolateRight: 'clamp', easing: Easing.out(Easing.exp)})} fill="none" stroke="#ef4444" strokeWidth={interpolate(frame - startF - 45, [0, 15], [10, 0], {extrapolateRight: 'clamp'})} style={{ filter: isRendering ? 'blur(4px)' : 'none' }} />
+                        <circle cx="0" cy="0" r={interpolate(frame - startF - 45, [0, 10], [0, 40], {extrapolateRight: 'clamp'})} fill="#ffffff" opacity={interpolate(frame - startF - 45, [0, 10], [1, 0], {extrapolateRight: 'clamp'})} style={{ filter: isRendering ? 'blur(2px)' : 'none' }} />
                       </g>
                     )}
                   </g>
@@ -341,7 +356,7 @@ export const MapAnimation: React.FC<{
                 const sourceData = rawCountries.find((c: any) => c.name.toLowerCase() === (arrow.sourceName || '').toLowerCase());
                 const arrowColor = arrow.color || sourceData?.color || "#ef4444";
                 return (
-                  <g key={`arrow-${idx}`} filter="url(#tactical-shadow)">
+                  <g key={`arrow-${idx}`} filter={isRendering ? "url(#tactical-shadow)" : ""}>
                     <path d={pathD} fill="none" stroke={arrowColor} strokeWidth="6" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} />
                     <path d={pathD} fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - t * 100} />
                   </g>
@@ -357,7 +372,7 @@ export const MapAnimation: React.FC<{
               if (asset.type === 'pin') {
                 const dropY = interpolate(frame - asset.startFrame, [0, 15], [-50, 0], { extrapolateRight: 'clamp', easing: Easing.bounce });
                 return (
-                  <g key={asset.id} transform={`translate(${p.x}, ${p.y + dropY})`} filter="url(#tactical-shadow)">
+                  <g key={asset.id} transform={`translate(${p.x}, ${p.y + dropY})`} filter={isRendering ? "url(#tactical-shadow)" : ""}>
                     <path d="M0 -24 C -8 -24, -14 -18, -14 -10 C -14 0, 0 12, 0 12 C 0 12, 14 0, 14 -10 C 14 -18, 8 -24, 0 -24 Z" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
                     <circle cx="0" cy="-12" r="4" fill="#ffffff" />
                   </g>
@@ -369,9 +384,9 @@ export const MapAnimation: React.FC<{
                 const opacity = interpolate(frame - asset.startFrame, [0, 20], [1, 0], { extrapolateRight: 'clamp' });
                 return (
                   <g key={asset.id} transform={`translate(${p.x}, ${p.y})`}>
-                    <circle cx="0" cy="0" r={ringR} fill="none" stroke="#f59e0b" strokeWidth={opacity * 15} style={{ filter: 'blur(6px)' }} />
+                    <circle cx="0" cy="0" r={ringR} fill="none" stroke="#f59e0b" strokeWidth={opacity * 15} style={{ filter: isRendering ? 'blur(6px)' : 'none' }} />
                     <circle cx="0" cy="0" r={ringR * 0.8} fill="none" stroke="#ffffff" strokeWidth={opacity * 5} />
-                    <circle cx="0" cy="0" r={ringR * 0.3} fill="#ef4444" opacity={opacity} style={{ filter: 'blur(8px)' }} />
+                    <circle cx="0" cy="0" r={ringR * 0.3} fill="#ef4444" opacity={opacity} style={{ filter: isRendering ? 'blur(8px)' : 'none' }} />
                   </g>
                 );
               }
@@ -387,7 +402,7 @@ export const MapAnimation: React.FC<{
               if (frame > (l.startFrame + (l.duration || 150)) && !l.pinned) return null;
 
               return (
-                <div key={l.id || `lbl-${i}`} style={{ position: 'absolute', left: `${p.x}px`, top: `${p.y}px`, transform: 'translate(-50%, -100%)', background: l.bg || 'rgba(0,0,0,0.7)', color: l.color || '#ffffff', fontSize: `${l.size || 24}px`, fontWeight: 700, padding: '4px 12px', borderRadius: '8px', border: l.glow ? `1px solid ${l.color || '#ffffff'}` : 'none', boxShadow: l.glow ? `0 0 15px ${l.color || '#ffffff'}80` : 'none', whiteSpace: 'nowrap', marginTop: '-10px' }}>
+                <div key={l.id || `lbl-${i}`} style={{ position: 'absolute', left: `${p.x}px`, top: `${p.y}px`, transform: 'translate(-50%, -100%)', background: l.bg || 'rgba(0,0,0,0.7)', color: l.color || '#ffffff', fontSize: `${l.size || 24}px`, fontWeight: 700, padding: '4px 12px', borderRadius: '8px', border: l.glow && isRendering ? `1px solid ${l.color || '#ffffff'}` : 'none', boxShadow: l.glow && isRendering ? `0 0 15px ${l.color || '#ffffff'}80` : 'none', whiteSpace: 'nowrap', marginTop: '-10px' }}>
                   {l.text}
                   <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', borderTop: `4px solid ${l.bg || 'rgba(0,0,0,0.7)'}`, borderLeft: '4px solid transparent', borderRight: '4px solid transparent' }} />
                 </div>
