@@ -64113,11 +64113,14 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
 
   // src/MapAnimation.tsx
   var import_jsx_runtime59 = __toESM(require_jsx_runtime());
+  var statesData = { features: [] };
+  var riversData = { features: [] };
+  var citiesData = { features: [] };
   var MapAnimation = ({ timeline, mapStyle = "satellite" }) => {
     const mapContainer = (0, import_react121.useRef)(null);
     const mapRef = (0, import_react121.useRef)(null);
     const [mapLoaded, setMapLoaded] = (0, import_react121.useState)(false);
-    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Bhuloka Tactical Engine..."));
+    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Core Map Engine..."));
     const [selectedCountry, setSelectedCountry] = (0, import_react121.useState)(null);
     const frame = useCurrentFrame();
     const { width, height } = useVideoConfig();
@@ -64125,15 +64128,21 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const totalFrames = timeline?.totalFrames || 300;
     const rawKeyframes = timeline?.cameraKeyframes || [];
     const validKeyframes = rawKeyframes.filter(
-      (k2) => k2 && typeof k2.frame === "number" && typeof k2.lng === "number" && typeof k2.lat === "number"
-    );
-    const safeInitLng = validKeyframes[0]?.lng ?? 127;
-    const safeInitLat = validKeyframes[0]?.lat ?? 38;
+      (k2) => k2 && typeof k2.frame === "number" && (typeof k2.lng === "number" || typeof k2.latitude === "number")
+    ).map((k2) => ({
+      frame: k2.frame,
+      lng: k2.lng ?? k2.longitude ?? 127,
+      lat: k2.lat ?? k2.latitude ?? 38,
+      zoom: k2.zoom ?? 1.2,
+      pitch: Math.min(60, k2.pitch ?? 0),
+      // Prevents excessive rotation & tearing
+      bearing: k2.bearing ?? 0
+    }));
     const fallbackKeyframes = [
-      { frame: 0, lng: safeInitLng, lat: safeInitLat, zoom: 4.2, pitch: 15 },
-      { frame: totalFrames, lng: safeInitLng, lat: safeInitLat, zoom: 5.5, pitch: 40 }
+      { frame: 0, lng: 79, lat: 22, zoom: 4.2, pitch: 15, bearing: 0 },
+      { frame: totalFrames, lng: 88, lat: 31, zoom: 5.5, pitch: 40, bearing: 0 }
     ];
-    const keyframes = validKeyframes.length > 1 ? validKeyframes : fallbackKeyframes;
+    const keyframes = validKeyframes.length > 0 ? validKeyframes : fallbackKeyframes;
     const strictlySortedKeyframes = [];
     let lastFrame = -1;
     [...keyframes].sort((a4, b4) => a4.frame - b4.frame).forEach((kf3) => {
@@ -64168,11 +64177,12 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       });
       switch (styleId) {
         case "dark":
-          return buildRasterStyle("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", 0, 0, 0, 1);
+          return buildRasterStyle("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", -1, 0.4, 0.02, 0.25);
         case "light":
           return buildRasterStyle("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", 0, 0, 0, 1);
         case "street":
           return buildRasterStyle("https://tile.openstreetmap.org/{z}/{x}/{y}.png", 0, 0, 0, 1);
+        case "satellite":
         default:
           return buildRasterStyle("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", -0.85, 0.25, 0.15, 0.8);
       }
@@ -64182,15 +64192,15 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       const map = new Ap2({
         container: mapContainer.current,
         fadeDuration: 0,
-        maxTileCacheSize: isRendering ? 5e3 : 20,
+        maxTileCacheSize: 50,
         renderWorldCopies: false,
-        pixelRatio: isRendering ? 2 : 0.5,
-        // Drops preview quality for buttery phone speed
+        pixelRatio: isRendering ? 2 : 1,
         style: getStyleDef(mapStyle),
         center: [safeLngs[0], safeLats[0]],
         zoom: safeZooms[0],
         pitch: safePitches[0],
         bearing: safeBearings[0],
+        maxPitch: 60,
         interactive: false,
         attributionControl: false
       });
@@ -64200,40 +64210,46 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         continueRender(initialHandle);
       });
       return () => map.remove();
-    }, []);
-    (0, import_react121.useEffect)(() => {
-      if (mapRef.current && mapLoaded) {
-        mapRef.current.setStyle(getStyleDef(mapStyle));
-      }
     }, [mapStyle]);
-    (0, import_react121.useLayoutEffect)(() => {
+    (0, import_react121.useEffect)(() => {
       if (!mapRef.current || !mapLoaded) return;
-      mapRef.current.jumpTo({ center: [currentLng, currentLat], zoom: currentZoom, pitch: currentPitch, bearing: currentBearing });
+      mapRef.current.jumpTo({
+        center: [currentLng, currentLat],
+        zoom: currentZoom,
+        pitch: currentPitch,
+        bearing: currentBearing
+      });
     }, [currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded]);
-    const getCountryGeometry = (countryName) => {
-      if (!mapRef.current || !mapLoaded || !countryName) return { path: "", center: null };
-      const norm = countryName.trim().toLowerCase();
+    const getGeometryFromSource = (name, dataSources) => {
+      if (!mapRef.current || !mapLoaded || !name) return { path: "", center: null };
+      const norm = name.trim().toLowerCase();
       let geom = null;
       if (norm === "india" || norm === "ind" || norm === "bharat") {
         try {
-          const indiaFeature = india_default.features?.[0] || india_default;
-          geom = indiaFeature?.geometry || indiaFeature;
+          geom = india_default.features?.[0]?.geometry || india_default;
         } catch (e63) {
         }
       }
       if (!geom) {
-        const features = world_default.features || [];
-        const matched = features.find((f2) => {
-          const p2 = f2.properties || {};
-          const candidates = [p2.ADMIN, p2.admin, p2.NAME, p2.name, p2.SOVEREIGNT, p2.ISO_A3].filter(Boolean).map((v2) => String(v2).toLowerCase());
-          return candidates.includes(norm);
-        });
-        if (matched) geom = matched.geometry;
+        for (const source of dataSources) {
+          const features = source?.features || [];
+          const matched = features.find((f2) => {
+            const p2 = f2.properties || {};
+            const candidates = [p2.ADMIN, p2.admin, p2.NAME, p2.name, p2.SOVEREIGNT, p2.ISO_A3].filter(Boolean).map((v2) => String(v2).toLowerCase());
+            return candidates.includes(norm);
+          });
+          if (matched) {
+            geom = matched.geometry;
+            break;
+          }
+        }
       }
       if (!geom) return { path: "", center: null };
       const rings = [];
       if (geom.type === "Polygon") geom.coordinates.forEach((r2) => rings.push(r2));
       else if (geom.type === "MultiPolygon") geom.coordinates.forEach((poly) => poly.forEach((r2) => rings.push(r2)));
+      else if (geom.type === "LineString") rings.push(geom.coordinates);
+      else if (geom.type === "MultiLineString") geom.coordinates.forEach((line) => rings.push(line));
       const map = mapRef.current;
       let totalX = 0;
       let totalY = 0;
@@ -64247,13 +64263,15 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           pointCount++;
           return `${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
         }).filter(Boolean);
-        if (points.length < 3) return "";
-        return `M ${points.join(" L ")} Z`;
+        if (points.length < 2) return "";
+        const isLine = geom.type.includes("Line");
+        return isLine ? `M ${points.join(" L ")}` : `M ${points.join(" L ")} Z`;
       }).filter(Boolean);
       const centroid = pointCount > 0 ? [totalX / pointCount, totalY / pointCount] : null;
       return { path: valid.join(" "), center: centroid };
     };
     const rawCountries = timeline.highlightCountries || [];
+    const rawStates = timeline.highlightStates || [];
     const takeovers = timeline.takeovers || [];
     const arrows = timeline.arrows || [];
     const assets = timeline.assets || [];
@@ -64270,9 +64288,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     };
     return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(AbsoluteFill, { style: { backgroundColor: "#040711", overflow: "hidden" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { ref: mapContainer, style: { width: `${width}px`, height: `${height}px`, position: "absolute", top: 0, left: 0 } }),
-      isRendering && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)", pointerEvents: "none", zIndex: 10 } }),
+      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)", pointerEvents: "none", zIndex: 10 } }),
       mapLoaded && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(import_jsx_runtime59.Fragment, { children: [
-        isRendering && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", width: 0, height: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("defs", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", width: 0, height: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("defs", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("filter", { id: "tactical-shadow", x: "-40%", y: "-40%", width: "180%", height: "180%", children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feDropShadow", { dx: "0", dy: "10", stdDeviation: "12", floodColor: "#000000", floodOpacity: "0.95" }) }),
           /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("filter", { id: "ae-frontline-edge", x: "-50%", y: "-50%", width: "200%", height: "200%", children: [
             /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feTurbulence", { type: "fractalNoise", baseFrequency: "0.035", numOctaves: "4", result: "noise" }),
@@ -64284,37 +64302,36 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("stop", { offset: "100%", stopColor: "white", stopOpacity: "0" })
           ] })
         ] }) }),
-        rawCountries.map((country, idx) => {
-          if (frame < (country.startFrame || 0)) return null;
-          const isTarget = takeovers.some((t3) => (t3.target || "").toLowerCase() === country.name.toLowerCase());
+        [...rawCountries, ...rawStates].map((entity, idx) => {
+          if (frame < (entity.startFrame || 0)) return null;
+          const eName = entity.name || entity.country || entity.state;
+          const isTarget = takeovers.some((t3) => (t3.target || "").toLowerCase() === eName.toLowerCase());
           if (isTarget) return null;
-          const { path } = getCountryGeometry(country.name);
+          const { path } = getGeometryFromSource(eName, [world_default, statesData, riversData, citiesData]);
           if (!path) return null;
-          const fillColor = country.color || "#1e3a8a";
-          const strokeColor = country.strokeColor || "#ffffff";
-          const strokeWidth = typeof country.strokeWidth === "number" ? country.strokeWidth : 0;
-          const enableGlow = country.enableGlow === void 0 ? true : country.enableGlow;
-          const glowIntensity = typeof country.glowIntensity === "number" ? country.glowIntensity : 20;
-          const blendMode = mapBlendMode(country.blendMode);
-          const glowTarget = country.glowTarget || "both";
-          const dropShadow = country.dropShadow === void 0 ? true : country.dropShadow;
+          const fillColor = entity.color || "#1e3a8a";
+          const strokeColor = entity.strokeColor || "#ffffff";
+          const strokeWidth = typeof entity.strokeWidth === "number" ? entity.strokeWidth : 0;
+          const enableGlow = entity.enableGlow === void 0 ? true : entity.enableGlow;
+          const glowIntensity = typeof entity.glowIntensity === "number" ? entity.glowIntensity : 20;
+          const blendMode = mapBlendMode(entity.blendMode);
+          const glowTarget = entity.glowTarget || "both";
+          const dropShadow = entity.dropShadow === void 0 ? true : entity.dropShadow;
+          const isClosedPath = path.endsWith("Z");
           return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", mixBlendMode: blendMode, zIndex: 20 }, children: [
-            dropShadow && isRendering && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "#000000", opacity: 0.8, style: { filter: "blur(15px)" }, transform: "translate(0, 15)" }),
-            enableGlow && isRendering && (glowTarget === "fill" || glowTarget === "both") && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(import_jsx_runtime59.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: fillColor, opacity: 0.4, style: { filter: `blur(${Math.max(2, glowIntensity)}px)` } }),
-              /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: fillColor, opacity: 0.6, style: { filter: `blur(${Math.max(2, glowIntensity / 2.5)}px)` } })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: glowTarget === "stroke" ? "transparent" : fillColor, stroke: strokeColor, strokeWidth, strokeLinejoin: "round", opacity: 0.9 })
+            dropShadow && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: isClosedPath ? "#000000" : "none", stroke: !isClosedPath ? "#000000" : "none", strokeWidth: strokeWidth || 2, opacity: 0.8, style: { filter: "blur(15px)" }, transform: "translate(0, 15)" }),
+            enableGlow && (glowTarget === "fill" || glowTarget === "both") && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: isClosedPath ? fillColor : "none", stroke: !isClosedPath ? fillColor : "none", strokeWidth: strokeWidth || 2, opacity: 0.55, style: { filter: `blur(${Math.max(2, glowIntensity / 1.5)}px)` } }),
+            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: isClosedPath && glowTarget !== "stroke" ? fillColor : "transparent", stroke: strokeColor, strokeWidth, strokeLinejoin: "round", opacity: 0.9 })
           ] }, `base-${idx}`);
         }),
         takeovers.map((takeover, idx) => {
           const takeoverStart = takeover.startFrame || 0;
           const takeoverDuration = Math.max(takeover.duration || 120, 90);
-          const targetGeo = getCountryGeometry(takeover.target);
+          const targetGeo = getGeometryFromSource(takeover.target, [world_default, statesData]);
           if (!targetGeo.path) return null;
           const invaderName = takeover.attacker || takeover.invader;
-          const targetData = rawCountries.find((c4) => c4.name.toLowerCase() === (takeover.target || "").toLowerCase()) || {};
-          const invaderData = rawCountries.find((c4) => c4.name.toLowerCase() === (invaderName || "").toLowerCase()) || {};
+          const targetData = rawCountries.find((c4) => (c4.name || c4.country || "").toLowerCase() === (takeover.target || "").toLowerCase()) || {};
+          const invaderData = rawCountries.find((c4) => (c4.name || c4.country || "").toLowerCase() === (invaderName || "").toLowerCase()) || {};
           const tFill = targetData.color || "#1e3a8a";
           const tBlend = mapBlendMode(targetData.blendMode);
           const iFill = invaderData.color || takeover.color || "#ef4444";
@@ -64326,8 +64343,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           const radius = interpolate(elapsed, [0, takeoverDuration], [0, Math.max(width, height) * 1.5], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
           let cx2 = width / 2;
           let cy2 = height / 2;
-          if (invaderData.name) {
-            const invaderGeo = getCountryGeometry(invaderData.name);
+          const invName = invaderData.name || invaderData.country;
+          if (invName) {
+            const invaderGeo = getGeometryFromSource(invName, [world_default, statesData]);
             if (invaderGeo.center) {
               const proj = mapRef.current?.project(invaderGeo.center);
               if (proj && !isNaN(proj.x) && !isNaN(proj.y)) {
@@ -64341,7 +64359,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", mixBlendMode: iBlend, zIndex: 21 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("defs", { children: /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("mask", { id: `frontline-mask-${idx}`, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("rect", { x: "-3000", y: "-3000", width: "10000", height: "10000", fill: "black" }),
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: cx2, cy: cy2, r: radius, fill: isRendering ? "url(#frontline-gradient)" : "white", filter: isRendering ? "url(#ae-frontline-edge)" : "" })
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: cx2, cy: cy2, r: radius, fill: "url(#frontline-gradient)", filter: "url(#ae-frontline-edge)" })
               ] }) }),
               /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("g", { mask: `url(#frontline-mask-${idx})`, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: targetGeo.path, fill: iFill, opacity: 0.9 }) })
             ] })
@@ -64354,8 +64372,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             let c1 = arrow.origin;
             let c22 = arrow.target;
             if (arrow.sourceName && arrow.targetName) {
-              const geo1 = getCountryGeometry(arrow.sourceName);
-              const geo2 = getCountryGeometry(arrow.targetName);
+              const geo1 = getGeometryFromSource(arrow.sourceName, [world_default, statesData]);
+              const geo2 = getGeometryFromSource(arrow.targetName, [world_default, statesData]);
               if (geo1.center) c1 = geo1.center;
               if (geo2.center) c22 = geo2.center;
             }
@@ -64377,22 +64395,23 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             if (arrow.type === "missile") {
               const headPos = getBezierPoint(t3, [p1.x, p1.y], [midX, midY], [p2.x, p2.y]);
               return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ffffff", strokeWidth: "3", opacity: 0.6, strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100, style: { filter: isRendering ? "blur(1px)" : "none" } }),
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ef4444", strokeWidth: "8", opacity: 0.3, strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100, style: { filter: isRendering ? "blur(6px)" : "none" } }),
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ffffff", strokeWidth: "3", opacity: 0.6, strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100, style: { filter: "blur(1px)" } }),
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ef4444", strokeWidth: "8", opacity: 0.3, strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100, style: { filter: "blur(6px)" } }),
                 t3 < 1 && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${headPos[0]}, ${headPos[1]})`, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "12", fill: "#ef4444", opacity: 0.6, style: { filter: isRendering ? "blur(8px)" : "none" } }),
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "6", fill: "#ffffff", style: { filter: isRendering ? "blur(2px)" : "none" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "12", fill: "#ef4444", opacity: 0.6, style: { filter: "blur(8px)" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "6", fill: "#ffffff", style: { filter: "blur(2px)" } }),
                   /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: "3", fill: "#ffffff" })
                 ] }),
                 t3 === 1 && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${p2.x}, ${p2.y})`, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: interpolate(frame - startF - 45, [0, 15], [0, 100], { extrapolateRight: "clamp", easing: Easing.out(Easing.exp) }), fill: "none", stroke: "#ef4444", strokeWidth: interpolate(frame - startF - 45, [0, 15], [10, 0], { extrapolateRight: "clamp" }), style: { filter: isRendering ? "blur(4px)" : "none" } }),
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: interpolate(frame - startF - 45, [0, 10], [0, 40], { extrapolateRight: "clamp" }), fill: "#ffffff", opacity: interpolate(frame - startF - 45, [0, 10], [1, 0], { extrapolateRight: "clamp" }), style: { filter: isRendering ? "blur(2px)" : "none" } })
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: interpolate(frame - startF - 45, [0, 15], [0, 100], { extrapolateRight: "clamp", easing: Easing.out(Easing.exp) }), fill: "none", stroke: "#ef4444", strokeWidth: interpolate(frame - startF - 45, [0, 15], [10, 0], { extrapolateRight: "clamp" }), style: { filter: "blur(4px)" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: interpolate(frame - startF - 45, [0, 10], [0, 40], { extrapolateRight: "clamp" }), fill: "#ffffff", opacity: interpolate(frame - startF - 45, [0, 10], [1, 0], { extrapolateRight: "clamp" }), style: { filter: "blur(2px)" } })
                 ] })
               ] }, `missile-${idx}`);
             } else {
-              const sourceData = rawCountries.find((c4) => c4.name.toLowerCase() === (arrow.sourceName || "").toLowerCase());
+              const sName = arrow.sourceName || "";
+              const sourceData = rawCountries.find((c4) => (c4.name || c4.country || "").toLowerCase() === sName.toLowerCase());
               const arrowColor = arrow.color || sourceData?.color || "#ef4444";
-              return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { filter: isRendering ? "url(#tactical-shadow)" : "", children: [
+              return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { filter: "url(#tactical-shadow)", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: arrowColor, strokeWidth: "6", strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100 }),
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: pathD, fill: "none", stroke: "#ffffff", strokeWidth: "2", strokeLinecap: "round", pathLength: "100", strokeDasharray: "100", strokeDashoffset: 100 - t3 * 100 })
               ] }, `arrow-${idx}`);
@@ -64404,7 +64423,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             if (!p2 || isNaN(p2.x) || isNaN(p2.y)) return null;
             if (asset.type === "pin") {
               const dropY = interpolate(frame - asset.startFrame, [0, 15], [-50, 0], { extrapolateRight: "clamp", easing: Easing.bounce });
-              return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${p2.x}, ${p2.y + dropY})`, filter: isRendering ? "url(#tactical-shadow)" : "", children: [
+              return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${p2.x}, ${p2.y + dropY})`, filter: "url(#tactical-shadow)", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: "M0 -24 C -8 -24, -14 -18, -14 -10 C -14 0, 0 12, 0 12 C 0 12, 14 0, 14 -10 C 14 -18, 8 -24, 0 -24 Z", fill: "#ef4444", stroke: "#ffffff", strokeWidth: "2" }),
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "-12", r: "4", fill: "#ffffff" })
               ] }, asset.id);
@@ -64413,9 +64432,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
               const ringR = interpolate(frame - asset.startFrame, [0, 20], [0, 80], { extrapolateRight: "clamp", easing: Easing.out(Easing.exp) });
               const opacity2 = interpolate(frame - asset.startFrame, [0, 20], [1, 0], { extrapolateRight: "clamp" });
               return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { transform: `translate(${p2.x}, ${p2.y})`, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR, fill: "none", stroke: "#f59e0b", strokeWidth: opacity2 * 15, style: { filter: isRendering ? "blur(6px)" : "none" } }),
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR, fill: "none", stroke: "#f59e0b", strokeWidth: opacity2 * 15, style: { filter: "blur(6px)" } }),
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR * 0.8, fill: "none", stroke: "#ffffff", strokeWidth: opacity2 * 5 }),
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR * 0.3, fill: "#ef4444", opacity: opacity2, style: { filter: isRendering ? "blur(8px)" : "none" } })
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: "0", cy: "0", r: ringR * 0.3, fill: "#ef4444", opacity: opacity2, style: { filter: "blur(8px)" } })
               ] }, asset.id);
             }
             return null;
@@ -64426,19 +64445,17 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           const p2 = mapRef.current?.project([l2.lng, l2.lat]);
           if (!p2 || isNaN(p2.x) || isNaN(p2.y)) return null;
           if (frame > l2.startFrame + (l2.duration || 150) && !l2.pinned) return null;
-          return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("div", { style: { position: "absolute", left: `${p2.x}px`, top: `${p2.y}px`, transform: "translate(-50%, -100%)", background: l2.bg || "rgba(0,0,0,0.7)", color: l2.color || "#ffffff", fontSize: `${l2.size || 24}px`, fontWeight: 700, padding: "4px 12px", borderRadius: "8px", border: l2.glow && isRendering ? `1px solid ${l2.color || "#ffffff"}` : "none", boxShadow: l2.glow && isRendering ? `0 0 15px ${l2.color || "#ffffff"}80` : "none", whiteSpace: "nowrap", marginTop: "-10px" }, children: [
-            l2.text,
-            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", bottom: "-4px", left: "50%", transform: "translateX(-50%)", borderTop: `4px solid ${l2.bg || "rgba(0,0,0,0.7)"}`, borderLeft: "4px solid transparent", borderRight: "4px solid transparent" } })
-          ] }, l2.id || `lbl-${i2}`);
+          return /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", left: `${p2.x}px`, top: `${p2.y}px`, transform: "translate(-50%, -100%)", background: l2.bg || "rgba(0,0,0,0.7)", color: l2.color || "#ffffff", fontSize: `${l2.size || 24}px`, fontWeight: 700, padding: "4px 12px", borderRadius: "8px", whiteSpace: "nowrap", marginTop: "-10px" }, children: l2.text }, l2.id || `lbl-${i2}`);
         }) }),
         /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "auto", zIndex: 60 }, children: rawCountries.map((country, idx) => {
           if (frame < (country.startFrame || 0)) return null;
-          const { path } = getCountryGeometry(country.name);
+          const cName = country.name || country.country;
+          const { path } = getGeometryFromSource(cName, [world_default, statesData]);
           if (!path) return null;
-          const isSelected = selectedCountry === country.name;
+          const isSelected = selectedCountry === cName;
           return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { children: [
             isSelected && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "none", stroke: "#ffffff", strokeWidth: "3", strokeDasharray: "8 8" }),
-            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "transparent", stroke: "transparent", strokeWidth: "20", style: { cursor: "crosshair" }, onClick: () => setSelectedCountry(country.name) })
+            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "transparent", stroke: "transparent", strokeWidth: "20", style: { cursor: "crosshair" }, onClick: () => setSelectedCountry(cName) })
           ] }, `hitbox-${idx}`);
         }) })
       ] })
