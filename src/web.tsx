@@ -33,12 +33,14 @@ const WebApp: React.FC = () => {
 
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
   const [isLiveEdit, setIsLiveEdit] = useState<boolean>(false);
+  
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isRecordingMode, setIsRecordingMode] = useState<boolean>(false);
+  const [isPreloading, setIsPreloading] = useState<boolean>(false);
   
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragPos = useRef<{x: number, y: number} | null>(null);
   const activePointers = useRef<Map<number, {x: number, y: number}>>(new Map());
-  
   const previousPinch = useRef<{ dist: number, angle: number, centerY: number, centerX: number } | null>(null);
   
   const [targetLat, setTargetLat] = useState<number>(38.0);
@@ -46,7 +48,6 @@ const WebApp: React.FC = () => {
   const [targetZoom, setTargetZoom] = useState<number>(1.2);
   const [targetPitch, setTargetPitch] = useState<number>(20);
   const [targetBearing, setTargetBearing] = useState<number>(0);
-  const [targetEasing, setTargetEasing] = useState<string>('easeInOut');
 
   const [pathStartCoord, setPathStartCoord] = useState<[number, number] | null>(null);
 
@@ -109,56 +110,98 @@ const WebApp: React.FC = () => {
     }
   };
 
-  // 🔥 COMPLETELY REWRITTEN EXPORT: Client-Side Canvas Capture (No Server Needed) 🔥
-  const handleDownload = () => {
-    setIsExporting(true);
+  const handleFinalizeCache = async () => {
+    setIsPreloading(true);
+    playerRef.current?.pause();
+    setIsPlaying(false);
+    
+    for(let f = 0; f < videoDuration; f += 10) {
+      playerRef.current?.seekTo(f);
+      await new Promise(r => setTimeout(r, 100)); 
+    }
+    
     playerRef.current?.seekTo(0);
-    playerRef.current?.play();
-    setIsPlaying(true);
+    setIsPreloading(false);
+    alert("Map Cache Finalized! Ready for flawless export.");
+  };
 
-    setTimeout(() => {
-      // Hook directly into MapLibre's WebGL canvas
-      const canvas = document.querySelector('canvas.maplibregl-canvas') as HTMLCanvasElement;
-      if (!canvas) {
-        alert("Map engine not detected. Please ensure the map is loaded.");
+  // 🔥 HIGH BITRATE BROWSER EXPORT (For rendering on phones/weak devices)
+  const handleGodTierExport = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: "browser", frameRate: { ideal: 30 } },
+        audio: false
+      });
+
+      setIsRecordingMode(true);
+      setIsExporting(true);
+      playerRef.current?.seekTo(0);
+      
+      await new Promise(r => setTimeout(r, 1000)); 
+
+      playerRef.current?.play();
+      setIsPlaying(true);
+
+      // FORCE 30 Mbps Bitrate to stop pixelation
+      const options = MediaRecorder.isTypeSupported('video/webm; codecs=vp9') 
+        ? { mimeType: 'video/webm; codecs=vp9', videoBitsPerSecond: 30000000 } 
+        : { mimeType: 'video/webm', videoBitsPerSecond: 30000000 };
+
+      const mediaRecorder = new MediaRecorder(stream, options);
+      const chunks: BlobPart[] = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Max_Export'}_${Date.now()}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setIsRecordingMode(false);
         setIsExporting(false);
-        return;
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      mediaRecorder.start();
+      
+      setTimeout(() => {
+        mediaRecorder.stop();
+        playerRef.current?.pause();
+        setIsPlaying(false);
+      }, (videoDuration / 30) * 1000 + 500);
+
+    } catch (err) {
+      alert("Export cancelled or Tab Capture not supported on this browser.");
+      setIsRecordingMode(false);
+      setIsExporting(false);
+    }
+  };
+
+  // 🔥 TRUE HD LOCAL EXPORT (For mathematically perfect MP4s when running on your PC)
+  const handleHDLocalExport = async () => {
+    setIsExporting(true);
+    try {
+      const res = await fetch('/api/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeline: dynamicTimeline })
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Tactical_Map'}_HD.mp4`;
+        a.click();
+      } else {
+        alert("Backend rendering failed. Ensure your server terminal is running and has FFmpeg installed.");
       }
-
-      try {
-        const stream = canvas.captureStream(30); 
-        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-        const chunks: BlobPart[] = [];
-
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunks.push(e.data);
-        };
-        
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(chunks, { type: 'video/webm' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Export'}_${Date.now()}.webm`;
-          a.click();
-          URL.revokeObjectURL(url);
-          setIsExporting(false);
-        };
-
-        mediaRecorder.start();
-        
-        setTimeout(() => {
-          mediaRecorder.stop();
-          playerRef.current?.pause();
-          setIsPlaying(false);
-        }, (videoDuration / 30) * 1000); 
-
-      } catch (err) {
-        console.error(err);
-        alert("Your browser does not support local canvas recording. Use Chrome or Edge.");
-        setIsExporting(false);
-      }
-    }, 500); 
+    } catch (e) {
+      alert("Network error during local export.");
+    }
+    setIsExporting(false);
   };
 
   const initializeManualScene = () => {
@@ -169,11 +212,8 @@ const WebApp: React.FC = () => {
         { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: 0, revealStyle: 'ink' },
         { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: 0, revealStyle: 'ink' }
       ],
-      takeovers: [],
-      arrows: [],
-      labels: [],
-      cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, latitude: 38.0, longitude: 127.0, pitch: 45, bearing: 0, easing: 'easeInOut' }],
-      assets: [] 
+      takeovers: [], arrows: [], labels: [], assets: [],
+      cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, pitch: 45, bearing: 0 }]
     }; 
     setTimeline(blankTimeline);
     setVideoDuration(300);
@@ -183,16 +223,14 @@ const WebApp: React.FC = () => {
   const startLiveEdit = () => {
     playerRef.current?.pause();
     setIsPlaying(false);
-    const cFrame = currentFrame;
-    const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= cFrame) || [];
-    const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0, easing: 'easeInOut' };
+    const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= currentFrame) || [];
+    const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0 };
 
     setTargetLat(baseKf.lat ?? baseKf.latitude ?? 38.0);
     setTargetLng(baseKf.lng ?? baseKf.longitude ?? 127.0);
     setTargetZoom(baseKf.zoom ?? 1.2);
     setTargetPitch(baseKf.pitch ?? 45);
     setTargetBearing(baseKf.bearing ?? 0);
-    setTargetEasing(baseKf.easing ?? 'easeInOut');
     setIsLiveEdit(true);
   };
 
@@ -203,7 +241,7 @@ const WebApp: React.FC = () => {
       if (!prev) return prev;
       const updated = { ...prev };
       updated.cameraKeyframes = [...(prev.cameraKeyframes || [])].filter((kf: any) => Math.abs(kf.frame - cFrame) > 15);
-      updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, pitch: targetPitch, bearing: targetBearing, easing: targetEasing });
+      updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, pitch: targetPitch, bearing: targetBearing });
       updated.cameraKeyframes.sort((a: any, b: any) => a.frame - b.frame);
       if (cFrame + 60 >= videoDuration) {
         extensionNeeded = (cFrame + 90) - videoDuration;
@@ -242,28 +280,9 @@ const WebApp: React.FC = () => {
       if (!prev) return prev;
       const updated = { ...prev };
       updated.labels = [...(prev.labels || []), { 
-        id: Math.random().toString(36).substr(2, 9), 
-        text: labelText, 
-        lat: targetLat, 
-        lng: targetLng, 
-        startFrame: cFrame, 
-        duration: 150, 
-        color: labelColor, 
-        bg: labelBg, 
-        size: labelSize, 
-        glow: labelGlow, 
-        pinned: labelPinned 
+        id: Math.random().toString(36).substr(2, 9), text: labelText, lat: targetLat, lng: targetLng, 
+        startFrame: cFrame, duration: 150, color: labelColor, bg: labelBg, size: labelSize, glow: labelGlow, pinned: labelPinned 
       }];
-      return updated;
-    });
-  };
-
-  const dropAsset = (type: 'pin' | 'explosion') => {
-    const cFrame = currentFrame;
-    setTimeline((prev: any) => {
-      if (!prev) return prev;
-      const updated = { ...prev };
-      updated.assets = [...(prev.assets || []), { id: Math.random().toString(36).substr(2, 9), type, lat: targetLat, lng: targetLng, startFrame: cFrame, duration: 90 }];
       return updated;
     });
   };
@@ -285,9 +304,7 @@ const WebApp: React.FC = () => {
     setTimeline((prev: any) => {
       if (!prev) return prev;
       const updated = { ...prev };
-      if (updated.highlightCountries) {
-        updated.highlightCountries = updated.highlightCountries.filter((c: any) => c.name !== name && c.country !== name);
-      }
+      if (updated.highlightCountries) updated.highlightCountries = updated.highlightCountries.filter((c: any) => c.name !== name && c.country !== name);
       return updated;
     });
     if (selectedEntity === name) setSelectedEntity(null);
@@ -313,11 +330,9 @@ const WebApp: React.FC = () => {
         updated.arrows.push({ id: Math.random().toString(36).substr(2,9), type: 'arrow', sourceName: entityA, targetName: entityB, startFrame: cFrame, duration: 90, color: colorA });
       }
 
-      if (!foundEntityA) {
-        updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: cFrame, revealStyle: 'ink' });
-      }
+      if (!foundEntityA) updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: cFrame });
       if (!updated.highlightCountries.find((c:any) => c.name === entityB || c.country === entityB)) {
-        updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'ink' });
+        updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame });
       }
       return updated;
     });
@@ -332,7 +347,7 @@ const WebApp: React.FC = () => {
       updated.highlightCountries = [...(prev.highlightCountries || [])];
       const exists = updated.highlightCountries.find((c: any) => (c.name || c.country).toLowerCase() === newCountrySearch.trim().toLowerCase());
       if (!exists) {
-        updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'ink' });
+        updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', startFrame: cFrame });
       }
       return updated;
     });
@@ -395,17 +410,17 @@ const WebApp: React.FC = () => {
     }
     
     let newKfs = [...(timeline.cameraKeyframes || [])];
-    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat ?? kf.latitude ?? 38.0, lng: kf.lng ?? kf.longitude ?? 127.0, latitude: kf.latitude ?? kf.lat ?? 38.0, longitude: kf.longitude ?? kf.lng ?? 127.0, zoom: kf.zoom ?? 1.2, pitch: kf.pitch ?? 0, bearing: kf.bearing ?? 0, easing: kf.easing ?? 'easeInOut' }));
+    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat ?? kf.latitude ?? 38.0, lng: kf.lng ?? kf.longitude ?? 127.0, zoom: kf.zoom ?? 1.2, pitch: kf.pitch ?? 0, bearing: kf.bearing ?? 0 }));
     
-    if (isLiveEdit && playerRef.current) {
+    if (isLiveEdit && playerRef.current && !isPlaying) {
       newKfs = newKfs.filter((kf: any) => Math.abs(kf.frame - currentFrame) > 15);
-      newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing, easing: targetEasing });
+      newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
       newKfs.sort((a: any, b: any) => a.frame - b.frame);
     }
     modified.cameraKeyframes = newKfs;
 
     return modified;
-  }, [timeline, videoDuration, disabledEntities, isLiveEdit, targetLat, targetLng, targetZoom, targetPitch, targetBearing, targetEasing, currentFrame]);
+  }, [timeline, videoDuration, disabledEntities, isLiveEdit, targetLat, targetLng, targetZoom, targetPitch, targetBearing, currentFrame, isPlaying]);
 
   const playerInputProps = useMemo(() => ({
     timeline: dynamicTimeline,
@@ -526,25 +541,29 @@ const WebApp: React.FC = () => {
 
   const rightPanelJSX = (
     <>
-      <button 
-        onClick={handleDownload} 
-        disabled={isExporting} 
-        style={{ 
-          background: isExporting ? '#f59e0b' : '#10b981', 
-          color: '#000', 
-          border: 'none', 
-          borderRadius: '10px', 
-          width: '100%', 
-          height: '38px', 
-          fontSize: '12px', 
-          fontWeight: 800, 
-          cursor: isExporting ? 'wait' : 'pointer', 
-          transition: 'all 0.2s', 
-          boxShadow: '0 0 15px rgba(16,185,129,0.2)', 
-          marginBottom: '10px' 
-        }}>
-        {isExporting ? '⏳ Capturing MP4...' : '💾 Export Mobile Video'}
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+        <button 
+          onClick={handleHDLocalExport} 
+          disabled={isPreloading || isExporting} 
+          style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+          {isExporting ? '⏳ Rendering HD MP4...' : '🖥️ True HD Server Export'}
+        </button>
+
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={handleFinalizeCache} 
+            disabled={isPreloading || isExporting} 
+            style={{ flex: 1, background: isPreloading ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isPreloading ? 'wait' : 'pointer' }}>
+            {isPreloading ? '⏳ Preloading...' : '📦 Finalize Cache'}
+          </button>
+          <button 
+            onClick={handleGodTierExport} 
+            disabled={isExporting || isPreloading} 
+            style={{ flex: 1, background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
+            {isExporting ? '⏳ Recording...' : '🎥 WebM Browser Export'}
+          </button>
+        </div>
+      </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em' }}>CAMERA ENGINE</div>
@@ -552,9 +571,9 @@ const WebApp: React.FC = () => {
       </div>
 
       {!isLiveEdit ? (
-        <button onClick={startLiveEdit} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 0 15px rgba(56,189,248,0.1)' }}>🎯 Enter Live Canvas Edit</button>
+        <button onClick={startLiveEdit} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 0 15px rgba(56,189,248,0.1)', marginTop: '10px' }}>🎯 Enter Live Canvas Edit</button>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
           <button onClick={dropKeyframeLive} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(56,189,248,0.4)' }}>📍 Save Keyframe Here</button>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', maxHeight: '120px', overflowY: 'auto' }}>
@@ -568,11 +587,11 @@ const WebApp: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
-            <span style={{ color: '#8e8e93' }}>PITCH</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetPitch)}°</span>
+            <span style={{ color: '#8e8e93' }}>PITCH TILT</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetPitch)}°</span>
           </div>
-          <input type="range" min="0" max="85" step="1" value={targetPitch} onChange={(e) => setTargetPitch(Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
+          <input type="range" min="0" max="60" step="1" value={targetPitch} onChange={(e) => setTargetPitch(Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '2px' }}>
-            <span style={{ color: '#8e8e93' }}>BEARING</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetBearing)}°</span>
+            <span style={{ color: '#8e8e93' }}>BEARING ROTATION</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetBearing)}°</span>
           </div>
           <input type="range" min="-180" max="180" step="1" value={targetBearing} onChange={(e) => setTargetBearing(Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
         </div>
@@ -627,6 +646,25 @@ const WebApp: React.FC = () => {
       )}
     </>
   );
+
+  if (isRecordingMode) {
+    return (
+      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+         <div style={{ height: '100vh', aspectRatio: '9/16' }}>
+            <Player 
+              ref={playerRef} 
+              component={MapAnimation} 
+              inputProps={playerInputProps} 
+              durationInFrames={videoDuration} 
+              compositionWidth={1080} 
+              compositionHeight={1920} 
+              fps={30} 
+              style={{ width: '100%', height: '100%' }} 
+            />
+         </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden' }}>

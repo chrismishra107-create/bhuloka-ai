@@ -15,34 +15,50 @@
       "isPrimary": true,
       "startFrame": 0,
       "revealStyle": "ink"
+    },
+    {
+      "name": "South Korea",
+      "country": "South Korea",
+      "color": "#3b82f6",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "enableGlow": true,
+      "glowTarget": "both",
+      "dropShadow": true,
+      "blendMode": "screen",
+      "isPrimary": false,
+      "startFrame": 0,
+      "revealStyle": "ink"
     }
   ],
   "takeovers": [],
   "arrows": [],
   "labels": [],
+  "assets": [],
   "cameraKeyframes": [
     {
       "frame": 0,
-      "zoom": 1.2,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "pitch": 45,
-      "bearing": 0,
-      "easing": "easeInOut"
+      "zoom": 5.57499993480742,
+      "lat": 37.46188340177917,
+      "lng": 126.55156950148265,
+      "pitch": 70.5,
+      "bearing": -39
     },
     {
-      "frame": 20,
-      "lat": 18.88235351814536,
-      "lng": 105.64705741204466,
-      "latitude": 18.88235351814536,
-      "longitude": 105.64705741204466,
-      "zoom": 4.2499999441206455,
-      "pitch": 42,
-      "bearing": 8,
-      "easing": "easeInOut"
+      "frame": 36,
+      "zoom": 4.3249999534338714,
+      "lat": 37.46188340177917,
+      "lng": 126.55156950148265,
+      "pitch": 32,
+      "bearing": -35
+    },
+    {
+      "frame": 64,
+      "lat": 37.46188340177917,
+      "lng": 126.55156950148265,
+      "zoom": 5.57499993480742,
+      "pitch": 78.5,
+      "bearing": 12
     }
-  ],
-  "assets": []
+  ]
 }

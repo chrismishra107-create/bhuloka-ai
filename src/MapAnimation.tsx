@@ -1,26 +1,23 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   AbsoluteFill,
   useCurrentFrame,
-  interpolate,
   Easing,
   useVideoConfig,
   delayRender,
   continueRender,
   getRemotionEnvironment,
+  interpolate, // 🔥 RESTORED MISSING IMPORT
 } from 'remotion';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { GeneratedTimeline, CameraKeyframe } from './backend/generateTimeline';
+import { GeneratedTimeline } from './backend/generateTimeline';
 
 // 🌍 BASE GEOMETRIES
 import worldData from './world.json';
 import indiaData from './india.json';
 
-// 🗺️ ADVANCED GEOMETRIES (Drop files into src folder and uncomment imports)
-// import statesData from './states.json'; 
-// import riversData from './rivers.json';
-// import citiesData from './cities.json';
+// 🗺️ ADVANCED GEOMETRIES
 const statesData: any = { features: [] }; 
 const riversData: any = { features: [] };
 const citiesData: any = { features: [] };
@@ -33,7 +30,7 @@ export const MapAnimation: React.FC<{
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [initialHandle] = useState(() => delayRender('Booting Segmented Map Engine...'));
+  const [initialHandle] = useState(() => delayRender('Booting Cinematic Map Engine...'));
   
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
 
@@ -61,34 +58,36 @@ export const MapAnimation: React.FC<{
   ];
 
   const keyframes = validKeyframes.length > 0 ? validKeyframes : fallbackKeyframes;
-  
-  const strictlySortedKeyframes: any[] = [];
-  let lastFrame = -1;
-  [...keyframes].sort((a, b) => a.frame - b.frame).forEach(kf => {
-     if (kf.frame > lastFrame) { strictlySortedKeyframes.push(kf); lastFrame = kf.frame; }
-  });
+  const strictlySortedKeyframes = [...keyframes].sort((a, b) => a.frame - b.frame);
 
-  // 🚀 ISOLATED SEGMENTED INTERPOLATION (Zero Bouncing)
-  let startKf = strictlySortedKeyframes[0];
-  let endKf = strictlySortedKeyframes[strictlySortedKeyframes.length - 1];
-  
-  for (let i = 0; i < strictlySortedKeyframes.length - 1; i++) {
-    if (frame >= strictlySortedKeyframes[i].frame && frame <= strictlySortedKeyframes[i+1].frame) {
-      startKf = strictlySortedKeyframes[i];
-      endKf = strictlySortedKeyframes[i+1];
-      break;
+  const getInterpolatedCamera = () => {
+    const kfs = strictlySortedKeyframes;
+    if (kfs.length === 0) return { lng: 0, lat: 0, zoom: 1, pitch: 0, bearing: 0 };
+    if (kfs.length === 1 || frame <= kfs[0].frame) return kfs[0];
+    if (frame >= kfs[kfs.length - 1].frame) return kfs[kfs.length - 1];
+
+    for (let i = 0; i < kfs.length - 1; i++) {
+      if (frame >= kfs[i].frame && frame < kfs[i+1].frame) {
+         const kf1 = kfs[i];
+         const kf2 = kfs[i+1];
+         
+         const duration = kf2.frame - kf1.frame;
+         const rawProgress = (frame - kf1.frame) / duration;
+         const easeProgress = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
+         
+         return {
+           lng: kf1.lng + (kf2.lng - kf1.lng) * easeProgress,
+           lat: kf1.lat + (kf2.lat - kf1.lat) * easeProgress,
+           zoom: kf1.zoom + (kf2.zoom - kf1.zoom) * easeProgress,
+           pitch: kf1.pitch + (kf2.pitch - kf1.pitch) * easeProgress,
+           bearing: kf1.bearing + (kf2.bearing - kf1.bearing) * easeProgress
+         };
+      }
     }
-  }
+    return kfs[kfs.length - 1];
+  };
 
-  const totalFramesInSegment = endKf.frame - startKf.frame;
-  const rawProgress = totalFramesInSegment === 0 ? 0 : (frame - startKf.frame) / totalFramesInSegment;
-  const easeProgress = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
-
-  const currentLng = startKf.lng + (endKf.lng - startKf.lng) * easeProgress;
-  const currentLat = startKf.lat + (endKf.lat - startKf.lat) * easeProgress;
-  const currentZoom = startKf.zoom + (endKf.zoom - startKf.zoom) * easeProgress;
-  const currentPitch = startKf.pitch + (endKf.pitch - startKf.pitch) * easeProgress;
-  const currentBearing = startKf.bearing + (endKf.bearing - startKf.bearing) * easeProgress;
+  const { lng: currentLng, lat: currentLat, zoom: currentZoom, pitch: currentPitch, bearing: currentBearing } = getInterpolatedCamera();
 
   const getStyleDef = (styleId: string): any => {
     const buildRasterStyle = (url: string, saturation: number, contrast: number, brightnessMin: number, brightnessMax: number) => ({
@@ -106,12 +105,12 @@ export const MapAnimation: React.FC<{
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!mapContainer.current) return;
     const map = new maplibregl.Map({
       container: mapContainer.current, 
       fadeDuration: 0, 
-      maxTileCacheSize: 50,
+      maxTileCacheSize: 10000, 
       renderWorldCopies: false,
       pixelRatio: isRendering ? 2 : 1, 
       style: getStyleDef(mapStyle),
@@ -132,15 +131,35 @@ export const MapAnimation: React.FC<{
     return () => map.remove();
   }, [mapStyle]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
+
+    let tileLockHandle: number | null = null;
+    
+    if (isRendering) {
+      tileLockHandle = delayRender(`Waiting for map tiles at frame ${frame}`);
+    }
+
     mapRef.current.jumpTo({ 
       center: [currentLng, currentLat], 
       zoom: currentZoom, 
       pitch: currentPitch, 
       bearing: currentBearing 
     });
-  }, [currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded]);
+
+    if (isRendering && tileLockHandle !== null) {
+      if (mapRef.current.isStyleLoaded() && mapRef.current.areTilesLoaded()) {
+        continueRender(tileLockHandle);
+      } else {
+        mapRef.current.once('idle', () => {
+          try {
+            if (tileLockHandle !== null) continueRender(tileLockHandle);
+          } catch (e) {
+          }
+        });
+      }
+    }
+  }, [currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded, isRendering, frame]);
 
   const getGeometryFromSource = (name: string, dataSources: any[]) => {
     if (!mapRef.current || !mapLoaded || !name) return { path: '', center: null as [number, number] | null };
@@ -159,17 +178,13 @@ export const MapAnimation: React.FC<{
           const candidates = [p.ADMIN, p.admin, p.NAME, p.name, p.SOVEREIGNT, p.ISO_A3].filter(Boolean).map((v) => String(v).toLowerCase());
           return candidates.includes(norm);
         });
-        if (matched) {
-          geom = matched.geometry;
-          break;
-        }
+        if (matched) { geom = matched.geometry; break; }
       }
     }
 
     if (!geom) return { path: '', center: null };
     
     const rings: [number, number][][] = [];
-    
     if (geom.type === 'Polygon') geom.coordinates.forEach((r: any) => rings.push(r));
     else if (geom.type === 'MultiPolygon') geom.coordinates.forEach((poly: any) => poly.forEach((r: any) => rings.push(r)));
     else if (geom.type === 'LineString') rings.push(geom.coordinates);
@@ -187,8 +202,7 @@ export const MapAnimation: React.FC<{
       }).filter(Boolean);
       
       if (points.length < 2) return '';
-      const isLine = geom.type.includes('Line');
-      return isLine ? `M ${points.join(' L ')}` : `M ${points.join(' L ')} Z`;
+      return geom.type.includes('Line') ? `M ${points.join(' L ')}` : `M ${points.join(' L ')} Z`;
     }).filter(Boolean);
 
     const centroid: [number, number] | null = pointCount > 0 ? [totalX / pointCount, totalY / pointCount] : null;
@@ -217,7 +231,6 @@ export const MapAnimation: React.FC<{
   return (
     <AbsoluteFill style={{ backgroundColor: '#040711', overflow: 'hidden' }}>
       <div ref={mapContainer} style={{ width: `${width}px`, height: `${height}px`, position: 'absolute', top: 0, left: 0 }} />
-      
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
 
       {mapLoaded && (

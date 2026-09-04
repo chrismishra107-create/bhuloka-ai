@@ -64120,7 +64120,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const mapContainer = (0, import_react121.useRef)(null);
     const mapRef = (0, import_react121.useRef)(null);
     const [mapLoaded, setMapLoaded] = (0, import_react121.useState)(false);
-    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Segmented Map Engine..."));
+    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Cinematic Map Engine..."));
     const [selectedCountry, setSelectedCountry] = (0, import_react121.useState)(null);
     const frame = useCurrentFrame();
     const { width, height } = useVideoConfig();
@@ -64142,31 +64142,31 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       { frame: totalFrames, lng: 88, lat: 31, zoom: 5.5, pitch: 40, bearing: 0 }
     ];
     const keyframes = validKeyframes.length > 0 ? validKeyframes : fallbackKeyframes;
-    const strictlySortedKeyframes = [];
-    let lastFrame = -1;
-    [...keyframes].sort((a4, b4) => a4.frame - b4.frame).forEach((kf3) => {
-      if (kf3.frame > lastFrame) {
-        strictlySortedKeyframes.push(kf3);
-        lastFrame = kf3.frame;
+    const strictlySortedKeyframes = [...keyframes].sort((a4, b4) => a4.frame - b4.frame);
+    const getInterpolatedCamera = () => {
+      const kfs = strictlySortedKeyframes;
+      if (kfs.length === 0) return { lng: 0, lat: 0, zoom: 1, pitch: 0, bearing: 0 };
+      if (kfs.length === 1 || frame <= kfs[0].frame) return kfs[0];
+      if (frame >= kfs[kfs.length - 1].frame) return kfs[kfs.length - 1];
+      for (let i2 = 0; i2 < kfs.length - 1; i2++) {
+        if (frame >= kfs[i2].frame && frame < kfs[i2 + 1].frame) {
+          const kf1 = kfs[i2];
+          const kf22 = kfs[i2 + 1];
+          const duration = kf22.frame - kf1.frame;
+          const rawProgress = (frame - kf1.frame) / duration;
+          const easeProgress = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
+          return {
+            lng: kf1.lng + (kf22.lng - kf1.lng) * easeProgress,
+            lat: kf1.lat + (kf22.lat - kf1.lat) * easeProgress,
+            zoom: kf1.zoom + (kf22.zoom - kf1.zoom) * easeProgress,
+            pitch: kf1.pitch + (kf22.pitch - kf1.pitch) * easeProgress,
+            bearing: kf1.bearing + (kf22.bearing - kf1.bearing) * easeProgress
+          };
+        }
       }
-    });
-    let startKf = strictlySortedKeyframes[0];
-    let endKf = strictlySortedKeyframes[strictlySortedKeyframes.length - 1];
-    for (let i2 = 0; i2 < strictlySortedKeyframes.length - 1; i2++) {
-      if (frame >= strictlySortedKeyframes[i2].frame && frame <= strictlySortedKeyframes[i2 + 1].frame) {
-        startKf = strictlySortedKeyframes[i2];
-        endKf = strictlySortedKeyframes[i2 + 1];
-        break;
-      }
-    }
-    const totalFramesInSegment = endKf.frame - startKf.frame;
-    const rawProgress = totalFramesInSegment === 0 ? 0 : (frame - startKf.frame) / totalFramesInSegment;
-    const easeProgress = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
-    const currentLng = startKf.lng + (endKf.lng - startKf.lng) * easeProgress;
-    const currentLat = startKf.lat + (endKf.lat - startKf.lat) * easeProgress;
-    const currentZoom = startKf.zoom + (endKf.zoom - startKf.zoom) * easeProgress;
-    const currentPitch = startKf.pitch + (endKf.pitch - startKf.pitch) * easeProgress;
-    const currentBearing = startKf.bearing + (endKf.bearing - startKf.bearing) * easeProgress;
+      return kfs[kfs.length - 1];
+    };
+    const { lng: currentLng, lat: currentLat, zoom: currentZoom, pitch: currentPitch, bearing: currentBearing } = getInterpolatedCamera();
     const getStyleDef = (styleId) => {
       const buildRasterStyle = (url, saturation, contrast, brightnessMin, brightnessMax) => ({
         version: 8,
@@ -64185,12 +64185,12 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           return buildRasterStyle("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", -0.85, 0.25, 0.15, 0.8);
       }
     };
-    (0, import_react121.useEffect)(() => {
+    (0, import_react121.useLayoutEffect)(() => {
       if (!mapContainer.current) return;
       const map = new Ap2({
         container: mapContainer.current,
         fadeDuration: 0,
-        maxTileCacheSize: 50,
+        maxTileCacheSize: 1e4,
         renderWorldCopies: false,
         pixelRatio: isRendering ? 2 : 1,
         style: getStyleDef(mapStyle),
@@ -64209,15 +64209,31 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       });
       return () => map.remove();
     }, [mapStyle]);
-    (0, import_react121.useEffect)(() => {
+    (0, import_react121.useLayoutEffect)(() => {
       if (!mapRef.current || !mapLoaded) return;
+      let tileLockHandle = null;
+      if (isRendering) {
+        tileLockHandle = delayRender(`Waiting for map tiles at frame ${frame}`);
+      }
       mapRef.current.jumpTo({
         center: [currentLng, currentLat],
         zoom: currentZoom,
         pitch: currentPitch,
         bearing: currentBearing
       });
-    }, [currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded]);
+      if (isRendering && tileLockHandle !== null) {
+        if (mapRef.current.isStyleLoaded() && mapRef.current.areTilesLoaded()) {
+          continueRender(tileLockHandle);
+        } else {
+          mapRef.current.once("idle", () => {
+            try {
+              if (tileLockHandle !== null) continueRender(tileLockHandle);
+            } catch (e63) {
+            }
+          });
+        }
+      }
+    }, [currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded, isRendering, frame]);
     const getGeometryFromSource = (name, dataSources) => {
       if (!mapRef.current || !mapLoaded || !name) return { path: "", center: null };
       const norm = name.trim().toLowerCase();
@@ -64262,8 +64278,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           return `${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
         }).filter(Boolean);
         if (points.length < 2) return "";
-        const isLine = geom.type.includes("Line");
-        return isLine ? `M ${points.join(" L ")}` : `M ${points.join(" L ")} Z`;
+        return geom.type.includes("Line") ? `M ${points.join(" L ")}` : `M ${points.join(" L ")} Z`;
       }).filter(Boolean);
       const centroid = pointCount > 0 ? [totalX / pointCount, totalY / pointCount] : null;
       return { path: valid.join(" "), center: centroid };
@@ -64485,6 +64500,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [selectedEntity, setSelectedEntity] = (0, import_react122.useState)(null);
     const [isLiveEdit, setIsLiveEdit] = (0, import_react122.useState)(false);
     const [isExporting, setIsExporting] = (0, import_react122.useState)(false);
+    const [isRecordingMode, setIsRecordingMode] = (0, import_react122.useState)(false);
+    const [isPreloading, setIsPreloading] = (0, import_react122.useState)(false);
     const [isDragging, setIsDragging] = (0, import_react122.useState)(false);
     const dragPos = (0, import_react122.useRef)(null);
     const activePointers = (0, import_react122.useRef)(/* @__PURE__ */ new Map());
@@ -64494,7 +64511,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [targetZoom, setTargetZoom] = (0, import_react122.useState)(1.2);
     const [targetPitch, setTargetPitch] = (0, import_react122.useState)(20);
     const [targetBearing, setTargetBearing] = (0, import_react122.useState)(0);
-    const [targetEasing, setTargetEasing] = (0, import_react122.useState)("easeInOut");
     const [pathStartCoord, setPathStartCoord] = (0, import_react122.useState)(null);
     const [manualMode, setManualMode] = (0, import_react122.useState)(false);
     const [entityA, setEntityA] = (0, import_react122.useState)("North Korea");
@@ -64548,47 +64564,82 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         setStatus("idle");
       }
     };
-    const handleDownload = () => {
-      setIsExporting(true);
+    const handleFinalizeCache = async () => {
+      setIsPreloading(true);
+      playerRef.current?.pause();
+      setIsPlaying(false);
+      for (let f2 = 0; f2 < videoDuration; f2 += 10) {
+        playerRef.current?.seekTo(f2);
+        await new Promise((r2) => setTimeout(r2, 100));
+      }
       playerRef.current?.seekTo(0);
-      playerRef.current?.play();
-      setIsPlaying(true);
-      setTimeout(() => {
-        const canvas = document.querySelector("canvas.maplibregl-canvas");
-        if (!canvas) {
-          alert("Map engine not detected. Please ensure the map is loaded.");
+      setIsPreloading(false);
+      alert("Map Cache Finalized! Ready for flawless export.");
+    };
+    const handleGodTierExport = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: "browser", frameRate: { ideal: 30 } },
+          audio: false
+        });
+        setIsRecordingMode(true);
+        setIsExporting(true);
+        playerRef.current?.seekTo(0);
+        await new Promise((r2) => setTimeout(r2, 1e3));
+        playerRef.current?.play();
+        setIsPlaying(true);
+        const options = MediaRecorder.isTypeSupported("video/webm; codecs=vp9") ? { mimeType: "video/webm; codecs=vp9", videoBitsPerSecond: 3e7 } : { mimeType: "video/webm", videoBitsPerSecond: 3e7 };
+        const mediaRecorder = new MediaRecorder(stream, options);
+        const chunks = [];
+        mediaRecorder.ondataavailable = (e63) => {
+          if (e63.data.size > 0) chunks.push(e63.data);
+        };
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const a4 = document.createElement("a");
+          a4.href = url;
+          a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Max_Export"}_${Date.now()}.webm`;
+          a4.click();
+          URL.revokeObjectURL(url);
+          setIsRecordingMode(false);
           setIsExporting(false);
-          return;
+          stream.getTracks().forEach((t3) => t3.stop());
+        };
+        mediaRecorder.start();
+        setTimeout(() => {
+          mediaRecorder.stop();
+          playerRef.current?.pause();
+          setIsPlaying(false);
+        }, videoDuration / 30 * 1e3 + 500);
+      } catch (err) {
+        alert("Export cancelled or Tab Capture not supported on this browser.");
+        setIsRecordingMode(false);
+        setIsExporting(false);
+      }
+    };
+    const handleHDLocalExport = async () => {
+      setIsExporting(true);
+      try {
+        const res = await fetch("/api/render", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ timeline: dynamicTimeline })
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a4 = document.createElement("a");
+          a4.href = url;
+          a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Tactical_Map"}_HD.mp4`;
+          a4.click();
+        } else {
+          alert("Backend rendering failed. Ensure your server terminal is running and has FFmpeg installed.");
         }
-        try {
-          const stream = canvas.captureStream(30);
-          const mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
-          const chunks = [];
-          mediaRecorder.ondataavailable = (e63) => {
-            if (e63.data.size > 0) chunks.push(e63.data);
-          };
-          mediaRecorder.onstop = () => {
-            const blob = new Blob(chunks, { type: "video/webm" });
-            const url = URL.createObjectURL(blob);
-            const a4 = document.createElement("a");
-            a4.href = url;
-            a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Export"}_${Date.now()}.webm`;
-            a4.click();
-            URL.revokeObjectURL(url);
-            setIsExporting(false);
-          };
-          mediaRecorder.start();
-          setTimeout(() => {
-            mediaRecorder.stop();
-            playerRef.current?.pause();
-            setIsPlaying(false);
-          }, videoDuration / 30 * 1e3);
-        } catch (err) {
-          console.error(err);
-          alert("Your browser does not support local canvas recording. Use Chrome or Edge.");
-          setIsExporting(false);
-        }
-      }, 500);
+      } catch (e63) {
+        alert("Network error during local export.");
+      }
+      setIsExporting(false);
     };
     const initializeManualScene = () => {
       const blankTimeline = {
@@ -64601,8 +64652,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         takeovers: [],
         arrows: [],
         labels: [],
-        cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38, lng: 127, latitude: 38, longitude: 127, pitch: 45, bearing: 0, easing: "easeInOut" }],
-        assets: []
+        assets: [],
+        cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38, lng: 127, pitch: 45, bearing: 0 }]
       };
       setTimeline(blankTimeline);
       setVideoDuration(300);
@@ -64611,15 +64662,13 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const startLiveEdit = () => {
       playerRef.current?.pause();
       setIsPlaying(false);
-      const cFrame = currentFrame;
-      const pastKfs = timeline?.cameraKeyframes?.filter((kf3) => kf3.frame <= cFrame) || [];
-      const baseKf = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38, lng: 127, zoom: 1.2, pitch: 45, bearing: 0, easing: "easeInOut" };
+      const pastKfs = timeline?.cameraKeyframes?.filter((kf3) => kf3.frame <= currentFrame) || [];
+      const baseKf = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38, lng: 127, zoom: 1.2, pitch: 45, bearing: 0 };
       setTargetLat(baseKf.lat ?? baseKf.latitude ?? 38);
       setTargetLng(baseKf.lng ?? baseKf.longitude ?? 127);
       setTargetZoom(baseKf.zoom ?? 1.2);
       setTargetPitch(baseKf.pitch ?? 45);
       setTargetBearing(baseKf.bearing ?? 0);
-      setTargetEasing(baseKf.easing ?? "easeInOut");
       setIsLiveEdit(true);
     };
     const dropKeyframeLive = () => {
@@ -64629,7 +64678,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (!prev) return prev;
         const updated = { ...prev };
         updated.cameraKeyframes = [...prev.cameraKeyframes || []].filter((kf3) => Math.abs(kf3.frame - cFrame) > 15);
-        updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, pitch: targetPitch, bearing: targetBearing, easing: targetEasing });
+        updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, pitch: targetPitch, bearing: targetBearing });
         updated.cameraKeyframes.sort((a4, b4) => a4.frame - b4.frame);
         if (cFrame + 60 >= videoDuration) {
           extensionNeeded = cFrame + 90 - videoDuration;
@@ -64680,15 +64729,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         return updated;
       });
     };
-    const dropAsset = (type) => {
-      const cFrame = currentFrame;
-      setTimeline((prev) => {
-        if (!prev) return prev;
-        const updated = { ...prev };
-        updated.assets = [...prev.assets || [], { id: Math.random().toString(36).substr(2, 9), type, lat: targetLat, lng: targetLng, startFrame: cFrame, duration: 90 }];
-        return updated;
-      });
-    };
     const deleteAsset = (id3) => {
       setTimeline((prev) => {
         if (!prev) return prev;
@@ -64705,9 +64745,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       setTimeline((prev) => {
         if (!prev) return prev;
         const updated = { ...prev };
-        if (updated.highlightCountries) {
-          updated.highlightCountries = updated.highlightCountries.filter((c4) => c4.name !== name && c4.country !== name);
-        }
+        if (updated.highlightCountries) updated.highlightCountries = updated.highlightCountries.filter((c4) => c4.name !== name && c4.country !== name);
         return updated;
       });
       if (selectedEntity === name) setSelectedEntity(null);
@@ -64729,11 +64767,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         } else {
           updated.arrows.push({ id: Math.random().toString(36).substr(2, 9), type: "arrow", sourceName: entityA, targetName: entityB, startFrame: cFrame, duration: 90, color: colorA });
         }
-        if (!foundEntityA) {
-          updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: true, startFrame: cFrame, revealStyle: "ink" });
-        }
+        if (!foundEntityA) updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: true, startFrame: cFrame });
         if (!updated.highlightCountries.find((c4) => c4.name === entityB || c4.country === entityB)) {
-          updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: cFrame, revealStyle: "ink" });
+          updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: cFrame });
         }
         return updated;
       });
@@ -64747,7 +64783,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         updated.highlightCountries = [...prev.highlightCountries || []];
         const exists = updated.highlightCountries.find((c4) => (c4.name || c4.country).toLowerCase() === newCountrySearch.trim().toLowerCase());
         if (!exists) {
-          updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: "#3b82f6", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: cFrame, revealStyle: "ink" });
+          updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: "#3b82f6", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", startFrame: cFrame });
         }
         return updated;
       });
@@ -64802,15 +64838,15 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         modified.takeovers = modified.takeovers?.filter((t3) => !disabledEntities.includes(t3.target || t3.to || t3.country));
       }
       let newKfs = [...timeline.cameraKeyframes || []];
-      newKfs = newKfs.map((kf3) => ({ ...kf3, lat: kf3.lat ?? kf3.latitude ?? 38, lng: kf3.lng ?? kf3.longitude ?? 127, latitude: kf3.latitude ?? kf3.lat ?? 38, longitude: kf3.longitude ?? kf3.lng ?? 127, zoom: kf3.zoom ?? 1.2, pitch: kf3.pitch ?? 0, bearing: kf3.bearing ?? 0, easing: kf3.easing ?? "easeInOut" }));
-      if (isLiveEdit && playerRef.current) {
+      newKfs = newKfs.map((kf3) => ({ ...kf3, lat: kf3.lat ?? kf3.latitude ?? 38, lng: kf3.lng ?? kf3.longitude ?? 127, zoom: kf3.zoom ?? 1.2, pitch: kf3.pitch ?? 0, bearing: kf3.bearing ?? 0 }));
+      if (isLiveEdit && playerRef.current && !isPlaying) {
         newKfs = newKfs.filter((kf3) => Math.abs(kf3.frame - currentFrame) > 15);
-        newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing, easing: targetEasing });
+        newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
         newKfs.sort((a4, b4) => a4.frame - b4.frame);
       }
       modified.cameraKeyframes = newKfs;
       return modified;
-    }, [timeline, videoDuration, disabledEntities, isLiveEdit, targetLat, targetLng, targetZoom, targetPitch, targetBearing, targetEasing, currentFrame]);
+    }, [timeline, videoDuration, disabledEntities, isLiveEdit, targetLat, targetLng, targetZoom, targetPitch, targetBearing, currentFrame, isPlaying]);
     const playerInputProps = (0, import_react122.useMemo)(() => ({
       timeline: dynamicTimeline,
       isLiveEditMode: isLiveEdit,
@@ -64908,33 +64944,42 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       ] })
     ] });
     const rightPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-        "button",
-        {
-          onClick: handleDownload,
-          disabled: isExporting,
-          style: {
-            background: isExporting ? "#f59e0b" : "#10b981",
-            color: "#000",
-            border: "none",
-            borderRadius: "10px",
-            width: "100%",
-            height: "38px",
-            fontSize: "12px",
-            fontWeight: 800,
-            cursor: isExporting ? "wait" : "pointer",
-            transition: "all 0.2s",
-            boxShadow: "0 0 15px rgba(16,185,129,0.2)",
-            marginBottom: "10px"
-          },
-          children: isExporting ? "\u23F3 Capturing MP4..." : "\u{1F4BE} Export Mobile Video"
-        }
-      ),
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+          "button",
+          {
+            onClick: handleHDLocalExport,
+            disabled: isPreloading || isExporting,
+            style: { background: isExporting ? "#f59e0b" : "#a855f7", color: "#fff", border: "none", borderRadius: "10px", width: "100%", height: "34px", fontSize: "11px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer" },
+            children: isExporting ? "\u23F3 Rendering HD MP4..." : "\u{1F5A5}\uFE0F True HD Server Export"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+            "button",
+            {
+              onClick: handleFinalizeCache,
+              disabled: isPreloading || isExporting,
+              style: { flex: 1, background: isPreloading ? "#f59e0b" : "#3b82f6", color: "#fff", border: "none", borderRadius: "10px", height: "38px", fontSize: "10px", fontWeight: 800, cursor: isPreloading ? "wait" : "pointer" },
+              children: isPreloading ? "\u23F3 Preloading..." : "\u{1F4E6} Finalize Cache"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+            "button",
+            {
+              onClick: handleGodTierExport,
+              disabled: isExporting || isPreloading,
+              style: { flex: 1, background: isExporting ? "#f59e0b" : "#10b981", color: "#000", border: "none", borderRadius: "10px", height: "38px", fontSize: "10px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer", boxShadow: "0 0 15px rgba(16,185,129,0.2)" },
+              children: isExporting ? "\u23F3 Recording..." : "\u{1F3A5} WebM Browser Export"
+            }
+          )
+        ] })
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em" }, children: "CAMERA ENGINE" }),
         isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setIsLiveEdit(false), style: { background: "transparent", color: "#8e8e93", border: "none", fontSize: "10px", cursor: "pointer" }, children: "\u2715 Close" })
       ] }),
-      !isLiveEdit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: startLiveEdit, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", width: "100%", height: "38px", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 0 15px rgba(56,189,248,0.1)" }, children: "\u{1F3AF} Enter Live Canvas Edit" }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [
+      !isLiveEdit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: startLiveEdit, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", width: "100%", height: "38px", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 0 15px rgba(56,189,248,0.1)", marginTop: "10px" }, children: "\u{1F3AF} Enter Live Canvas Edit" }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: dropKeyframeLive, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "8px", padding: "8px", fontSize: "12px", fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 12px rgba(56,189,248,0.4)" }, children: "\u{1F4CD} Save Keyframe Here" }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px", maxHeight: "120px", overflowY: "auto" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "ACTIVE TIMELINE MARKERS:" }),
@@ -64947,15 +64992,15 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           ] }, kf3.frame))
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "PITCH" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "PITCH TILT" }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#38bdf8", fontWeight: 600 }, children: [
             Math.round(targetPitch),
             "\xB0"
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "85", step: "1", value: targetPitch, onChange: (e63) => setTargetPitch(Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "60", step: "1", value: targetPitch, onChange: (e63) => setTargetPitch(Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "2px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "BEARING" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "BEARING ROTATION" }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#38bdf8", fontWeight: 600 }, children: [
             Math.round(targetBearing),
             "\xB0"
@@ -65021,6 +65066,21 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: addStoryEvent, style: { background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "8px", width: "100%", height: "36px", fontSize: "11px", fontWeight: 700, cursor: "pointer", marginTop: "4px" }, children: "\uFF0B Inject Event" })
       ] })
     ] });
+    if (isRecordingMode) {
+      return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { width: "100vw", height: "100vh", background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { height: "100vh", aspectRatio: "9/16" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+        Player,
+        {
+          ref: playerRef,
+          component: MapAnimation,
+          inputProps: playerInputProps,
+          durationInFrames: videoDuration,
+          compositionWidth: 1080,
+          compositionHeight: 1920,
+          fps: 30,
+          style: { width: "100%", height: "100%" }
+        }
+      ) }) });
+    }
     return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { backgroundColor: "#000000", width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: "#ffffff", margin: 0, padding: 0, overflow: "hidden" }, children: [
       status !== "editor" && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", width: "800px", height: "800px", background: "radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(148,163,184,0.02) 50%, transparent 70%)", borderRadius: "50%", zIndex: 1, pointerEvents: "none", filter: "blur(100px)" } }),
       status === "generating" && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "absolute", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(30px)", zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }, children: [

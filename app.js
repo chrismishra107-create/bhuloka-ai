@@ -5,7 +5,9 @@ const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
+
+// Increase JSON payload limit to handle heavy timeline data containing multiple custom vectors/layers
+app.use(express.json({ limit: '50mb' }));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/out', express.static(path.join(__dirname, 'out')));
@@ -100,19 +102,22 @@ app.post('/api/render', (req, res) => {
 
   const outputFileName = `tactical_export_${Date.now()}.mp4`;
   const outputPath = path.join(outDir, outputFileName);
-  const promptPath = path.join(__dirname, 'src', 'currentPrompt.json');
+  
+  // 🚨 CRITICAL FIX: Target the exact file Remotion physically imports during render
+  const timelinePath = path.join(__dirname, 'src', 'dynamicTimeline.json');
 
   try {
-    fs.writeFileSync(promptPath, JSON.stringify(timeline, null, 2));
-    console.log(`[Studio] Starting Memory-Safe MP4 Export Render for: ${outputFileName}...`);
+    // 🚨 Forcibly overwrite the stale data with the live UI payload
+    fs.writeFileSync(timelinePath, JSON.stringify(timeline, null, 2), 'utf-8');
+    console.log(`[Studio] Local timeline cache overwritten. Starting HD Render for: ${outputFileName}...`);
 
-    // 🔥 MEMORY SAFE FLAGS: --concurrency=1 prevents Render.com's 512MB RAM from overflowing instantly
-    const command = `npx remotion render src/index.ts Map3D "${outputPath}" --props="${promptPath}" --concurrency=1 --gl=angle`;
+    // Removed the conflicting --props flag. Remotion will natively read dynamicTimeline.json
+    const command = `npx remotion render src/index.ts Map3D "${outputPath}" --concurrency=1 --gl=angle`;
     
     exec(command, (error, stdout, stderr) => {
       if (error) {
         console.error(`Remotion Error: ${stderr || error.message}`);
-        return res.status(500).send("Backend rendering failed on Render.com due to memory limit. Use Remotion Lambda.");
+        return res.status(500).send("Backend rendering failed. Check server memory.");
       }
       
       console.log(`[Studio] Export complete! Sending MP4 to browser...`);
@@ -137,6 +142,6 @@ app.listen(5000, '0.0.0.0', () => {
   console.log('----------------------------------------------------');
   console.log('🚀 Server active!');
   console.log('   BhuLoka.ai Studio : http://localhost:5000');
-  console.log('   Waitlist Page   : http://localhost:5000/waitlist');
+  console.log('   Waitlist Page     : http://localhost:5000/waitlist');
   console.log('----------------------------------------------------');
 });

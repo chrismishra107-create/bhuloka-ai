@@ -1,66 +1,80 @@
 {
-  "title": "India getting furious over Russia",
+  "title": "North Korea vs South Korea (Manual)",
   "totalFrames": 300,
+  "highlightCountries": [
+    {
+      "name": "North Korea",
+      "country": "North Korea",
+      "color": "#ef4444",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "enableGlow": true,
+      "glowTarget": "both",
+      "dropShadow": true,
+      "blendMode": "screen",
+      "isPrimary": true,
+      "startFrame": 0,
+      "revealStyle": "ink"
+    },
+    {
+      "name": "South Korea",
+      "country": "South Korea",
+      "color": "#3b82f6",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "enableGlow": true,
+      "glowTarget": "both",
+      "dropShadow": true,
+      "blendMode": "screen",
+      "isPrimary": false,
+      "startFrame": 0,
+      "revealStyle": "ink"
+    }
+  ],
+  "takeovers": [],
+  "arrows": [],
+  "labels": [],
+  "assets": [],
   "cameraKeyframes": [
     {
       "frame": 0,
-      "lng": 78.9629,
-      "lat": 20.5937,
-      "zoom": 4.5,
-      "pitch": 40
+      "zoom": 4.949999944120646,
+      "lat": 38,
+      "lng": 127,
+      "pitch": 48,
+      "bearing": -20
     },
     {
-      "frame": 100,
-      "lng": 85,
-      "lat": 45,
-      "zoom": 3.5,
-      "pitch": 45
+      "frame": 30,
+      "zoom": 3.699999962747097,
+      "lat": 38,
+      "lng": 127,
+      "pitch": 23,
+      "bearing": 6
     },
     {
-      "frame": 200,
-      "lng": 95,
-      "lat": 55,
-      "zoom": 2.8,
-      "pitch": 45
+      "frame": 67,
+      "zoom": 6.199999925494195,
+      "lat": 38,
+      "lng": 127,
+      "pitch": 65.5,
+      "bearing": 5
     },
     {
-      "frame": 300,
-      "lng": 105.3188,
-      "lat": 61.524,
-      "zoom": 2.5,
-      "pitch": 45
+      "frame": 95,
+      "zoom": 9.324999878928066,
+      "lat": 38,
+      "lng": 127,
+      "pitch": 85,
+      "bearing": 36
+    },
+    {
+      "frame": 125,
+      "lat": 38,
+      "lng": 127,
+      "zoom": 5.574999934807421,
+      "pitch": 85,
+      "bearing": -21
     }
-  ],
-  "highlightCountries": [
-    {
-      "name": "India",
-      "startFrame": 0,
-      "color": "#ff9933",
-      "isPrimary": true,
-      "revealStyle": "fade",
-      "endFrame": 300
-    },
-    {
-      "name": "Russia",
-      "startFrame": 50,
-      "color": "#cc0000",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "endFrame": 300
-    }
-  ],
-  "takeovers": [
-    {
-      "invader": "India",
-      "target": "Russia",
-      "startFrame": 100,
-      "duration": 180,
-      "color": "#ff9933",
-      "origin": [
-        78.9629,
-        20.5937
-      ]
-    }
-  ],
-  "arrows": []
+  ]
 }
