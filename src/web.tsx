@@ -2,7 +2,6 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Player, PlayerRef } from '@remotion/player';
 import { MapAnimation } from './MapAnimation';
-import { GeneratedTimeline } from './backend/generateTimeline';
 import './index.css';
 
 const WebApp: React.FC = () => {
@@ -35,6 +34,7 @@ const WebApp: React.FC = () => {
   const [isLiveEdit, setIsLiveEdit] = useState<boolean>(false);
   
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isPreloading, setIsPreloading] = useState<boolean>(false);
   
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragPos = useRef<{x: number, y: number} | null>(null);
@@ -46,7 +46,6 @@ const WebApp: React.FC = () => {
   const [targetZoom, setTargetZoom] = useState<number>(1.2);
   const [targetPitch, setTargetPitch] = useState<number>(20);
   const [targetBearing, setTargetBearing] = useState<number>(0);
-  const [targetEasing, setTargetEasing] = useState<string>('easeInOut');
 
   const [pathStartCoord, setPathStartCoord] = useState<[number, number] | null>(null);
 
@@ -109,73 +108,80 @@ const WebApp: React.FC = () => {
     }
   };
 
-  // 🚨 THE FRAME-BY-FRAME DEEP COMPOSITOR FOR MOBILE/NO-SERVER EXPORTS
-  const handleMobileDeepRender = async () => {
-    setIsExporting(true);
+  const handleFinalizeCache = async () => {
+    setIsPreloading(true);
     playerRef.current?.pause();
     setIsPlaying(false);
+    
+    for(let f = 0; f < videoDuration; f += 10) {
+      playerRef.current?.seekTo(f);
+      await new Promise(r => setTimeout(r, 100)); 
+    }
+    
+    playerRef.current?.seekTo(0);
+    setIsPreloading(false);
+    alert("Map Cache Finalized! Ready for flawless export.");
+  };
 
-    // Create the master photographic canvas
-    const masterCanvas = document.createElement('canvas');
-    masterCanvas.width = 1080;
-    masterCanvas.height = 1920;
-    const ctx = masterCanvas.getContext('2d');
+  // 🚀 FAST REAL-TIME MOBILE CANVAS EXPORTER (10 Seconds for 300 Frames)
+  const handleFastMobileExport = async () => {
+    setIsExporting(true);
+    playerRef.current?.seekTo(0);
+    playerRef.current?.play();
+    setIsPlaying(true);
+
+    const compositeCanvas = document.createElement('canvas');
+    compositeCanvas.width = 1080;
+    compositeCanvas.height = 1920;
+    const ctx = compositeCanvas.getContext('2d');
     if (!ctx) return;
 
-    // Stream the canvas directly into the mobile hardware encoder
-    const stream = masterCanvas.captureStream(30);
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    // Stream natively at 30fps
+    const stream = compositeCanvas.captureStream(30);
+    const options = MediaRecorder.isTypeSupported('video/webm; codecs=vp9') 
+      ? { mimeType: 'video/webm; codecs=vp9', videoBitsPerSecond: 20000000 } 
+      : { mimeType: 'video/webm', videoBitsPerSecond: 20000000 };
+    
+    const recorder = new MediaRecorder(stream, options);
     const chunks: BlobPart[] = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-    recorder.start();
 
-    // Iterate through every single frame
-    for (let f = 0; f <= videoDuration; f++) {
-      setCurrentFrame(f);
-      playerRef.current?.seekTo(f);
-
-      // Wait 150ms for MapLibre to fetch tiles and React to render SVGs
-      await new Promise(r => setTimeout(r, 150));
-
-      // 1. Photograph MapLibre Base Layer
+    let animId: number;
+    const renderLoop = () => {
+      if (!isExporting) return;
+      ctx.clearRect(0, 0, 1080, 1920);
+      
+      // Grab both the WebGL Map Canvas and your custom Vector Overlay Canvas
       const mapCanvas = document.querySelector('canvas.maplibregl-canvas') as HTMLCanvasElement;
-      if (mapCanvas) {
-        ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
-      }
-
-      // 2. Photograph all SVG Overlays (Borders, Takeovers, Lines)
-      const svgs = document.querySelectorAll('svg');
-      for (let i = 0; i < svgs.length; i++) {
-        const svg = svgs[i];
-        if (!svg.getAttribute('xmlns')) svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        const xml = new XMLSerializer().serializeToString(svg);
-        const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const img = new Image();
-        
-        // Wait for image conversion
-        await new Promise(r => { img.onload = r; img.onerror = r; img.src = url; });
-        ctx.drawImage(img, 0, 0, 1080, 1920);
-        URL.revokeObjectURL(url);
-      }
-
-      // 3. Force stream to capture this merged frame
-      const track = stream.getVideoTracks()[0] as any;
-      if (track.requestFrame) track.requestFrame();
-    }
+      const vectorCanvas = document.querySelector('canvas#vector-overlay') as HTMLCanvasElement;
+      
+      if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
+      if (vectorCanvas) ctx.drawImage(vectorCanvas, 0, 0, 1080, 1920);
+      
+      animId = requestAnimationFrame(renderLoop);
+    };
+    renderLoop();
 
     recorder.onstop = () => {
+      cancelAnimationFrame(animId);
       const blob = new Blob(chunks, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Mobile_Render'}_HD.webm`;
+      a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Mobile'}_${Date.now()}.webm`;
       a.click();
       URL.revokeObjectURL(url);
       setIsExporting(false);
     };
+
+    recorder.start();
     
-    setTimeout(() => recorder.stop(), 500);
+    // Stop recording exactly when the timeline ends
+    setTimeout(() => {
+      recorder.stop();
+      playerRef.current?.pause();
+      setIsPlaying(false);
+    }, (videoDuration / 30) * 1000 + 300);
   };
 
   const handleHDLocalExport = async () => {
@@ -210,8 +216,11 @@ const WebApp: React.FC = () => {
         { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: 0, revealStyle: 'ink' },
         { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: 0, revealStyle: 'ink' }
       ],
-      takeovers: [], arrows: [], labels: [], assets: [],
-      cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, pitch: 45, bearing: 0 }]
+      takeovers: [],
+      arrows: [],
+      labels: [],
+      cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, latitude: 38.0, longitude: 127.0, pitch: 45, bearing: 0, easing: 'easeInOut' }],
+      assets: [] 
     }; 
     setTimeline(blankTimeline);
     setVideoDuration(300);
@@ -221,8 +230,9 @@ const WebApp: React.FC = () => {
   const startLiveEdit = () => {
     playerRef.current?.pause();
     setIsPlaying(false);
-    const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= currentFrame) || [];
-    const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0 };
+    const cFrame = currentFrame;
+    const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= cFrame) || [];
+    const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0, easing: 'easeInOut' };
 
     setTargetLat(baseKf.lat ?? baseKf.latitude ?? 38.0);
     setTargetLng(baseKf.lng ?? baseKf.longitude ?? 127.0);
@@ -239,7 +249,7 @@ const WebApp: React.FC = () => {
       if (!prev) return prev;
       const updated = { ...prev };
       updated.cameraKeyframes = [...(prev.cameraKeyframes || [])].filter((kf: any) => Math.abs(kf.frame - cFrame) > 15);
-      updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, pitch: targetPitch, bearing: targetBearing });
+      updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, pitch: targetPitch, bearing: targetBearing });
       updated.cameraKeyframes.sort((a: any, b: any) => a.frame - b.frame);
       if (cFrame + 60 >= videoDuration) {
         extensionNeeded = (cFrame + 90) - videoDuration;
@@ -278,8 +288,17 @@ const WebApp: React.FC = () => {
       if (!prev) return prev;
       const updated = { ...prev };
       updated.labels = [...(prev.labels || []), { 
-        id: Math.random().toString(36).substr(2, 9), text: labelText, lat: targetLat, lng: targetLng, 
-        startFrame: cFrame, duration: 150, color: labelColor, bg: labelBg, size: labelSize, glow: labelGlow, pinned: labelPinned 
+        id: Math.random().toString(36).substr(2, 9), 
+        text: labelText, 
+        lat: targetLat, 
+        lng: targetLng, 
+        startFrame: cFrame, 
+        duration: 150, 
+        color: labelColor, 
+        bg: labelBg, 
+        size: labelSize, 
+        glow: labelGlow, 
+        pinned: labelPinned 
       }];
       return updated;
     });
@@ -302,7 +321,9 @@ const WebApp: React.FC = () => {
     setTimeline((prev: any) => {
       if (!prev) return prev;
       const updated = { ...prev };
-      if (updated.highlightCountries) updated.highlightCountries = updated.highlightCountries.filter((c: any) => c.name !== name && c.country !== name);
+      if (updated.highlightCountries) {
+        updated.highlightCountries = updated.highlightCountries.filter((c: any) => c.name !== name && c.country !== name);
+      }
       return updated;
     });
     if (selectedEntity === name) setSelectedEntity(null);
@@ -328,9 +349,11 @@ const WebApp: React.FC = () => {
         updated.arrows.push({ id: Math.random().toString(36).substr(2,9), type: 'arrow', sourceName: entityA, targetName: entityB, startFrame: cFrame, duration: 90, color: colorA });
       }
 
-      if (!foundEntityA) updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: cFrame });
+      if (!foundEntityA) {
+        updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: cFrame, revealStyle: 'ink' });
+      }
       if (!updated.highlightCountries.find((c:any) => c.name === entityB || c.country === entityB)) {
-        updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame });
+        updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'ink' });
       }
       return updated;
     });
@@ -345,7 +368,7 @@ const WebApp: React.FC = () => {
       updated.highlightCountries = [...(prev.highlightCountries || [])];
       const exists = updated.highlightCountries.find((c: any) => (c.name || c.country).toLowerCase() === newCountrySearch.trim().toLowerCase());
       if (!exists) {
-        updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', startFrame: cFrame });
+        updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'ink' });
       }
       return updated;
     });
@@ -408,11 +431,11 @@ const WebApp: React.FC = () => {
     }
     
     let newKfs = [...(timeline.cameraKeyframes || [])];
-    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat ?? kf.latitude ?? 38.0, lng: kf.lng ?? kf.longitude ?? 127.0, zoom: kf.zoom ?? 1.2, pitch: kf.pitch ?? 0, bearing: kf.bearing ?? 0 }));
+    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat ?? kf.latitude ?? 38.0, lng: kf.lng ?? kf.longitude ?? 127.0, latitude: kf.latitude ?? kf.lat ?? 38.0, longitude: kf.longitude ?? kf.lng ?? 127.0, zoom: kf.zoom ?? 1.2, pitch: kf.pitch ?? 0, bearing: kf.bearing ?? 0 }));
     
     if (isLiveEdit && playerRef.current && !isPlaying) {
       newKfs = newKfs.filter((kf: any) => Math.abs(kf.frame - currentFrame) > 15);
-      newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
+      newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
       newKfs.sort((a: any, b: any) => a.frame - b.frame);
     }
     modified.cameraKeyframes = newKfs;
@@ -541,17 +564,26 @@ const WebApp: React.FC = () => {
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
         <button 
-          onClick={handleMobileDeepRender} 
-          disabled={isExporting} 
-          style={{ background: isExporting ? '#f59e0b' : '#38bdf8', color: '#000', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
-          {isExporting ? `⏳ Processing Frame ${currentFrame}...` : '📱 Deep Mobile Export (No Server)'}
-        </button>
-        <button 
           onClick={handleHDLocalExport} 
-          disabled={isExporting} 
-          style={{ background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
-          {isExporting ? '⏳ Rendering HD MP4...' : '🖥️ True HD Desktop Export'}
+          disabled={isPreloading || isExporting} 
+          style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+          {isExporting ? '⏳ Rendering HD MP4...' : '🖥️ True HD Server Export'}
         </button>
+
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={handleFinalizeCache} 
+            disabled={isPreloading || isExporting} 
+            style={{ flex: 1, background: isPreloading ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isPreloading ? 'wait' : 'pointer' }}>
+            {isPreloading ? '⏳ Preloading...' : '📦 Finalize Cache'}
+          </button>
+          <button 
+            onClick={handleFastMobileExport} 
+            disabled={isExporting || isPreloading} 
+            style={{ flex: 1, background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
+            {isExporting ? '⏳ Compiling...' : '🎥 Mobile WebM Export'}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -790,6 +822,7 @@ const WebApp: React.FC = () => {
                           if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
                           if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
+                          // Mobile-calibrated sensitivity
                           setTargetZoom(z => Math.max(0.5, Math.min(15, z + distDiff * 0.01)));
                           setTargetBearing(b => b + angleDiff * 60);
                           
@@ -811,6 +844,7 @@ const WebApp: React.FC = () => {
                       </div>
                     </div>
                     
+                    {/* Mobile Controls HUD */}
                     <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', padding: '8px 16px', borderRadius: '12px', fontSize: '10px', color: '#8e8e93', fontWeight: 600, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', gap: '12px', zIndex: 55 }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>📱 <strong style={{ color: '#fff' }}>1 Finger</strong> Pan</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🤏 <strong style={{ color: '#fff' }}>2 Fingers</strong> Zoom/Twist</span>
