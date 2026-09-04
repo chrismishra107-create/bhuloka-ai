@@ -34,47 +34,47 @@
   "takeovers": [],
   "arrows": [],
   "labels": [],
-  "assets": [],
   "cameraKeyframes": [
     {
       "frame": 0,
-      "zoom": 4.949999944120646,
-      "lat": 38,
-      "lng": 127,
-      "pitch": 48,
-      "bearing": -20
-    },
-    {
-      "frame": 30,
       "zoom": 3.699999962747097,
       "lat": 38,
       "lng": 127,
-      "pitch": 23,
-      "bearing": 6
+      "latitude": 38,
+      "longitude": 127,
+      "pitch": 33,
+      "bearing": -5
     },
     {
-      "frame": 67,
-      "zoom": 6.199999925494195,
+      "frame": 28,
+      "zoom": 5.57499993480742,
       "lat": 38,
       "lng": 127,
-      "pitch": 65.5,
-      "bearing": 5
+      "latitude": 38,
+      "longitude": 127,
+      "pitch": 66.5,
+      "bearing": -34
     },
     {
-      "frame": 95,
-      "zoom": 9.324999878928066,
+      "frame": 53,
+      "zoom": 6.8249999161809685,
       "lat": 38,
       "lng": 127,
-      "pitch": 85,
-      "bearing": 36
+      "latitude": 38,
+      "longitude": 127,
+      "pitch": 62.5,
+      "bearing": 28
     },
     {
-      "frame": 125,
+      "frame": 119,
       "lat": 38,
       "lng": 127,
-      "zoom": 5.574999934807421,
-      "pitch": 85,
-      "bearing": -21
+      "latitude": 38,
+      "longitude": 127,
+      "zoom": 6.8249999161809685,
+      "pitch": 62.5,
+      "bearing": 28
     }
-  ]
+  ],
+  "assets": []
 }

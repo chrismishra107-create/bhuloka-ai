@@ -123,7 +123,7 @@ const WebApp: React.FC = () => {
     alert("Map Cache Finalized! Ready for flawless export.");
   };
 
-  // 🚀 FAST REAL-TIME MOBILE CANVAS EXPORTER (10 Seconds for 300 Frames)
+  // 🚀 BULLETPROOF MOBILE CANVAS EXPORTER
   const handleFastMobileExport = async () => {
     setIsExporting(true);
     playerRef.current?.seekTo(0);
@@ -133,16 +133,21 @@ const WebApp: React.FC = () => {
     const compositeCanvas = document.createElement('canvas');
     compositeCanvas.width = 1080;
     compositeCanvas.height = 1920;
+    
+    // 🚨 FIX: Placed directly over the player so the mobile browser is forced to paint it
+    compositeCanvas.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:9999; pointer-events:none;';
+    
+    const playerContainer = document.getElementById('player-container');
+    if (playerContainer) playerContainer.appendChild(compositeCanvas);
+
     const ctx = compositeCanvas.getContext('2d');
     if (!ctx) return;
 
-    // Stream natively at 30fps
     const stream = compositeCanvas.captureStream(30);
-    const options = MediaRecorder.isTypeSupported('video/webm; codecs=vp9') 
-      ? { mimeType: 'video/webm; codecs=vp9', videoBitsPerSecond: 20000000 } 
-      : { mimeType: 'video/webm', videoBitsPerSecond: 20000000 };
+    const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
     
-    const recorder = new MediaRecorder(stream, options);
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 15000000 });
     const chunks: BlobPart[] = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
@@ -151,7 +156,6 @@ const WebApp: React.FC = () => {
       if (!isExporting) return;
       ctx.clearRect(0, 0, 1080, 1920);
       
-      // Grab both the WebGL Map Canvas and your custom Vector Overlay Canvas
       const mapCanvas = document.querySelector('canvas.maplibregl-canvas') as HTMLCanvasElement;
       const vectorCanvas = document.querySelector('canvas#vector-overlay') as HTMLCanvasElement;
       
@@ -164,7 +168,9 @@ const WebApp: React.FC = () => {
 
     recorder.onstop = () => {
       cancelAnimationFrame(animId);
-      const blob = new Blob(chunks, { type: 'video/webm' });
+      if (compositeCanvas.parentNode) compositeCanvas.parentNode.removeChild(compositeCanvas);
+      
+      const blob = new Blob(chunks, { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -176,12 +182,11 @@ const WebApp: React.FC = () => {
 
     recorder.start();
     
-    // Stop recording exactly when the timeline ends
     setTimeout(() => {
-      recorder.stop();
+      if (recorder.state === 'recording') recorder.stop();
       playerRef.current?.pause();
       setIsPlaying(false);
-    }, (videoDuration / 30) * 1000 + 300);
+    }, (videoDuration / 30) * 1000 + 500);
   };
 
   const handleHDLocalExport = async () => {
@@ -350,10 +355,10 @@ const WebApp: React.FC = () => {
       }
 
       if (!foundEntityA) {
-        updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: cFrame, revealStyle: 'ink' });
+        updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: cFrame, revealStyle: 'fade' });
       }
       if (!updated.highlightCountries.find((c:any) => c.name === entityB || c.country === entityB)) {
-        updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'ink' });
+        updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'fade' });
       }
       return updated;
     });
@@ -368,7 +373,7 @@ const WebApp: React.FC = () => {
       updated.highlightCountries = [...(prev.highlightCountries || [])];
       const exists = updated.highlightCountries.find((c: any) => (c.name || c.country).toLowerCase() === newCountrySearch.trim().toLowerCase());
       if (!exists) {
-        updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'ink' });
+        updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'fade' });
       }
       return updated;
     });
@@ -621,7 +626,16 @@ const WebApp: React.FC = () => {
       {selectedEntity ? (
         <>
           <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '2px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '8px' }}>STYLING: {selectedEntity.toUpperCase()}</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+          
+          {/* 🔥 DYNAMIC UI BRANCHING EXAMPLE: Reveal Animation Settings */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
+            <span style={{ color: '#8e8e93', fontWeight: 500 }}>REVEAL ANIMATION</span>
+            <select value={activeEntityData?.revealStyle || 'fade'} onChange={(e) => updateEntityStyle('revealStyle', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
+              <option value="fade">Fade In</option><option value="ink">Ink Bleed (GEOlayers)</option><option value="scale">Pop Scale</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
             <span style={{ color: '#8e8e93', fontWeight: 500 }}>FILL COLOR</span>
             <input type="color" value={activeColor} onChange={(e) => updateEntityStyle('color', e.target.value)} style={{ width: '24px', height: '24px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }} />
           </div>
@@ -671,6 +685,7 @@ const WebApp: React.FC = () => {
   return (
     <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden' }}>
 
+      {/* SETUP SCREENS */}
       {status !== 'editor' && (
         <div style={{ position: 'absolute', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(148,163,184,0.02) 50%, transparent 70%)', borderRadius: '50%', zIndex: 1, pointerEvents: 'none', filter: 'blur(100px)' }} />
       )}
@@ -711,8 +726,9 @@ const WebApp: React.FC = () => {
         </div>
       )}
 
+      {/* MAIN EDITOR INTERFACE */}
       {status === 'editor' && dynamicTimeline && (
-        <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', paddingBottom: '100px' }}>
+        <div id="player-container" style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', paddingBottom: '100px', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '32px', width: '100%', height: '100%' }}>
             
             {isDesktop && (
@@ -822,7 +838,6 @@ const WebApp: React.FC = () => {
                           if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
                           if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-                          // Mobile-calibrated sensitivity
                           setTargetZoom(z => Math.max(0.5, Math.min(15, z + distDiff * 0.01)));
                           setTargetBearing(b => b + angleDiff * 60);
                           
@@ -844,7 +859,6 @@ const WebApp: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Mobile Controls HUD */}
                     <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', padding: '8px 16px', borderRadius: '12px', fontSize: '10px', color: '#8e8e93', fontWeight: 600, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', gap: '12px', zIndex: 55 }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>📱 <strong style={{ color: '#fff' }}>1 Finger</strong> Pan</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🤏 <strong style={{ color: '#fff' }}>2 Fingers</strong> Zoom/Twist</span>

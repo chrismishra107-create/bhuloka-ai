@@ -31,7 +31,7 @@ export const MapAnimation: React.FC<{
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [initialHandle] = useState(() => delayRender('Booting Hardware Canvas Engine...'));
+  const [initialHandle] = useState(() => delayRender('Booting Blended Canvas Engine...'));
   
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
 
@@ -53,11 +53,10 @@ export const MapAnimation: React.FC<{
     { frame: totalFrames, lng: 88, lat: 31, zoom: 5.5, pitch: 40, bearing: 0 }
   ];
   
-  // 🚨 RESTORED MISSING DECLARATION
+  // 🚨 RESTORED: This is what caused your TS Error on Line 56
   const keyframes = validKeyframes.length > 0 ? validKeyframes : fallbackKeyframes;
   const strictlySortedKeyframes = [...keyframes].sort((a, b) => a.frame - b.frame);
 
-  // 🚀 ISOLATED SEGMENTED CAMERA (Fixes the 3+ Keyframe Overshoot Bug)
   const getInterpolatedCamera = () => {
     const kfs = strictlySortedKeyframes;
     if (kfs.length === 0) return { lng: 0, lat: 0, zoom: 1, pitch: 0, bearing: 0 };
@@ -192,7 +191,15 @@ export const MapAnimation: React.FC<{
   const assets = (timeline as any).assets || [];
   const labels = (timeline as any).labels || [];
 
-  // 🚀 THE NATIVE CANVAS RENDERER
+  const getCanvasBlendMode = (mode: string) => {
+    const m = (mode || 'screen').toLowerCase();
+    if (m === 'multiply') return 'multiply';
+    if (m === 'overlay') return 'overlay';
+    if (m === 'add' || m === 'color dodge') return 'color-dodge';
+    return 'screen'; 
+  };
+
+  // 🚀 FULLY BLENDED NATIVE CANVAS RENDERER
   useLayoutEffect(() => {
     if (!overlayRef.current || !mapLoaded) return;
     const ctx = overlayRef.current.getContext('2d');
@@ -201,6 +208,7 @@ export const MapAnimation: React.FC<{
     ctx.clearRect(0, 0, width, height);
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 
+    // 1. Render Highlighted Countries with Blending & Glow
     rawCountries.forEach((entity: any) => {
       if (frame < (entity.startFrame || 0)) return;
       if (takeovers.some((t: any) => (t.target || '').toLowerCase() === (entity.name || entity.country || '').toLowerCase() && frame >= (t.startFrame || 0))) return;
@@ -211,10 +219,10 @@ export const MapAnimation: React.FC<{
       const p2d = new Path2D(path);
 
       ctx.save();
-      ctx.globalCompositeOperation = entity.blendMode === 'screen' ? 'screen' : 'source-over';
+      ctx.globalCompositeOperation = getCanvasBlendMode(entity.blendMode);
       
       if (entity.dropShadow !== false) {
-        ctx.save(); ctx.translate(0, 15); ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 15; ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fill(p2d); ctx.restore();
+        ctx.save(); ctx.translate(0, 15); ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 15; ctx.fillStyle = '#000000'; ctx.fill(p2d); ctx.restore();
       }
       if (entity.enableGlow !== false) {
         ctx.save(); ctx.shadowColor = entity.color || '#3b82f6'; ctx.shadowBlur = entity.glowIntensity || 20; ctx.globalAlpha = 0.55; ctx.fillStyle = entity.color || '#3b82f6'; ctx.fill(p2d); ctx.restore();
@@ -225,6 +233,7 @@ export const MapAnimation: React.FC<{
       ctx.restore();
     });
 
+    // 2. Render Animated Invasions / Takeovers with Cinematic Frontline Blend
     takeovers.forEach((takeover: any) => {
       const start = takeover.startFrame || 0;
       if (frame < start) return;
@@ -233,14 +242,17 @@ export const MapAnimation: React.FC<{
       if (!targetGeo.path) return;
       const p2d = new Path2D(targetGeo.path);
 
-      const targetColor = rawCountries.find((c:any) => (c.name || c.country) === takeover.target)?.color || '#1e3a8a';
+      const targetData: any = rawCountries.find((c: any) => (c.name || c.country) === takeover.target) || {};
+      const targetColor = targetData.color || '#1e3a8a';
       const invaderColor = takeover.color || '#ef4444';
       
       ctx.save();
-      ctx.globalCompositeOperation = 'screen';
+      ctx.globalCompositeOperation = getCanvasBlendMode(targetData.blendMode);
       ctx.fillStyle = targetColor; ctx.globalAlpha = 0.85; ctx.fill(p2d);
       
-      const radius = interpolate(frame - start, [0, 90], [0, Math.max(width, height) * 1.5], { extrapolateRight: 'clamp' });
+      const duration = Math.max(takeover.duration || 120, 90);
+      const radius = interpolate(frame - start, [0, duration], [0, Math.max(width, height) * 1.5], { extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
+      
       const invGeo = getGeometryFromSource(takeover.attacker || takeover.invader, [worldData]);
       let cx = width/2; let cy = height/2;
       if (invGeo.center) { const p = mapRef.current?.project(invGeo.center); if (p) { cx = p.x; cy = p.y; } }
@@ -250,6 +262,7 @@ export const MapAnimation: React.FC<{
       ctx.restore();
     });
 
+    // 3. Render Strategic Arrows & Missiles
     arrows.forEach((arrow: any) => {
       const startF = arrow.startFrame || arrow.frame || 0;
       if (frame < startF) return;
@@ -270,13 +283,14 @@ export const MapAnimation: React.FC<{
       const t = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
 
       ctx.save();
+      ctx.shadowColor = '#000000'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 10;
       const approxLen = dist * 1.2;
       ctx.setLineDash([approxLen]);
       ctx.lineDashOffset = approxLen - (t * approxLen);
 
       if (arrow.type === 'missile') {
          ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 8; ctx.globalAlpha = 0.3; ctx.stroke(p2d);
-         ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.globalAlpha = 0.8; ctx.stroke(p2d);
+         ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.globalAlpha = 0.9; ctx.stroke(p2d);
       } else {
          const sourceData = rawCountries.find((c: any) => (c.name || c.country || '').toLowerCase() === (arrow.sourceName || '').toLowerCase());
          ctx.strokeStyle = arrow.color || sourceData?.color || '#ef4444'; ctx.lineWidth = 6; ctx.stroke(p2d);
@@ -285,6 +299,7 @@ export const MapAnimation: React.FC<{
       ctx.restore();
     });
 
+    // 4. Render Map Assets (Pins & Explosions)
     assets.forEach((asset: any) => {
       if (frame < asset.startFrame) return;
       const p = mapRef.current?.project([asset.lng, asset.lat]);
@@ -294,6 +309,7 @@ export const MapAnimation: React.FC<{
          const dropY = interpolate(frame - asset.startFrame, [0, 15], [-50, 0], { extrapolateRight: 'clamp', easing: Easing.bounce });
          ctx.save();
          ctx.translate(p.x, p.y + dropY);
+         ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 10;
          ctx.fillStyle = '#ef4444'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
          const path = new Path2D("M0 -24 C -8 -24, -14 -18, -14 -10 C -14 0, 0 12, 0 12 C 0 12, 14 0, 14 -10 C 14 -18, 8 -24, 0 -24 Z");
          ctx.fill(path); ctx.stroke(path);
@@ -311,6 +327,7 @@ export const MapAnimation: React.FC<{
       }
     });
 
+    // 5. Render Map Typography Labels
     labels.forEach((l: any) => {
       if (frame < (l.startFrame || 0)) return;
       if (frame > (l.startFrame + (l.duration || 150)) && !l.pinned) return;
@@ -319,6 +336,7 @@ export const MapAnimation: React.FC<{
       
       ctx.save();
       ctx.translate(p.x, p.y - 10);
+      if (l.glow) { ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 20; }
       ctx.fillStyle = l.bg || 'rgba(0,0,0,0.7)';
       if (ctx.roundRect) {
         ctx.beginPath(); ctx.roundRect(-60, -20, 120, 36, 8); ctx.fill();
@@ -338,10 +356,14 @@ export const MapAnimation: React.FC<{
   return (
     <AbsoluteFill style={{ backgroundColor: '#040711', overflow: 'hidden' }}>
       <div ref={mapContainer} style={{ width: `${width}px`, height: `${height}px`, position: 'absolute', top: 0, left: 0 }} />
+      
+      {/* Background Vignette to blend edges */}
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
 
+      {/* 🚀 THE MASTER BLENDED VECTOR CANVAS */}
       <canvas id="vector-overlay" ref={overlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none' }} />
 
+      {/* Invisible SVG Hitboxes for Map Selection */}
       <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 65 }}>
         {rawCountries.map((country: any, idx: number) => {
           if (frame < (country.startFrame || 0)) return null;

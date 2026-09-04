@@ -64119,7 +64119,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const overlayRef = (0, import_react121.useRef)(null);
     const mapRef = (0, import_react121.useRef)(null);
     const [mapLoaded, setMapLoaded] = (0, import_react121.useState)(false);
-    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Hardware Canvas Engine..."));
+    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Blended Canvas Engine..."));
     const [selectedCountry, setSelectedCountry] = (0, import_react121.useState)(null);
     const frame = useCurrentFrame();
     const { width, height } = useVideoConfig();
@@ -64275,6 +64275,13 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const arrows = timeline.arrows || [];
     const assets = timeline.assets || [];
     const labels = timeline.labels || [];
+    const getCanvasBlendMode = (mode) => {
+      const m2 = (mode || "screen").toLowerCase();
+      if (m2 === "multiply") return "multiply";
+      if (m2 === "overlay") return "overlay";
+      if (m2 === "add" || m2 === "color dodge") return "color-dodge";
+      return "screen";
+    };
     (0, import_react121.useLayoutEffect)(() => {
       if (!overlayRef.current || !mapLoaded) return;
       const ctx = overlayRef.current.getContext("2d");
@@ -64290,13 +64297,13 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (!path) return;
         const p2d = new Path2D(path);
         ctx.save();
-        ctx.globalCompositeOperation = entity.blendMode === "screen" ? "screen" : "source-over";
+        ctx.globalCompositeOperation = getCanvasBlendMode(entity.blendMode);
         if (entity.dropShadow !== false) {
           ctx.save();
           ctx.translate(0, 15);
-          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowColor = "rgba(0,0,0,0.95)";
           ctx.shadowBlur = 15;
-          ctx.fillStyle = "rgba(0,0,0,1)";
+          ctx.fillStyle = "#000000";
           ctx.fill(p2d);
           ctx.restore();
         }
@@ -64325,14 +64332,16 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const targetGeo = getGeometryFromSource(takeover.target, [world_default]);
         if (!targetGeo.path) return;
         const p2d = new Path2D(targetGeo.path);
-        const targetColor = rawCountries.find((c4) => (c4.name || c4.country) === takeover.target)?.color || "#1e3a8a";
+        const targetData = rawCountries.find((c4) => (c4.name || c4.country) === takeover.target) || {};
+        const targetColor = targetData.color || "#1e3a8a";
         const invaderColor = takeover.color || "#ef4444";
         ctx.save();
-        ctx.globalCompositeOperation = "screen";
+        ctx.globalCompositeOperation = getCanvasBlendMode(targetData.blendMode);
         ctx.fillStyle = targetColor;
         ctx.globalAlpha = 0.85;
         ctx.fill(p2d);
-        const radius = interpolate(frame - start, [0, 90], [0, Math.max(width, height) * 1.5], { extrapolateRight: "clamp" });
+        const duration = Math.max(takeover.duration || 120, 90);
+        const radius = interpolate(frame - start, [0, duration], [0, Math.max(width, height) * 1.5], { extrapolateRight: "clamp", easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
         const invGeo = getGeometryFromSource(takeover.attacker || takeover.invader, [world_default]);
         let cx2 = width / 2;
         let cy2 = height / 2;
@@ -64372,6 +64381,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const p2d = new Path2D(pathD);
         const t3 = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
         ctx.save();
+        ctx.shadowColor = "#000000";
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 10;
         const approxLen = dist * 1.2;
         ctx.setLineDash([approxLen]);
         ctx.lineDashOffset = approxLen - t3 * approxLen;
@@ -64382,7 +64394,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           ctx.stroke(p2d);
           ctx.strokeStyle = "#ffffff";
           ctx.lineWidth = 3;
-          ctx.globalAlpha = 0.8;
+          ctx.globalAlpha = 0.9;
           ctx.stroke(p2d);
         } else {
           const sourceData = rawCountries.find((c4) => (c4.name || c4.country || "").toLowerCase() === (arrow.sourceName || "").toLowerCase());
@@ -64404,6 +64416,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           const dropY = interpolate(frame - asset.startFrame, [0, 15], [-50, 0], { extrapolateRight: "clamp", easing: Easing.bounce });
           ctx.save();
           ctx.translate(p2.x, p2.y + dropY);
+          ctx.shadowColor = "rgba(0,0,0,0.9)";
+          ctx.shadowBlur = 12;
+          ctx.shadowOffsetY = 10;
           ctx.fillStyle = "#ef4444";
           ctx.strokeStyle = "#ffffff";
           ctx.lineWidth = 2;
@@ -64445,6 +64460,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (!p2) return;
         ctx.save();
         ctx.translate(p2.x, p2.y - 10);
+        if (l2.glow) {
+          ctx.shadowColor = "#38bdf8";
+          ctx.shadowBlur = 20;
+        }
         ctx.fillStyle = l2.bg || "rgba(0,0,0,0.7)";
         if (ctx.roundRect) {
           ctx.beginPath();
@@ -64587,11 +64606,15 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       const compositeCanvas = document.createElement("canvas");
       compositeCanvas.width = 1080;
       compositeCanvas.height = 1920;
+      compositeCanvas.style.cssText = "position:absolute; top:0; left:0; width:100%; height:100%; z-index:9999; pointer-events:none;";
+      const playerContainer = document.getElementById("player-container");
+      if (playerContainer) playerContainer.appendChild(compositeCanvas);
       const ctx = compositeCanvas.getContext("2d");
       if (!ctx) return;
       const stream = compositeCanvas.captureStream(30);
-      const options = MediaRecorder.isTypeSupported("video/webm; codecs=vp9") ? { mimeType: "video/webm; codecs=vp9", videoBitsPerSecond: 2e7 } : { mimeType: "video/webm", videoBitsPerSecond: 2e7 };
-      const recorder = new MediaRecorder(stream, options);
+      const mimeTypes = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+      const mimeType = mimeTypes.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 15e6 });
       const chunks = [];
       recorder.ondataavailable = (e63) => {
         if (e63.data.size > 0) chunks.push(e63.data);
@@ -64609,7 +64632,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       renderLoop();
       recorder.onstop = () => {
         cancelAnimationFrame(animId);
-        const blob = new Blob(chunks, { type: "video/webm" });
+        if (compositeCanvas.parentNode) compositeCanvas.parentNode.removeChild(compositeCanvas);
+        const blob = new Blob(chunks, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a4 = document.createElement("a");
         a4.href = url;
@@ -64620,10 +64644,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       };
       recorder.start();
       setTimeout(() => {
-        recorder.stop();
+        if (recorder.state === "recording") recorder.stop();
         playerRef.current?.pause();
         setIsPlaying(false);
-      }, videoDuration / 30 * 1e3 + 300);
+      }, videoDuration / 30 * 1e3 + 500);
     };
     const handleHDLocalExport = async () => {
       setIsExporting(true);
@@ -64778,10 +64802,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           updated.arrows.push({ id: Math.random().toString(36).substr(2, 9), type: "arrow", sourceName: entityA, targetName: entityB, startFrame: cFrame, duration: 90, color: colorA });
         }
         if (!foundEntityA) {
-          updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: true, startFrame: cFrame, revealStyle: "ink" });
+          updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: true, startFrame: cFrame, revealStyle: "fade" });
         }
         if (!updated.highlightCountries.find((c4) => c4.name === entityB || c4.country === entityB)) {
-          updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: cFrame, revealStyle: "ink" });
+          updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: cFrame, revealStyle: "fade" });
         }
         return updated;
       });
@@ -64795,7 +64819,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         updated.highlightCountries = [...prev.highlightCountries || []];
         const exists = updated.highlightCountries.find((c4) => (c4.name || c4.country).toLowerCase() === newCountrySearch.trim().toLowerCase());
         if (!exists) {
-          updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: "#3b82f6", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: cFrame, revealStyle: "ink" });
+          updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: "#3b82f6", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: cFrame, revealStyle: "fade" });
         }
         return updated;
       });
@@ -65025,7 +65049,15 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           "STYLING: ",
           selectedEntity.toUpperCase()
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "REVEAL ANIMATION" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: activeEntityData?.revealStyle || "fade", onChange: (e63) => updateEntityStyle("revealStyle", e63.target.value), style: { background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", outline: "none", fontSize: "10px", padding: "6px", cursor: "pointer" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "fade", children: "Fade In" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "ink", children: "Ink Bleed (GEOlayers)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "scale", children: "Pop Scale" })
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "8px" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "FILL COLOR" }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: activeColor, onChange: (e63) => updateEntityStyle("color", e63.target.value), style: { width: "24px", height: "24px", border: "none", borderRadius: "4px", cursor: "pointer", background: "transparent" } })
         ] }),
@@ -65105,7 +65137,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: initializeManualScene, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "20px", padding: "16px 28px", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginTop: "10px" }, children: "Launch Empty Studio \u{1F680}" })
         ] })
       ] }),
-      status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", paddingBottom: "100px" }, children: [
+      status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { id: "player-container", style: { width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", paddingBottom: "100px", position: "relative" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "32px", width: "100%", height: "100%" }, children: [
           isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, display: "flex", flexDirection: "column", gap: "10px", borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: leftPanelJSX }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: {
