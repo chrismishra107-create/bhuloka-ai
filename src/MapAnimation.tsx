@@ -28,10 +28,14 @@ export const MapAnimation: React.FC<{
   mapStyle?: string;
 }> = ({ timeline, mapStyle = 'satellite' }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<HTMLCanvasElement>(null);
+  
+  // 🔥 Split Canvases: One for glowing layers, one for solid text/UI
+  const blendOverlayRef = useRef<HTMLCanvasElement>(null);
+  const uiOverlayRef = useRef<HTMLCanvasElement>(null);
+  
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [initialHandle] = useState(() => delayRender('Booting Blended Canvas Engine...'));
+  const [initialHandle] = useState(() => delayRender('Booting Dual-Canvas Engine...'));
   
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
 
@@ -44,8 +48,8 @@ export const MapAnimation: React.FC<{
   const validKeyframes = (timeline?.cameraKeyframes || []).filter(
     (k: any) => k && typeof k.frame === 'number' && (typeof k.lng === 'number' || typeof k.longitude === 'number')
   ).map((k: any) => ({
-    frame: k.frame, lng: k.lng ?? k.longitude ?? 127.0, lat: k.lat ?? k.latitude ?? 38.0,
-    zoom: k.zoom ?? 1.2, pitch: Math.min(60, k.pitch ?? 0), bearing: k.bearing ?? 0
+    frame: k.frame, lng: k.lng !== undefined ? k.lng : (k.longitude !== undefined ? k.longitude : 127.0), lat: k.lat !== undefined ? k.lat : (k.latitude !== undefined ? k.latitude : 38.0),
+    zoom: k.zoom !== undefined ? k.zoom : 1.2, pitch: Math.min(60, k.pitch !== undefined ? k.pitch : 0), bearing: k.bearing !== undefined ? k.bearing : 0
   }));
 
   const fallbackKeyframes: any[] = [
@@ -53,7 +57,6 @@ export const MapAnimation: React.FC<{
     { frame: totalFrames, lng: 88, lat: 31, zoom: 5.5, pitch: 40, bearing: 0 }
   ];
   
-  // 🚨 RESTORED: This is what caused your TS Error on Line 56
   const keyframes = validKeyframes.length > 0 ? validKeyframes : fallbackKeyframes;
   const strictlySortedKeyframes = [...keyframes].sort((a, b) => a.frame - b.frame);
 
@@ -199,16 +202,21 @@ export const MapAnimation: React.FC<{
     return 'screen'; 
   };
 
-  // 🚀 FULLY BLENDED NATIVE CANVAS RENDERER
+  // 🚀 DUAL-CANVAS RENDERER (Solves the flat-color bug)
   useLayoutEffect(() => {
-    if (!overlayRef.current || !mapLoaded) return;
-    const ctx = overlayRef.current.getContext('2d');
-    if (!ctx) return;
+    if (!blendOverlayRef.current || !uiOverlayRef.current || !mapLoaded) return;
     
-    ctx.clearRect(0, 0, width, height);
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const blendCtx = blendOverlayRef.current.getContext('2d');
+    const uiCtx = uiOverlayRef.current.getContext('2d');
+    if (!blendCtx || !uiCtx) return;
+    
+    blendCtx.clearRect(0, 0, width, height);
+    blendCtx.lineJoin = 'round'; blendCtx.lineCap = 'round';
 
-    // 1. Render Highlighted Countries with Blending & Glow
+    uiCtx.clearRect(0, 0, width, height);
+    uiCtx.lineJoin = 'round'; uiCtx.lineCap = 'round';
+
+    // 1. BLEND LAYER: Glowing Countries, Shadows, Takeovers
     rawCountries.forEach((entity: any) => {
       if (frame < (entity.startFrame || 0)) return;
       if (takeovers.some((t: any) => (t.target || '').toLowerCase() === (entity.name || entity.country || '').toLowerCase() && frame >= (t.startFrame || 0))) return;
@@ -218,22 +226,21 @@ export const MapAnimation: React.FC<{
       if (!path) return;
       const p2d = new Path2D(path);
 
-      ctx.save();
-      ctx.globalCompositeOperation = getCanvasBlendMode(entity.blendMode);
+      blendCtx.save();
+      blendCtx.globalCompositeOperation = getCanvasBlendMode(entity.blendMode);
       
       if (entity.dropShadow !== false) {
-        ctx.save(); ctx.translate(0, 15); ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 15; ctx.fillStyle = '#000000'; ctx.fill(p2d); ctx.restore();
+        blendCtx.save(); blendCtx.translate(0, 15); blendCtx.shadowColor = 'rgba(0,0,0,0.95)'; blendCtx.shadowBlur = 15; blendCtx.fillStyle = '#000000'; blendCtx.fill(p2d); blendCtx.restore();
       }
       if (entity.enableGlow !== false) {
-        ctx.save(); ctx.shadowColor = entity.color || '#3b82f6'; ctx.shadowBlur = entity.glowIntensity || 20; ctx.globalAlpha = 0.55; ctx.fillStyle = entity.color || '#3b82f6'; ctx.fill(p2d); ctx.restore();
+        blendCtx.save(); blendCtx.shadowColor = entity.color || '#3b82f6'; blendCtx.shadowBlur = entity.glowIntensity !== undefined ? entity.glowIntensity : 20; blendCtx.globalAlpha = 0.55; blendCtx.fillStyle = entity.color || '#3b82f6'; blendCtx.fill(p2d); blendCtx.restore();
       }
       
-      ctx.globalAlpha = 0.9; ctx.fillStyle = entity.color || '#3b82f6'; ctx.fill(p2d);
-      if (entity.strokeWidth) { ctx.lineWidth = entity.strokeWidth; ctx.strokeStyle = entity.strokeColor || '#fff'; ctx.stroke(p2d); }
-      ctx.restore();
+      blendCtx.globalAlpha = 0.9; blendCtx.fillStyle = entity.color || '#3b82f6'; blendCtx.fill(p2d);
+      if (entity.strokeWidth) { blendCtx.lineWidth = entity.strokeWidth; blendCtx.strokeStyle = entity.strokeColor || '#fff'; blendCtx.stroke(p2d); }
+      blendCtx.restore();
     });
 
-    // 2. Render Animated Invasions / Takeovers with Cinematic Frontline Blend
     takeovers.forEach((takeover: any) => {
       const start = takeover.startFrame || 0;
       if (frame < start) return;
@@ -246,9 +253,9 @@ export const MapAnimation: React.FC<{
       const targetColor = targetData.color || '#1e3a8a';
       const invaderColor = takeover.color || '#ef4444';
       
-      ctx.save();
-      ctx.globalCompositeOperation = getCanvasBlendMode(targetData.blendMode);
-      ctx.fillStyle = targetColor; ctx.globalAlpha = 0.85; ctx.fill(p2d);
+      blendCtx.save();
+      blendCtx.globalCompositeOperation = getCanvasBlendMode(targetData.blendMode);
+      blendCtx.fillStyle = targetColor; blendCtx.globalAlpha = 0.85; blendCtx.fill(p2d);
       
       const duration = Math.max(takeover.duration || 120, 90);
       const radius = interpolate(frame - start, [0, duration], [0, Math.max(width, height) * 1.5], { extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
@@ -257,12 +264,12 @@ export const MapAnimation: React.FC<{
       let cx = width/2; let cy = height/2;
       if (invGeo.center) { const p = mapRef.current?.project(invGeo.center); if (p) { cx = p.x; cy = p.y; } }
 
-      ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.clip();
-      ctx.fillStyle = invaderColor; ctx.globalAlpha = 0.9; ctx.fill(p2d);
-      ctx.restore();
+      blendCtx.beginPath(); blendCtx.arc(cx, cy, radius, 0, Math.PI * 2); blendCtx.clip();
+      blendCtx.fillStyle = invaderColor; blendCtx.globalAlpha = 0.9; blendCtx.fill(p2d);
+      blendCtx.restore();
     });
 
-    // 3. Render Strategic Arrows & Missiles
+    // 2. UI LAYER: Arrows, Assets, and Solid Labels (Drawn on a non-screened canvas)
     arrows.forEach((arrow: any) => {
       const startF = arrow.startFrame || arrow.frame || 0;
       if (frame < startF) return;
@@ -282,24 +289,23 @@ export const MapAnimation: React.FC<{
       const p2d = new Path2D(pathD);
       const t = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
 
-      ctx.save();
-      ctx.shadowColor = '#000000'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 10;
+      uiCtx.save();
+      uiCtx.shadowColor = '#000000'; uiCtx.shadowBlur = 12; uiCtx.shadowOffsetY = 10;
       const approxLen = dist * 1.2;
-      ctx.setLineDash([approxLen]);
-      ctx.lineDashOffset = approxLen - (t * approxLen);
+      uiCtx.setLineDash([approxLen]);
+      uiCtx.lineDashOffset = approxLen - (t * approxLen);
 
       if (arrow.type === 'missile') {
-         ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 8; ctx.globalAlpha = 0.3; ctx.stroke(p2d);
-         ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.globalAlpha = 0.9; ctx.stroke(p2d);
+         uiCtx.strokeStyle = '#ef4444'; uiCtx.lineWidth = 8; uiCtx.globalAlpha = 0.3; uiCtx.stroke(p2d);
+         uiCtx.strokeStyle = '#ffffff'; uiCtx.lineWidth = 3; uiCtx.globalAlpha = 0.9; uiCtx.stroke(p2d);
       } else {
          const sourceData = rawCountries.find((c: any) => (c.name || c.country || '').toLowerCase() === (arrow.sourceName || '').toLowerCase());
-         ctx.strokeStyle = arrow.color || sourceData?.color || '#ef4444'; ctx.lineWidth = 6; ctx.stroke(p2d);
-         ctx.setLineDash([]); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(p2d);
+         uiCtx.strokeStyle = arrow.color || sourceData?.color || '#ef4444'; uiCtx.lineWidth = 6; uiCtx.stroke(p2d);
+         uiCtx.setLineDash([]); uiCtx.strokeStyle = '#ffffff'; uiCtx.lineWidth = 2; uiCtx.stroke(p2d);
       }
-      ctx.restore();
+      uiCtx.restore();
     });
 
-    // 4. Render Map Assets (Pins & Explosions)
     assets.forEach((asset: any) => {
       if (frame < asset.startFrame) return;
       const p = mapRef.current?.project([asset.lng, asset.lat]);
@@ -307,48 +313,47 @@ export const MapAnimation: React.FC<{
 
       if (asset.type === 'pin') {
          const dropY = interpolate(frame - asset.startFrame, [0, 15], [-50, 0], { extrapolateRight: 'clamp', easing: Easing.bounce });
-         ctx.save();
-         ctx.translate(p.x, p.y + dropY);
-         ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 10;
-         ctx.fillStyle = '#ef4444'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+         uiCtx.save();
+         uiCtx.translate(p.x, p.y + dropY);
+         uiCtx.shadowColor = 'rgba(0,0,0,0.9)'; uiCtx.shadowBlur = 12; uiCtx.shadowOffsetY = 10;
+         uiCtx.fillStyle = '#ef4444'; uiCtx.strokeStyle = '#ffffff'; uiCtx.lineWidth = 2;
          const path = new Path2D("M0 -24 C -8 -24, -14 -18, -14 -10 C -14 0, 0 12, 0 12 C 0 12, 14 0, 14 -10 C 14 -18, 8 -24, 0 -24 Z");
-         ctx.fill(path); ctx.stroke(path);
-         ctx.beginPath(); ctx.arc(0, -12, 4, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
-         ctx.restore();
+         uiCtx.fill(path); uiCtx.stroke(path);
+         uiCtx.beginPath(); uiCtx.arc(0, -12, 4, 0, Math.PI * 2); uiCtx.fillStyle = '#fff'; uiCtx.fill();
+         uiCtx.restore();
       } else if (asset.type === 'explosion') {
          const ringR = interpolate(frame - asset.startFrame, [0, 20], [0, 80], { extrapolateRight: 'clamp', easing: Easing.out(Easing.exp) });
          const opacity = interpolate(frame - asset.startFrame, [0, 20], [1, 0], { extrapolateRight: 'clamp' });
-         ctx.save();
-         ctx.translate(p.x, p.y); ctx.globalAlpha = opacity;
-         ctx.beginPath(); ctx.arc(0, 0, ringR, 0, Math.PI * 2); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 15; ctx.stroke();
-         ctx.beginPath(); ctx.arc(0, 0, ringR * 0.8, 0, Math.PI * 2); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.stroke();
-         ctx.beginPath(); ctx.arc(0, 0, ringR * 0.3, 0, Math.PI * 2); ctx.fillStyle = '#ef4444'; ctx.fill();
-         ctx.restore();
+         uiCtx.save();
+         uiCtx.translate(p.x, p.y); uiCtx.globalAlpha = opacity;
+         uiCtx.beginPath(); uiCtx.arc(0, 0, ringR, 0, Math.PI * 2); uiCtx.strokeStyle = '#f59e0b'; uiCtx.lineWidth = 15; uiCtx.stroke();
+         uiCtx.beginPath(); uiCtx.arc(0, 0, ringR * 0.8, 0, Math.PI * 2); uiCtx.strokeStyle = '#ffffff'; uiCtx.lineWidth = 5; uiCtx.stroke();
+         uiCtx.beginPath(); uiCtx.arc(0, 0, ringR * 0.3, 0, Math.PI * 2); uiCtx.fillStyle = '#ef4444'; uiCtx.fill();
+         uiCtx.restore();
       }
     });
 
-    // 5. Render Map Typography Labels
     labels.forEach((l: any) => {
       if (frame < (l.startFrame || 0)) return;
       if (frame > (l.startFrame + (l.duration || 150)) && !l.pinned) return;
       const p = mapRef.current?.project([l.lng, l.lat]);
       if (!p) return;
       
-      ctx.save();
-      ctx.translate(p.x, p.y - 10);
-      if (l.glow) { ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 20; }
-      ctx.fillStyle = l.bg || 'rgba(0,0,0,0.7)';
-      if (ctx.roundRect) {
-        ctx.beginPath(); ctx.roundRect(-60, -20, 120, 36, 8); ctx.fill();
+      uiCtx.save();
+      uiCtx.translate(p.x, p.y - 10);
+      if (l.glow) { uiCtx.shadowColor = '#38bdf8'; uiCtx.shadowBlur = 20; }
+      uiCtx.fillStyle = l.bg || 'rgba(0,0,0,0.7)';
+      if (uiCtx.roundRect) {
+        uiCtx.beginPath(); uiCtx.roundRect(-60, -20, 120, 36, 8); uiCtx.fill();
       } else {
-        ctx.fillRect(-60, -20, 120, 36);
+        uiCtx.fillRect(-60, -20, 120, 36);
       }
       
-      ctx.fillStyle = l.color || '#ffffff';
-      ctx.font = `bold ${l.size || 24}px sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(l.text, 0, -2);
-      ctx.restore();
+      uiCtx.fillStyle = l.color || '#ffffff';
+      uiCtx.font = `bold ${l.size !== undefined ? l.size : 24}px sans-serif`;
+      uiCtx.textAlign = 'center'; uiCtx.textBaseline = 'middle';
+      uiCtx.fillText(l.text, 0, -2);
+      uiCtx.restore();
     });
 
   }, [frame, currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded, rawCountries, takeovers, arrows, assets, labels]);
@@ -356,12 +361,11 @@ export const MapAnimation: React.FC<{
   return (
     <AbsoluteFill style={{ backgroundColor: '#040711', overflow: 'hidden' }}>
       <div ref={mapContainer} style={{ width: `${width}px`, height: `${height}px`, position: 'absolute', top: 0, left: 0 }} />
-      
-      {/* Background Vignette to blend edges */}
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
 
-      {/* 🚀 THE MASTER BLENDED VECTOR CANVAS */}
-      <canvas id="vector-overlay" ref={overlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none' }} />
+      {/* 🔥 THE DUAL CANVAS ARCHITECTURE */}
+      <canvas id="vector-blend-overlay" ref={blendOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none', mixBlendMode: 'screen' }} />
+      <canvas id="vector-ui-overlay" ref={uiOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 61, pointerEvents: 'none' }} />
 
       {/* Invisible SVG Hitboxes for Map Selection */}
       <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 65 }}>

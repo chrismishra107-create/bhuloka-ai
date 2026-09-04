@@ -64116,10 +64116,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
   var statesData = { features: [] };
   var MapAnimation = ({ timeline, mapStyle = "satellite" }) => {
     const mapContainer = (0, import_react121.useRef)(null);
-    const overlayRef = (0, import_react121.useRef)(null);
+    const blendOverlayRef = (0, import_react121.useRef)(null);
+    const uiOverlayRef = (0, import_react121.useRef)(null);
     const mapRef = (0, import_react121.useRef)(null);
     const [mapLoaded, setMapLoaded] = (0, import_react121.useState)(false);
-    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Blended Canvas Engine..."));
+    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Dual-Canvas Engine..."));
     const [selectedCountry, setSelectedCountry] = (0, import_react121.useState)(null);
     const frame = useCurrentFrame();
     const { width, height } = useVideoConfig();
@@ -64129,11 +64130,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       (k2) => k2 && typeof k2.frame === "number" && (typeof k2.lng === "number" || typeof k2.longitude === "number")
     ).map((k2) => ({
       frame: k2.frame,
-      lng: k2.lng ?? k2.longitude ?? 127,
-      lat: k2.lat ?? k2.latitude ?? 38,
-      zoom: k2.zoom ?? 1.2,
-      pitch: Math.min(60, k2.pitch ?? 0),
-      bearing: k2.bearing ?? 0
+      lng: k2.lng !== void 0 ? k2.lng : k2.longitude !== void 0 ? k2.longitude : 127,
+      lat: k2.lat !== void 0 ? k2.lat : k2.latitude !== void 0 ? k2.latitude : 38,
+      zoom: k2.zoom !== void 0 ? k2.zoom : 1.2,
+      pitch: Math.min(60, k2.pitch !== void 0 ? k2.pitch : 0),
+      bearing: k2.bearing !== void 0 ? k2.bearing : 0
     }));
     const fallbackKeyframes = [
       { frame: 0, lng: 79, lat: 22, zoom: 4.2, pitch: 15, bearing: 0 },
@@ -64283,12 +64284,16 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       return "screen";
     };
     (0, import_react121.useLayoutEffect)(() => {
-      if (!overlayRef.current || !mapLoaded) return;
-      const ctx = overlayRef.current.getContext("2d");
-      if (!ctx) return;
-      ctx.clearRect(0, 0, width, height);
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
+      if (!blendOverlayRef.current || !uiOverlayRef.current || !mapLoaded) return;
+      const blendCtx = blendOverlayRef.current.getContext("2d");
+      const uiCtx = uiOverlayRef.current.getContext("2d");
+      if (!blendCtx || !uiCtx) return;
+      blendCtx.clearRect(0, 0, width, height);
+      blendCtx.lineJoin = "round";
+      blendCtx.lineCap = "round";
+      uiCtx.clearRect(0, 0, width, height);
+      uiCtx.lineJoin = "round";
+      uiCtx.lineCap = "round";
       rawCountries.forEach((entity) => {
         if (frame < (entity.startFrame || 0)) return;
         if (takeovers.some((t3) => (t3.target || "").toLowerCase() === (entity.name || entity.country || "").toLowerCase() && frame >= (t3.startFrame || 0))) return;
@@ -64296,35 +64301,35 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const { path } = getGeometryFromSource(eName, [world_default, statesData]);
         if (!path) return;
         const p2d = new Path2D(path);
-        ctx.save();
-        ctx.globalCompositeOperation = getCanvasBlendMode(entity.blendMode);
+        blendCtx.save();
+        blendCtx.globalCompositeOperation = getCanvasBlendMode(entity.blendMode);
         if (entity.dropShadow !== false) {
-          ctx.save();
-          ctx.translate(0, 15);
-          ctx.shadowColor = "rgba(0,0,0,0.95)";
-          ctx.shadowBlur = 15;
-          ctx.fillStyle = "#000000";
-          ctx.fill(p2d);
-          ctx.restore();
+          blendCtx.save();
+          blendCtx.translate(0, 15);
+          blendCtx.shadowColor = "rgba(0,0,0,0.95)";
+          blendCtx.shadowBlur = 15;
+          blendCtx.fillStyle = "#000000";
+          blendCtx.fill(p2d);
+          blendCtx.restore();
         }
         if (entity.enableGlow !== false) {
-          ctx.save();
-          ctx.shadowColor = entity.color || "#3b82f6";
-          ctx.shadowBlur = entity.glowIntensity || 20;
-          ctx.globalAlpha = 0.55;
-          ctx.fillStyle = entity.color || "#3b82f6";
-          ctx.fill(p2d);
-          ctx.restore();
+          blendCtx.save();
+          blendCtx.shadowColor = entity.color || "#3b82f6";
+          blendCtx.shadowBlur = entity.glowIntensity !== void 0 ? entity.glowIntensity : 20;
+          blendCtx.globalAlpha = 0.55;
+          blendCtx.fillStyle = entity.color || "#3b82f6";
+          blendCtx.fill(p2d);
+          blendCtx.restore();
         }
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = entity.color || "#3b82f6";
-        ctx.fill(p2d);
+        blendCtx.globalAlpha = 0.9;
+        blendCtx.fillStyle = entity.color || "#3b82f6";
+        blendCtx.fill(p2d);
         if (entity.strokeWidth) {
-          ctx.lineWidth = entity.strokeWidth;
-          ctx.strokeStyle = entity.strokeColor || "#fff";
-          ctx.stroke(p2d);
+          blendCtx.lineWidth = entity.strokeWidth;
+          blendCtx.strokeStyle = entity.strokeColor || "#fff";
+          blendCtx.stroke(p2d);
         }
-        ctx.restore();
+        blendCtx.restore();
       });
       takeovers.forEach((takeover) => {
         const start = takeover.startFrame || 0;
@@ -64335,11 +64340,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const targetData = rawCountries.find((c4) => (c4.name || c4.country) === takeover.target) || {};
         const targetColor = targetData.color || "#1e3a8a";
         const invaderColor = takeover.color || "#ef4444";
-        ctx.save();
-        ctx.globalCompositeOperation = getCanvasBlendMode(targetData.blendMode);
-        ctx.fillStyle = targetColor;
-        ctx.globalAlpha = 0.85;
-        ctx.fill(p2d);
+        blendCtx.save();
+        blendCtx.globalCompositeOperation = getCanvasBlendMode(targetData.blendMode);
+        blendCtx.fillStyle = targetColor;
+        blendCtx.globalAlpha = 0.85;
+        blendCtx.fill(p2d);
         const duration = Math.max(takeover.duration || 120, 90);
         const radius = interpolate(frame - start, [0, duration], [0, Math.max(width, height) * 1.5], { extrapolateRight: "clamp", easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
         const invGeo = getGeometryFromSource(takeover.attacker || takeover.invader, [world_default]);
@@ -64352,13 +64357,13 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             cy2 = p2.y;
           }
         }
-        ctx.beginPath();
-        ctx.arc(cx2, cy2, radius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = invaderColor;
-        ctx.globalAlpha = 0.9;
-        ctx.fill(p2d);
-        ctx.restore();
+        blendCtx.beginPath();
+        blendCtx.arc(cx2, cy2, radius, 0, Math.PI * 2);
+        blendCtx.clip();
+        blendCtx.fillStyle = invaderColor;
+        blendCtx.globalAlpha = 0.9;
+        blendCtx.fill(p2d);
+        blendCtx.restore();
       });
       arrows.forEach((arrow) => {
         const startF = arrow.startFrame || arrow.frame || 0;
@@ -64380,33 +64385,33 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const pathD = `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
         const p2d = new Path2D(pathD);
         const t3 = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
-        ctx.save();
-        ctx.shadowColor = "#000000";
-        ctx.shadowBlur = 12;
-        ctx.shadowOffsetY = 10;
+        uiCtx.save();
+        uiCtx.shadowColor = "#000000";
+        uiCtx.shadowBlur = 12;
+        uiCtx.shadowOffsetY = 10;
         const approxLen = dist * 1.2;
-        ctx.setLineDash([approxLen]);
-        ctx.lineDashOffset = approxLen - t3 * approxLen;
+        uiCtx.setLineDash([approxLen]);
+        uiCtx.lineDashOffset = approxLen - t3 * approxLen;
         if (arrow.type === "missile") {
-          ctx.strokeStyle = "#ef4444";
-          ctx.lineWidth = 8;
-          ctx.globalAlpha = 0.3;
-          ctx.stroke(p2d);
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 3;
-          ctx.globalAlpha = 0.9;
-          ctx.stroke(p2d);
+          uiCtx.strokeStyle = "#ef4444";
+          uiCtx.lineWidth = 8;
+          uiCtx.globalAlpha = 0.3;
+          uiCtx.stroke(p2d);
+          uiCtx.strokeStyle = "#ffffff";
+          uiCtx.lineWidth = 3;
+          uiCtx.globalAlpha = 0.9;
+          uiCtx.stroke(p2d);
         } else {
           const sourceData = rawCountries.find((c4) => (c4.name || c4.country || "").toLowerCase() === (arrow.sourceName || "").toLowerCase());
-          ctx.strokeStyle = arrow.color || sourceData?.color || "#ef4444";
-          ctx.lineWidth = 6;
-          ctx.stroke(p2d);
-          ctx.setLineDash([]);
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 2;
-          ctx.stroke(p2d);
+          uiCtx.strokeStyle = arrow.color || sourceData?.color || "#ef4444";
+          uiCtx.lineWidth = 6;
+          uiCtx.stroke(p2d);
+          uiCtx.setLineDash([]);
+          uiCtx.strokeStyle = "#ffffff";
+          uiCtx.lineWidth = 2;
+          uiCtx.stroke(p2d);
         }
-        ctx.restore();
+        uiCtx.restore();
       });
       assets.forEach((asset) => {
         if (frame < asset.startFrame) return;
@@ -64414,43 +64419,43 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (!p2) return;
         if (asset.type === "pin") {
           const dropY = interpolate(frame - asset.startFrame, [0, 15], [-50, 0], { extrapolateRight: "clamp", easing: Easing.bounce });
-          ctx.save();
-          ctx.translate(p2.x, p2.y + dropY);
-          ctx.shadowColor = "rgba(0,0,0,0.9)";
-          ctx.shadowBlur = 12;
-          ctx.shadowOffsetY = 10;
-          ctx.fillStyle = "#ef4444";
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 2;
+          uiCtx.save();
+          uiCtx.translate(p2.x, p2.y + dropY);
+          uiCtx.shadowColor = "rgba(0,0,0,0.9)";
+          uiCtx.shadowBlur = 12;
+          uiCtx.shadowOffsetY = 10;
+          uiCtx.fillStyle = "#ef4444";
+          uiCtx.strokeStyle = "#ffffff";
+          uiCtx.lineWidth = 2;
           const path = new Path2D("M0 -24 C -8 -24, -14 -18, -14 -10 C -14 0, 0 12, 0 12 C 0 12, 14 0, 14 -10 C 14 -18, 8 -24, 0 -24 Z");
-          ctx.fill(path);
-          ctx.stroke(path);
-          ctx.beginPath();
-          ctx.arc(0, -12, 4, 0, Math.PI * 2);
-          ctx.fillStyle = "#fff";
-          ctx.fill();
-          ctx.restore();
+          uiCtx.fill(path);
+          uiCtx.stroke(path);
+          uiCtx.beginPath();
+          uiCtx.arc(0, -12, 4, 0, Math.PI * 2);
+          uiCtx.fillStyle = "#fff";
+          uiCtx.fill();
+          uiCtx.restore();
         } else if (asset.type === "explosion") {
           const ringR = interpolate(frame - asset.startFrame, [0, 20], [0, 80], { extrapolateRight: "clamp", easing: Easing.out(Easing.exp) });
           const opacity2 = interpolate(frame - asset.startFrame, [0, 20], [1, 0], { extrapolateRight: "clamp" });
-          ctx.save();
-          ctx.translate(p2.x, p2.y);
-          ctx.globalAlpha = opacity2;
-          ctx.beginPath();
-          ctx.arc(0, 0, ringR, 0, Math.PI * 2);
-          ctx.strokeStyle = "#f59e0b";
-          ctx.lineWidth = 15;
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(0, 0, ringR * 0.8, 0, Math.PI * 2);
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 5;
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(0, 0, ringR * 0.3, 0, Math.PI * 2);
-          ctx.fillStyle = "#ef4444";
-          ctx.fill();
-          ctx.restore();
+          uiCtx.save();
+          uiCtx.translate(p2.x, p2.y);
+          uiCtx.globalAlpha = opacity2;
+          uiCtx.beginPath();
+          uiCtx.arc(0, 0, ringR, 0, Math.PI * 2);
+          uiCtx.strokeStyle = "#f59e0b";
+          uiCtx.lineWidth = 15;
+          uiCtx.stroke();
+          uiCtx.beginPath();
+          uiCtx.arc(0, 0, ringR * 0.8, 0, Math.PI * 2);
+          uiCtx.strokeStyle = "#ffffff";
+          uiCtx.lineWidth = 5;
+          uiCtx.stroke();
+          uiCtx.beginPath();
+          uiCtx.arc(0, 0, ringR * 0.3, 0, Math.PI * 2);
+          uiCtx.fillStyle = "#ef4444";
+          uiCtx.fill();
+          uiCtx.restore();
         }
       });
       labels.forEach((l2) => {
@@ -64458,32 +64463,33 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (frame > l2.startFrame + (l2.duration || 150) && !l2.pinned) return;
         const p2 = mapRef.current?.project([l2.lng, l2.lat]);
         if (!p2) return;
-        ctx.save();
-        ctx.translate(p2.x, p2.y - 10);
+        uiCtx.save();
+        uiCtx.translate(p2.x, p2.y - 10);
         if (l2.glow) {
-          ctx.shadowColor = "#38bdf8";
-          ctx.shadowBlur = 20;
+          uiCtx.shadowColor = "#38bdf8";
+          uiCtx.shadowBlur = 20;
         }
-        ctx.fillStyle = l2.bg || "rgba(0,0,0,0.7)";
-        if (ctx.roundRect) {
-          ctx.beginPath();
-          ctx.roundRect(-60, -20, 120, 36, 8);
-          ctx.fill();
+        uiCtx.fillStyle = l2.bg || "rgba(0,0,0,0.7)";
+        if (uiCtx.roundRect) {
+          uiCtx.beginPath();
+          uiCtx.roundRect(-60, -20, 120, 36, 8);
+          uiCtx.fill();
         } else {
-          ctx.fillRect(-60, -20, 120, 36);
+          uiCtx.fillRect(-60, -20, 120, 36);
         }
-        ctx.fillStyle = l2.color || "#ffffff";
-        ctx.font = `bold ${l2.size || 24}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(l2.text, 0, -2);
-        ctx.restore();
+        uiCtx.fillStyle = l2.color || "#ffffff";
+        uiCtx.font = `bold ${l2.size !== void 0 ? l2.size : 24}px sans-serif`;
+        uiCtx.textAlign = "center";
+        uiCtx.textBaseline = "middle";
+        uiCtx.fillText(l2.text, 0, -2);
+        uiCtx.restore();
       });
     }, [frame, currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded, rawCountries, takeovers, arrows, assets, labels]);
     return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(AbsoluteFill, { style: { backgroundColor: "#040711", overflow: "hidden" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { ref: mapContainer, style: { width: `${width}px`, height: `${height}px`, position: "absolute", top: 0, left: 0 } }),
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)", pointerEvents: "none", zIndex: 10 } }),
-      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("canvas", { id: "vector-overlay", ref: overlayRef, width, height, style: { position: "absolute", inset: 0, zIndex: 60, pointerEvents: "none" } }),
+      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("canvas", { id: "vector-blend-overlay", ref: blendOverlayRef, width, height, style: { position: "absolute", inset: 0, zIndex: 60, pointerEvents: "none", mixBlendMode: "screen" } }),
+      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("canvas", { id: "vector-ui-overlay", ref: uiOverlayRef, width, height, style: { position: "absolute", inset: 0, zIndex: 61, pointerEvents: "none" } }),
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "auto", zIndex: 65 }, children: rawCountries.map((country, idx) => {
         if (frame < (country.startFrame || 0)) return null;
         const cName = country.name || country.country;
@@ -64600,54 +64606,28 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     };
     const handleFastMobileExport = async () => {
       setIsExporting(true);
-      playerRef.current?.seekTo(0);
-      playerRef.current?.play();
-      setIsPlaying(true);
-      const compositeCanvas = document.createElement("canvas");
-      compositeCanvas.width = 1080;
-      compositeCanvas.height = 1920;
-      compositeCanvas.style.cssText = "position:absolute; top:0; left:0; width:100%; height:100%; z-index:9999; pointer-events:none;";
-      const playerContainer = document.getElementById("player-container");
-      if (playerContainer) playerContainer.appendChild(compositeCanvas);
-      const ctx = compositeCanvas.getContext("2d");
-      if (!ctx) return;
-      const stream = compositeCanvas.captureStream(30);
-      const mimeTypes = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
-      const mimeType = mimeTypes.find((type) => MediaRecorder.isTypeSupported(type)) || "";
-      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 15e6 });
-      const chunks = [];
-      recorder.ondataavailable = (e63) => {
-        if (e63.data.size > 0) chunks.push(e63.data);
-      };
-      let animId;
-      const renderLoop = () => {
-        if (!isExporting) return;
-        ctx.clearRect(0, 0, 1080, 1920);
-        const mapCanvas = document.querySelector("canvas.maplibregl-canvas");
-        const vectorCanvas = document.querySelector("canvas#vector-overlay");
-        if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
-        if (vectorCanvas) ctx.drawImage(vectorCanvas, 0, 0, 1080, 1920);
-        animId = requestAnimationFrame(renderLoop);
-      };
-      renderLoop();
-      recorder.onstop = () => {
-        cancelAnimationFrame(animId);
-        if (compositeCanvas.parentNode) compositeCanvas.parentNode.removeChild(compositeCanvas);
-        const blob = new Blob(chunks, { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        const a4 = document.createElement("a");
-        a4.href = url;
-        a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Mobile"}_${Date.now()}.webm`;
-        a4.click();
-        URL.revokeObjectURL(url);
-        setIsExporting(false);
-      };
-      recorder.start();
-      setTimeout(() => {
-        if (recorder.state === "recording") recorder.stop();
-        playerRef.current?.pause();
-        setIsPlaying(false);
-      }, videoDuration / 30 * 1e3 + 500);
+      try {
+        const res = await fetch("/api/render", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // You can add a profile flag here later if your backend supports fast/low-res renders
+          body: JSON.stringify({ timeline: dynamicTimeline, profile: "mobile" })
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a4 = document.createElement("a");
+          a4.href = url;
+          a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Mobile"}_${Date.now()}.mp4`;
+          a4.click();
+          URL.revokeObjectURL(url);
+        } else {
+          alert("Render failed. Ensure your Node.js backend is running.");
+        }
+      } catch (e63) {
+        alert("Network error. Ensure your server terminal is running.");
+      }
+      setIsExporting(false);
     };
     const handleHDLocalExport = async () => {
       setIsExporting(true);
@@ -64655,7 +64635,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const res = await fetch("/api/render", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ timeline: dynamicTimeline })
+          body: JSON.stringify({ timeline: dynamicTimeline, profile: "hd" })
         });
         if (res.ok) {
           const blob = await res.blob();
@@ -64664,6 +64644,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           a4.href = url;
           a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Tactical_Map"}_HD.mp4`;
           a4.click();
+          URL.revokeObjectURL(url);
         } else {
           alert("Backend rendering failed. Ensure your server terminal is running and has FFmpeg installed.");
         }
@@ -64855,12 +64836,12 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const activeEntityData = timeline?.highlightCountries?.find((c4) => c4.name === selectedEntity || c4.country === selectedEntity);
     const activeColor = activeEntityData?.color || "#3b82f6";
     const activeStrokeColor = activeEntityData?.strokeColor || "#ffffff";
-    const activeStrokeWidth = activeEntityData?.strokeWidth ?? 2.5;
-    const activeEnableGlow = activeEntityData?.enableGlow ?? true;
-    const activeGlowIntensity = activeEntityData?.glowIntensity ?? 20;
-    const activeBlendMode = activeEntityData?.blendMode ?? "screen";
+    const activeStrokeWidth = activeEntityData?.strokeWidth !== void 0 ? activeEntityData.strokeWidth : 2.5;
+    const activeEnableGlow = activeEntityData?.enableGlow !== void 0 ? activeEntityData.enableGlow : true;
+    const activeGlowIntensity = activeEntityData?.glowIntensity !== void 0 ? activeEntityData.glowIntensity : 20;
+    const activeBlendMode = activeEntityData?.blendMode || "screen";
     const activeGlowTarget = activeEntityData?.glowTarget || "both";
-    const activeDropShadow = activeEntityData?.dropShadow ?? true;
+    const activeDropShadow = activeEntityData?.dropShadow !== void 0 ? activeEntityData.dropShadow : true;
     const dynamicTimeline = (0, import_react122.useMemo)(() => {
       if (!timeline) return null;
       const modified = { ...timeline, totalFrames: videoDuration };
@@ -64874,7 +64855,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         modified.takeovers = modified.takeovers?.filter((t3) => !disabledEntities.includes(t3.target || t3.to || t3.country));
       }
       let newKfs = [...timeline.cameraKeyframes || []];
-      newKfs = newKfs.map((kf3) => ({ ...kf3, lat: kf3.lat ?? kf3.latitude ?? 38, lng: kf3.lng ?? kf3.longitude ?? 127, latitude: kf3.latitude ?? kf3.lat ?? 38, longitude: kf3.longitude ?? kf3.lng ?? 127, zoom: kf3.zoom ?? 1.2, pitch: kf3.pitch ?? 0, bearing: kf3.bearing ?? 0 }));
+      newKfs = newKfs.map((kf3) => ({ ...kf3, lat: kf3.lat !== void 0 ? kf3.lat : kf3.latitude !== void 0 ? kf3.latitude : 38, lng: kf3.lng !== void 0 ? kf3.lng : kf3.longitude !== void 0 ? kf3.longitude : 127, latitude: kf3.latitude !== void 0 ? kf3.latitude : kf3.lat !== void 0 ? kf3.lat : 38, longitude: kf3.longitude !== void 0 ? kf3.longitude : kf3.lng !== void 0 ? kf3.lng : 127, zoom: kf3.zoom !== void 0 ? kf3.zoom : 1.2, pitch: kf3.pitch !== void 0 ? kf3.pitch : 0, bearing: kf3.bearing !== void 0 ? kf3.bearing : 0 }));
       if (isLiveEdit && playerRef.current && !isPlaying) {
         newKfs = newKfs.filter((kf3) => Math.abs(kf3.frame - currentFrame) > 15);
         newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
@@ -64895,7 +64876,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       border: "1px solid rgba(255, 255, 255, 0.15)",
       boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)"
     };
-    const leftPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+    const leftPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)" }, children: "SCENE ENTITIES" }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: newCountrySearch, onChange: (e63) => setNewCountrySearch(e63.target.value), placeholder: "Search Country...", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "11px", padding: "8px", borderRadius: "8px", outline: "none" }, onKeyDown: (e63) => e63.key === "Enter" && addCountryMap() }),
@@ -64949,7 +64930,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setPathStartCoord(null), style: { background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "8px", padding: "6px 10px", color: "#fff", fontSize: "10px", fontWeight: 600, cursor: "pointer" }, children: "\u2715" })
         ] })
       ] }),
-      (timeline?.assets?.length > 0 || timeline?.arrows?.some((a4) => a4.id) || timeline?.takeovers?.some((t3) => t3.id) || timeline?.labels?.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+      (timeline?.assets?.length > 0 || timeline?.arrows?.some((a4) => a4.id) || timeline?.takeovers?.some((t3) => t3.id) || timeline?.labels?.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", width: "100%", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "10px" }, children: "ACTIVE ASSETS" }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "6px" }, children: [
           timeline.labels?.map((l2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "6px 12px" }, children: [
@@ -64979,7 +64960,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         ] })
       ] })
     ] });
-    const rightPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+    const rightPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
           "button",
@@ -65044,7 +65025,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "-180", max: "180", step: "1", value: targetBearing, onChange: (e63) => setTargetBearing(Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } })
       ] }),
-      selectedEntity ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+      selectedEntity ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { fontSize: "9px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", paddingBottom: "2px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "8px" }, children: [
           "STYLING: ",
           selectedEntity.toUpperCase()
@@ -65053,7 +65034,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "REVEAL ANIMATION" }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: activeEntityData?.revealStyle || "fade", onChange: (e63) => updateEntityStyle("revealStyle", e63.target.value), style: { background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", outline: "none", fontSize: "10px", padding: "6px", cursor: "pointer" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "fade", children: "Fade In" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "ink", children: "Ink Bleed (GEOlayers)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "ink", children: "Ink Bleed" }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "scale", children: "Pop Scale" })
           ] })
         ] }),
@@ -65097,7 +65078,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "add", children: "Color Dodge" })
           ] })
         ] })
-      ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+      ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "9px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", paddingBottom: "2px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "8px" }, children: "AUTO INJECTOR" }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px", flexDirection: "column" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityA, onChange: (e63) => setEntityA(e63.target.value), placeholder: "Origin Country", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "10px", padding: "8px", borderRadius: "6px", outline: "none" } }),
@@ -65137,7 +65118,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: initializeManualScene, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "20px", padding: "16px 28px", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginTop: "10px" }, children: "Launch Empty Studio \u{1F680}" })
         ] })
       ] }),
-      status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { id: "player-container", style: { width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", paddingBottom: "100px", position: "relative" }, children: [
+      status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", paddingBottom: "100px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "32px", width: "100%", height: "100%" }, children: [
           isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, display: "flex", flexDirection: "column", gap: "10px", borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: leftPanelJSX }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: {
@@ -65153,7 +65134,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             background: "#040711",
             flexShrink: 0,
             zIndex: 10
-          }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "absolute", inset: 0, zIndex: 10, width: "100%", height: "100%" }, children: [
+          }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { className: "remotion-player", style: { position: "absolute", inset: 0, zIndex: 10, width: "100%", height: "100%" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
               Player,
               {
@@ -65170,7 +65151,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                 autoPlay: true
               }
             ),
-            isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
+            isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
               /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
                 "div",
                 {
@@ -65278,16 +65259,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           ] }) }),
           isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, display: "flex", flexDirection: "column", gap: "14px", borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: rightPanelJSX })
         ] }),
-        !isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_jsx_runtime60.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", left: leftPanelOpen ? "0px" : "-280px", top: "50%", transform: "translateY(-50%)", transition: "left 0.4s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "280px", maxHeight: "85vh", borderLeft: "none", borderRadius: "0 24px 24px 0", padding: "18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }, children: leftPanelJSX }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setLeftPanelOpen(!leftPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderLeft: "none", borderRadius: "0 16px 16px 0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "16px", marginLeft: "-1px" }, children: leftPanelOpen ? "\u25C0" : "\u25B6" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", right: rightPanelOpen ? "0px" : "-280px", top: "50%", transform: "translateY(-50%)", transition: "right 0.4s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setRightPanelOpen(!rightPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderRight: "none", borderRadius: "16px 0 0 16px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "16px", marginRight: "-1px" }, children: rightPanelOpen ? "\u25B6" : "\u25C0" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "280px", maxHeight: "85vh", borderRight: "none", borderRadius: "24px 0 0 24px", padding: "18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }, children: rightPanelJSX })
-          ] })
-        ] }),
         isTimelineOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "fixed", bottom: isDesktop ? "20px" : "30px", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 120 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { ...panelStyle, width: "90%", maxWidth: "800px", display: "flex", alignItems: "center", gap: "16px", borderRadius: "24px", padding: "14px 24px" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: togglePlay, style: { background: "#ffffff", color: "#000", border: "none", borderRadius: "50%", width: "36px", height: "36px", flexShrink: 0, cursor: "pointer", fontWeight: "bold", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 15px rgba(0,0,0,0.5)" }, children: isPlaying ? "\u275A\u275A" : "\u25B6" }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "relative", flex: 1, height: "30px", display: "flex", alignItems: "center" }, children: [
@@ -65357,7 +65328,17 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             " / ",
             videoDuration
           ] })
-        ] }) })
+        ] }) }),
+        !isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", left: leftPanelOpen ? "0px" : "-280px", top: "50%", transform: "translateY(-50%)", transition: "left 0.4s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "280px", maxHeight: "85vh", borderLeft: "none", borderRadius: "0 24px 24px 0", padding: "18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }, children: leftPanelJSX }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setLeftPanelOpen(!leftPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderLeft: "none", borderRadius: "0 16px 16px 0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "16px", marginLeft: "-1px" }, children: leftPanelOpen ? "\u25C0" : "\u25B6" })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", right: rightPanelOpen ? "0px" : "-280px", top: "50%", transform: "translateY(-50%)", transition: "right 0.4s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setRightPanelOpen(!rightPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderRight: "none", borderRadius: "16px 0 0 16px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "16px", marginRight: "-1px" }, children: rightPanelOpen ? "\u25B6" : "\u25C0" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "280px", maxHeight: "85vh", borderRight: "none", borderRadius: "24px 0 0 24px", padding: "18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }, children: rightPanelJSX })
+          ] })
+        ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("style", { children: `
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }

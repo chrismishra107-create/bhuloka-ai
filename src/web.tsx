@@ -123,79 +123,42 @@ const WebApp: React.FC = () => {
     alert("Map Cache Finalized! Ready for flawless export.");
   };
 
-  // 🚀 BULLETPROOF MOBILE CANVAS EXPORTER
+  // 🚀 SERVER-SIDE MOBILE EXPORT
+  // Bypasses the browser entirely to prevent 0-byte Canvas CORS errors
   const handleFastMobileExport = async () => {
     setIsExporting(true);
-    playerRef.current?.seekTo(0);
-    playerRef.current?.play();
-    setIsPlaying(true);
-
-    const compositeCanvas = document.createElement('canvas');
-    compositeCanvas.width = 1080;
-    compositeCanvas.height = 1920;
-    
-    // 🚨 FIX: Placed directly over the player so the mobile browser is forced to paint it
-    compositeCanvas.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:9999; pointer-events:none;';
-    
-    const playerContainer = document.getElementById('player-container');
-    if (playerContainer) playerContainer.appendChild(compositeCanvas);
-
-    const ctx = compositeCanvas.getContext('2d');
-    if (!ctx) return;
-
-    const stream = compositeCanvas.captureStream(30);
-    const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-    const mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
-    
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 15000000 });
-    const chunks: BlobPart[] = [];
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-
-    let animId: number;
-    const renderLoop = () => {
-      if (!isExporting) return;
-      ctx.clearRect(0, 0, 1080, 1920);
-      
-      const mapCanvas = document.querySelector('canvas.maplibregl-canvas') as HTMLCanvasElement;
-      const vectorCanvas = document.querySelector('canvas#vector-overlay') as HTMLCanvasElement;
-      
-      if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
-      if (vectorCanvas) ctx.drawImage(vectorCanvas, 0, 0, 1080, 1920);
-      
-      animId = requestAnimationFrame(renderLoop);
-    };
-    renderLoop();
-
-    recorder.onstop = () => {
-      cancelAnimationFrame(animId);
-      if (compositeCanvas.parentNode) compositeCanvas.parentNode.removeChild(compositeCanvas);
-      
-      const blob = new Blob(chunks, { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Mobile'}_${Date.now()}.webm`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setIsExporting(false);
-    };
-
-    recorder.start();
-    
-    setTimeout(() => {
-      if (recorder.state === 'recording') recorder.stop();
-      playerRef.current?.pause();
-      setIsPlaying(false);
-    }, (videoDuration / 30) * 1000 + 500);
+    try {
+      const res = await fetch('/api/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // You can add a profile flag here later if your backend supports fast/low-res renders
+        body: JSON.stringify({ timeline: dynamicTimeline, profile: 'mobile' })
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Mobile'}_${Date.now()}.mp4`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        alert("Render failed. Ensure your Node.js backend is running.");
+      }
+    } catch (e) {
+      alert("Network error. Ensure your server terminal is running.");
+    }
+    setIsExporting(false);
   };
 
+  // 🚀 TRUE HD SERVER EXPORT
   const handleHDLocalExport = async () => {
     setIsExporting(true);
     try {
       const res = await fetch('/api/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeline: dynamicTimeline })
+        body: JSON.stringify({ timeline: dynamicTimeline, profile: 'hd' })
       });
       if (res.ok) {
         const blob = await res.blob();
@@ -204,6 +167,7 @@ const WebApp: React.FC = () => {
         a.href = url;
         a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Tactical_Map'}_HD.mp4`;
         a.click();
+        URL.revokeObjectURL(url);
       } else {
         alert("Backend rendering failed. Ensure your server terminal is running and has FFmpeg installed.");
       }
@@ -413,12 +377,12 @@ const WebApp: React.FC = () => {
   const activeEntityData: any = timeline?.highlightCountries?.find((c: any) => c.name === selectedEntity || c.country === selectedEntity);
   const activeColor = activeEntityData?.color || '#3b82f6';
   const activeStrokeColor = activeEntityData?.strokeColor || '#ffffff';
-  const activeStrokeWidth = activeEntityData?.strokeWidth ?? 2.5;
-  const activeEnableGlow = activeEntityData?.enableGlow ?? true;
-  const activeGlowIntensity = activeEntityData?.glowIntensity ?? 20;
-  const activeBlendMode = activeEntityData?.blendMode ?? 'screen';
+  const activeStrokeWidth = activeEntityData?.strokeWidth !== undefined ? activeEntityData.strokeWidth : 2.5;
+  const activeEnableGlow = activeEntityData?.enableGlow !== undefined ? activeEntityData.enableGlow : true;
+  const activeGlowIntensity = activeEntityData?.glowIntensity !== undefined ? activeEntityData.glowIntensity : 20;
+  const activeBlendMode = activeEntityData?.blendMode || 'screen';
   const activeGlowTarget = activeEntityData?.glowTarget || 'both';
-  const activeDropShadow = activeEntityData?.dropShadow ?? true;
+  const activeDropShadow = activeEntityData?.dropShadow !== undefined ? activeEntityData.dropShadow : true;
 
   const dynamicTimeline = useMemo(() => {
     if (!timeline) return null;
@@ -436,7 +400,7 @@ const WebApp: React.FC = () => {
     }
     
     let newKfs = [...(timeline.cameraKeyframes || [])];
-    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat ?? kf.latitude ?? 38.0, lng: kf.lng ?? kf.longitude ?? 127.0, latitude: kf.latitude ?? kf.lat ?? 38.0, longitude: kf.longitude ?? kf.lng ?? 127.0, zoom: kf.zoom ?? 1.2, pitch: kf.pitch ?? 0, bearing: kf.bearing ?? 0 }));
+    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat !== undefined ? kf.lat : (kf.latitude !== undefined ? kf.latitude : 38.0), lng: kf.lng !== undefined ? kf.lng : (kf.longitude !== undefined ? kf.longitude : 127.0), latitude: kf.latitude !== undefined ? kf.latitude : (kf.lat !== undefined ? kf.lat : 38.0), longitude: kf.longitude !== undefined ? kf.longitude : (kf.lng !== undefined ? kf.lng : 127.0), zoom: kf.zoom !== undefined ? kf.zoom : 1.2, pitch: kf.pitch !== undefined ? kf.pitch : 0, bearing: kf.bearing !== undefined ? kf.bearing : 0 }));
     
     if (isLiveEdit && playerRef.current && !isPlaying) {
       newKfs = newKfs.filter((kf: any) => Math.abs(kf.frame - currentFrame) > 15);
@@ -463,7 +427,7 @@ const WebApp: React.FC = () => {
   };
 
   const leftPanelJSX = (
-    <>
+    <React.Fragment>
       <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>SCENE ENTITIES</div>
       <div style={{ display: 'flex', gap: '6px' }}>
         <input type="text" value={newCountrySearch} onChange={(e) => setNewCountrySearch(e.target.value)} placeholder="Search Country..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} onKeyDown={(e) => e.key === 'Enter' && addCountryMap()} />
@@ -532,7 +496,7 @@ const WebApp: React.FC = () => {
       )}
 
       {((timeline as any)?.assets?.length > 0 || (timeline as any)?.arrows?.some((a:any) => a.id) || (timeline as any)?.takeovers?.some((t:any) => t.id) || (timeline as any)?.labels?.length > 0) && (
-        <>
+        <React.Fragment>
           <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', width: '100%', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '10px' }}>ACTIVE ASSETS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {(timeline as any).labels?.map((l: any) => (
@@ -560,13 +524,13 @@ const WebApp: React.FC = () => {
               </div>
             ))}
           </div>
-        </>
+        </React.Fragment>
       )}
-    </>
+    </React.Fragment>
   );
 
   const rightPanelJSX = (
-    <>
+    <React.Fragment>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
         <button 
           onClick={handleHDLocalExport} 
@@ -624,14 +588,13 @@ const WebApp: React.FC = () => {
       )}
 
       {selectedEntity ? (
-        <>
+        <React.Fragment>
           <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '2px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '8px' }}>STYLING: {selectedEntity.toUpperCase()}</div>
           
-          {/* 🔥 DYNAMIC UI BRANCHING EXAMPLE: Reveal Animation Settings */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
             <span style={{ color: '#8e8e93', fontWeight: 500 }}>REVEAL ANIMATION</span>
             <select value={activeEntityData?.revealStyle || 'fade'} onChange={(e) => updateEntityStyle('revealStyle', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
-              <option value="fade">Fade In</option><option value="ink">Ink Bleed (GEOlayers)</option><option value="scale">Pop Scale</option>
+              <option value="fade">Fade In</option><option value="ink">Ink Bleed</option><option value="scale">Pop Scale</option>
             </select>
           </div>
 
@@ -665,9 +628,9 @@ const WebApp: React.FC = () => {
               <option value="normal">Normal</option><option value="screen">Screen</option><option value="multiply">Multiply</option><option value="overlay">Overlay</option><option value="add">Color Dodge</option>
             </select>
           </div>
-        </>
+        </React.Fragment>
       ) : (
-        <>
+        <React.Fragment>
           <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '2px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '8px' }}>AUTO INJECTOR</div>
           <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
             <input type="text" value={entityA} onChange={(e)=>setEntityA(e.target.value)} placeholder="Origin Country" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '8px', borderRadius: '6px', outline: 'none' }} />
@@ -677,9 +640,9 @@ const WebApp: React.FC = () => {
             <option value="arrow">Diplomatic Line (Arrow)</option><option value="takeover">Conflict (Invasion Wave)</option>
           </select>
           <button onClick={addStoryEvent} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', width: '100%', height: '36px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', marginTop: '4px' }}>＋ Inject Event</button>
-        </>
+        </React.Fragment>
       )}
-    </>
+    </React.Fragment>
   );
 
   return (
@@ -728,7 +691,7 @@ const WebApp: React.FC = () => {
 
       {/* MAIN EDITOR INTERFACE */}
       {status === 'editor' && dynamicTimeline && (
-        <div id="player-container" style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', paddingBottom: '100px', position: 'relative' }}>
+        <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', paddingBottom: '100px' }}>
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '32px', width: '100%', height: '100%' }}>
             
             {isDesktop && (
@@ -747,7 +710,7 @@ const WebApp: React.FC = () => {
               boxShadow: isLiveEdit ? '0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)' : '0 0 0 2px #38bdf8, 0 0 40px rgba(56,189,248,0.2)', 
               position: 'relative', overflow: 'hidden', background: '#040711', flexShrink: 0, zIndex: 10
             }}>
-              <div style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%' }}>
+              <div className="remotion-player" style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%' }}>
                 <Player
                   ref={playerRef}
                   component={MapAnimation}
@@ -763,7 +726,7 @@ const WebApp: React.FC = () => {
                 />
 
                 {isLiveEdit && (
-                  <>
+                  <React.Fragment>
                     <div 
                       onContextMenu={(e) => e.preventDefault()} 
                       onWheel={(e) => {
@@ -864,7 +827,7 @@ const WebApp: React.FC = () => {
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🤏 <strong style={{ color: '#fff' }}>2 Fingers</strong> Zoom/Twist</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>↕️ <strong style={{ color: '#fff' }}>2 Fingers</strong> Tilt</span>
                     </div>
-                  </>
+                  </React.Fragment>
                 )}
               </div>
             </div>
@@ -876,27 +839,7 @@ const WebApp: React.FC = () => {
             )}
           </div>
 
-          {!isDesktop && (
-            <>
-              <div style={{ position: 'fixed', left: leftPanelOpen ? '0px' : '-280px', top: '50%', transform: 'translateY(-50%)', transition: 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 100, display: 'flex', alignItems: 'center' }}>
-                <div style={{ ...panelStyle, width: '280px', maxHeight: '85vh', borderLeft: 'none', borderRadius: '0 24px 24px 0', padding: '18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {leftPanelJSX}
-                </div>
-                <div onClick={() => setLeftPanelOpen(!leftPanelOpen)} style={{ ...panelStyle, width: '36px', height: '72px', borderLeft: 'none', borderRadius: '0 16px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#38bdf8', fontSize: '16px', marginLeft: '-1px' }}>
-                   {leftPanelOpen ? '◀' : '▶'}
-                </div>
-              </div>
-              <div style={{ position: 'fixed', right: rightPanelOpen ? '0px' : '-280px', top: '50%', transform: 'translateY(-50%)', transition: 'right 0.4s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 100, display: 'flex', alignItems: 'center' }}>
-                <div onClick={() => setRightPanelOpen(!rightPanelOpen)} style={{ ...panelStyle, width: '36px', height: '72px', borderRight: 'none', borderRadius: '16px 0 0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#38bdf8', fontSize: '16px', marginRight: '-1px' }}>
-                   {rightPanelOpen ? '▶' : '◀'}
-                </div>
-                <div style={{ ...panelStyle, width: '280px', maxHeight: '85vh', borderRight: 'none', borderRadius: '24px 0 0 24px', padding: '18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {rightPanelJSX}
-                </div>
-              </div>
-            </>
-          )}
-
+          {/* TIMELINE BOTTOM DOCK */}
           {isTimelineOpen && (
             <div style={{ position: 'fixed', bottom: isDesktop ? '20px' : '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120 }}>
               <div style={{ ...panelStyle, width: '90%', maxWidth: '800px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '24px', padding: '14px 24px' }}>
@@ -961,6 +904,28 @@ const WebApp: React.FC = () => {
                 <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.8)', flexShrink: 0 }}>{Math.round(currentFrame)} / {videoDuration}</span>
               </div>
             </div>
+          )}
+
+          {/* MOBILE DRAWERS */}
+          {!isDesktop && (
+            <React.Fragment>
+              <div style={{ position: 'fixed', left: leftPanelOpen ? '0px' : '-280px', top: '50%', transform: 'translateY(-50%)', transition: 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 100, display: 'flex', alignItems: 'center' }}>
+                <div style={{ ...panelStyle, width: '280px', maxHeight: '85vh', borderLeft: 'none', borderRadius: '0 24px 24px 0', padding: '18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {leftPanelJSX}
+                </div>
+                <div onClick={() => setLeftPanelOpen(!leftPanelOpen)} style={{ ...panelStyle, width: '36px', height: '72px', borderLeft: 'none', borderRadius: '0 16px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#38bdf8', fontSize: '16px', marginLeft: '-1px' }}>
+                   {leftPanelOpen ? '◀' : '▶'}
+                </div>
+              </div>
+              <div style={{ position: 'fixed', right: rightPanelOpen ? '0px' : '-280px', top: '50%', transform: 'translateY(-50%)', transition: 'right 0.4s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 100, display: 'flex', alignItems: 'center' }}>
+                <div onClick={() => setRightPanelOpen(!rightPanelOpen)} style={{ ...panelStyle, width: '36px', height: '72px', borderRight: 'none', borderRadius: '16px 0 0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#38bdf8', fontSize: '16px', marginRight: '-1px' }}>
+                   {rightPanelOpen ? '▶' : '◀'}
+                </div>
+                <div style={{ ...panelStyle, width: '280px', maxHeight: '85vh', borderRight: 'none', borderRadius: '24px 0 0 24px', padding: '18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {rightPanelJSX}
+                </div>
+              </div>
+            </React.Fragment>
           )}
         </div>
       )}

@@ -37,43 +37,43 @@
   "cameraKeyframes": [
     {
       "frame": 0,
-      "zoom": 3.699999962747097,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "pitch": 33,
-      "bearing": -5
+      "zoom": 4.3249999534338714,
+      "lat": 36.381502872747504,
+      "lng": 125.78612715456059,
+      "latitude": 36.381502872747504,
+      "longitude": 125.78612715456059,
+      "pitch": 0,
+      "bearing": -18
     },
     {
-      "frame": 28,
-      "zoom": 5.57499993480742,
+      "frame": 35,
+      "zoom": 6.199999925494194,
       "lat": 38,
       "lng": 127,
       "latitude": 38,
       "longitude": 127,
-      "pitch": 66.5,
-      "bearing": -34
+      "pitch": 50.5,
+      "bearing": -27
     },
     {
-      "frame": 53,
-      "zoom": 6.8249999161809685,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "pitch": 62.5,
-      "bearing": 28
+      "frame": 65,
+      "zoom": 7.449999906867743,
+      "lat": 37.5224424843258,
+      "lng": 126.92706676613889,
+      "latitude": 37.5224424843258,
+      "longitude": 126.92706676613889,
+      "pitch": 54.5,
+      "bearing": 24
     },
     {
-      "frame": 119,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "zoom": 6.8249999161809685,
-      "pitch": 62.5,
-      "bearing": 28
+      "frame": 115,
+      "lat": 37.5224424843258,
+      "lng": 126.92706676613889,
+      "latitude": 37.5224424843258,
+      "longitude": 126.92706676613889,
+      "zoom": 4.949999944120646,
+      "pitch": 54.5,
+      "bearing": 24
     }
   ],
   "assets": []
