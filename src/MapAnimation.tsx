@@ -33,7 +33,7 @@ export const MapAnimation: React.FC<{
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [initialHandle] = useState(() => delayRender('Booting Core Map Engine...'));
+  const [initialHandle] = useState(() => delayRender('Booting Segmented Map Engine...'));
   
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
 
@@ -51,7 +51,7 @@ export const MapAnimation: React.FC<{
     lng: k.lng ?? k.longitude ?? 127.0,
     lat: k.lat ?? k.latitude ?? 38.0,
     zoom: k.zoom ?? 1.2,
-    pitch: Math.min(60, k.pitch ?? 0), // Prevents excessive rotation & tearing
+    pitch: Math.min(60, k.pitch ?? 0), 
     bearing: k.bearing ?? 0
   }));
 
@@ -68,27 +68,27 @@ export const MapAnimation: React.FC<{
      if (kf.frame > lastFrame) { strictlySortedKeyframes.push(kf); lastFrame = kf.frame; }
   });
 
-  const frameIndices = strictlySortedKeyframes.map((k) => k.frame);
-  const lngs = strictlySortedKeyframes.map((k) => k.lng);
-  const lats = strictlySortedKeyframes.map((k) => k.lat);
-  const zooms = strictlySortedKeyframes.map((k) => k.zoom);
-  const pitches = strictlySortedKeyframes.map((k) => k.pitch || 0);
-  const bearings = strictlySortedKeyframes.map((k: any) => k.bearing || 0);
+  // 🚀 ISOLATED SEGMENTED INTERPOLATION (Zero Bouncing)
+  let startKf = strictlySortedKeyframes[0];
+  let endKf = strictlySortedKeyframes[strictlySortedKeyframes.length - 1];
+  
+  for (let i = 0; i < strictlySortedKeyframes.length - 1; i++) {
+    if (frame >= strictlySortedKeyframes[i].frame && frame <= strictlySortedKeyframes[i+1].frame) {
+      startKf = strictlySortedKeyframes[i];
+      endKf = strictlySortedKeyframes[i+1];
+      break;
+    }
+  }
 
-  const kineticEasing = Easing.bezier(0.16, 1, 0.3, 1);
+  const totalFramesInSegment = endKf.frame - startKf.frame;
+  const rawProgress = totalFramesInSegment === 0 ? 0 : (frame - startKf.frame) / totalFramesInSegment;
+  const easeProgress = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
 
-  const safeIndices = frameIndices.length > 1 ? frameIndices : [0, 9999];
-  const safeLngs = frameIndices.length > 1 ? lngs : [lngs[0], lngs[0]];
-  const safeLats = frameIndices.length > 1 ? lats : [lats[0], lats[0]];
-  const safeZooms = frameIndices.length > 1 ? zooms : [zooms[0], zooms[0]];
-  const safePitches = frameIndices.length > 1 ? pitches : [pitches[0], pitches[0]];
-  const safeBearings = frameIndices.length > 1 ? bearings : [bearings[0], bearings[0]];
-
-  const currentLng = interpolate(frame, safeIndices, safeLngs, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
-  const currentLat = interpolate(frame, safeIndices, safeLats, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
-  const currentZoom = interpolate(frame, safeIndices, safeZooms, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
-  const currentPitch = interpolate(frame, safeIndices, safePitches, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
-  const currentBearing = interpolate(frame, safeIndices, safeBearings, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
+  const currentLng = startKf.lng + (endKf.lng - startKf.lng) * easeProgress;
+  const currentLat = startKf.lat + (endKf.lat - startKf.lat) * easeProgress;
+  const currentZoom = startKf.zoom + (endKf.zoom - startKf.zoom) * easeProgress;
+  const currentPitch = startKf.pitch + (endKf.pitch - startKf.pitch) * easeProgress;
+  const currentBearing = startKf.bearing + (endKf.bearing - startKf.bearing) * easeProgress;
 
   const getStyleDef = (styleId: string): any => {
     const buildRasterStyle = (url: string, saturation: number, contrast: number, brightnessMin: number, brightnessMax: number) => ({
@@ -115,10 +115,10 @@ export const MapAnimation: React.FC<{
       renderWorldCopies: false,
       pixelRatio: isRendering ? 2 : 1, 
       style: getStyleDef(mapStyle),
-      center: [safeLngs[0], safeLats[0]], 
-      zoom: safeZooms[0], 
-      pitch: safePitches[0], 
-      bearing: safeBearings[0],
+      center: [currentLng, currentLat], 
+      zoom: currentZoom, 
+      pitch: currentPitch, 
+      bearing: currentBearing,
       maxPitch: 60,
       interactive: false, 
       attributionControl: false,
@@ -132,7 +132,6 @@ export const MapAnimation: React.FC<{
     return () => map.remove();
   }, [mapStyle]);
 
-  // RESTORED: Stable map camera sync hook 
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
     mapRef.current.jumpTo({ 
@@ -263,11 +262,9 @@ export const MapAnimation: React.FC<{
             return (
               <svg key={`base-${idx}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', mixBlendMode: blendMode as any, zIndex: 20 }}>
                 {dropShadow && <path d={path} fill={isClosedPath ? "#000000" : "none"} stroke={!isClosedPath ? "#000000" : "none"} strokeWidth={strokeWidth || 2} opacity={0.8} style={{ filter: 'blur(15px)' }} transform="translate(0, 15)" />}
-                
                 {enableGlow && (glowTarget === 'fill' || glowTarget === 'both') && (
                   <path d={path} fill={isClosedPath ? fillColor : "none"} stroke={!isClosedPath ? fillColor : "none"} strokeWidth={strokeWidth || 2} opacity={0.55} style={{ filter: `blur(${Math.max(2, glowIntensity / 1.5)}px)` }} />
                 )}
-                
                 <path d={path} fill={isClosedPath && glowTarget !== 'stroke' ? fillColor : "transparent"} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinejoin="round" opacity={0.9} />
               </svg>
             );

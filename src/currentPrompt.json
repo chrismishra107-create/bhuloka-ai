@@ -15,20 +15,6 @@
       "isPrimary": true,
       "startFrame": 0,
       "revealStyle": "ink"
-    },
-    {
-      "name": "South Korea",
-      "country": "South Korea",
-      "color": "#3b82f6",
-      "strokeColor": "#ffffff",
-      "strokeWidth": 2,
-      "enableGlow": true,
-      "glowTarget": "both",
-      "dropShadow": true,
-      "blendMode": "screen",
-      "isPrimary": false,
-      "startFrame": 0,
-      "revealStyle": "ink"
     }
   ],
   "takeovers": [],
@@ -37,13 +23,24 @@
   "cameraKeyframes": [
     {
       "frame": 0,
-      "lat": 37.37499999999998,
-      "lng": 125.9583333333335,
-      "latitude": 37.37499999999998,
-      "longitude": 125.9583333333335,
-      "zoom": 1.1249999906867743,
-      "pitch": 52,
-      "bearing": 89,
+      "zoom": 1.2,
+      "lat": 38,
+      "lng": 127,
+      "latitude": 38,
+      "longitude": 127,
+      "pitch": 45,
+      "bearing": 0,
+      "easing": "easeInOut"
+    },
+    {
+      "frame": 20,
+      "lat": 18.88235351814536,
+      "lng": 105.64705741204466,
+      "latitude": 18.88235351814536,
+      "longitude": 105.64705741204466,
+      "zoom": 4.2499999441206455,
+      "pitch": 42,
+      "bearing": 8,
       "easing": "easeInOut"
     }
   ],

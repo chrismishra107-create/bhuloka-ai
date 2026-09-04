@@ -64120,7 +64120,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const mapContainer = (0, import_react121.useRef)(null);
     const mapRef = (0, import_react121.useRef)(null);
     const [mapLoaded, setMapLoaded] = (0, import_react121.useState)(false);
-    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Core Map Engine..."));
+    const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Segmented Map Engine..."));
     const [selectedCountry, setSelectedCountry] = (0, import_react121.useState)(null);
     const frame = useCurrentFrame();
     const { width, height } = useVideoConfig();
@@ -64135,7 +64135,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       lat: k2.lat ?? k2.latitude ?? 38,
       zoom: k2.zoom ?? 1.2,
       pitch: Math.min(60, k2.pitch ?? 0),
-      // Prevents excessive rotation & tearing
       bearing: k2.bearing ?? 0
     }));
     const fallbackKeyframes = [
@@ -64151,24 +64150,23 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         lastFrame = kf3.frame;
       }
     });
-    const frameIndices = strictlySortedKeyframes.map((k2) => k2.frame);
-    const lngs = strictlySortedKeyframes.map((k2) => k2.lng);
-    const lats = strictlySortedKeyframes.map((k2) => k2.lat);
-    const zooms = strictlySortedKeyframes.map((k2) => k2.zoom);
-    const pitches = strictlySortedKeyframes.map((k2) => k2.pitch || 0);
-    const bearings = strictlySortedKeyframes.map((k2) => k2.bearing || 0);
-    const kineticEasing = Easing.bezier(0.16, 1, 0.3, 1);
-    const safeIndices = frameIndices.length > 1 ? frameIndices : [0, 9999];
-    const safeLngs = frameIndices.length > 1 ? lngs : [lngs[0], lngs[0]];
-    const safeLats = frameIndices.length > 1 ? lats : [lats[0], lats[0]];
-    const safeZooms = frameIndices.length > 1 ? zooms : [zooms[0], zooms[0]];
-    const safePitches = frameIndices.length > 1 ? pitches : [pitches[0], pitches[0]];
-    const safeBearings = frameIndices.length > 1 ? bearings : [bearings[0], bearings[0]];
-    const currentLng = interpolate(frame, safeIndices, safeLngs, { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: kineticEasing });
-    const currentLat = interpolate(frame, safeIndices, safeLats, { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: kineticEasing });
-    const currentZoom = interpolate(frame, safeIndices, safeZooms, { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: kineticEasing });
-    const currentPitch = interpolate(frame, safeIndices, safePitches, { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: kineticEasing });
-    const currentBearing = interpolate(frame, safeIndices, safeBearings, { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: kineticEasing });
+    let startKf = strictlySortedKeyframes[0];
+    let endKf = strictlySortedKeyframes[strictlySortedKeyframes.length - 1];
+    for (let i2 = 0; i2 < strictlySortedKeyframes.length - 1; i2++) {
+      if (frame >= strictlySortedKeyframes[i2].frame && frame <= strictlySortedKeyframes[i2 + 1].frame) {
+        startKf = strictlySortedKeyframes[i2];
+        endKf = strictlySortedKeyframes[i2 + 1];
+        break;
+      }
+    }
+    const totalFramesInSegment = endKf.frame - startKf.frame;
+    const rawProgress = totalFramesInSegment === 0 ? 0 : (frame - startKf.frame) / totalFramesInSegment;
+    const easeProgress = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
+    const currentLng = startKf.lng + (endKf.lng - startKf.lng) * easeProgress;
+    const currentLat = startKf.lat + (endKf.lat - startKf.lat) * easeProgress;
+    const currentZoom = startKf.zoom + (endKf.zoom - startKf.zoom) * easeProgress;
+    const currentPitch = startKf.pitch + (endKf.pitch - startKf.pitch) * easeProgress;
+    const currentBearing = startKf.bearing + (endKf.bearing - startKf.bearing) * easeProgress;
     const getStyleDef = (styleId) => {
       const buildRasterStyle = (url, saturation, contrast, brightnessMin, brightnessMax) => ({
         version: 8,
@@ -64196,10 +64194,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         renderWorldCopies: false,
         pixelRatio: isRendering ? 2 : 1,
         style: getStyleDef(mapStyle),
-        center: [safeLngs[0], safeLats[0]],
-        zoom: safeZooms[0],
-        pitch: safePitches[0],
-        bearing: safeBearings[0],
+        center: [currentLng, currentLat],
+        zoom: currentZoom,
+        pitch: currentPitch,
+        bearing: currentBearing,
         maxPitch: 60,
         interactive: false,
         attributionControl: false
@@ -64550,28 +64548,47 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         setStatus("idle");
       }
     };
-    const handleDownload = async () => {
+    const handleDownload = () => {
       setIsExporting(true);
-      try {
-        const res = await fetch("/api/render", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ timeline: dynamicTimeline })
-        });
-        if (res.ok) {
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a4 = document.createElement("a");
-          a4.href = url;
-          a4.download = `${timeline?.title || "Tactical_Map"}.mp4`;
-          a4.click();
-        } else {
-          alert("Backend rendering failed. Ensure your server has a /api/render endpoint set up for Remotion!");
+      playerRef.current?.seekTo(0);
+      playerRef.current?.play();
+      setIsPlaying(true);
+      setTimeout(() => {
+        const canvas = document.querySelector("canvas.maplibregl-canvas");
+        if (!canvas) {
+          alert("Map engine not detected. Please ensure the map is loaded.");
+          setIsExporting(false);
+          return;
         }
-      } catch (e63) {
-        alert("Network error during export.");
-      }
-      setIsExporting(false);
+        try {
+          const stream = canvas.captureStream(30);
+          const mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+          const chunks = [];
+          mediaRecorder.ondataavailable = (e63) => {
+            if (e63.data.size > 0) chunks.push(e63.data);
+          };
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(chunks, { type: "video/webm" });
+            const url = URL.createObjectURL(blob);
+            const a4 = document.createElement("a");
+            a4.href = url;
+            a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Export"}_${Date.now()}.webm`;
+            a4.click();
+            URL.revokeObjectURL(url);
+            setIsExporting(false);
+          };
+          mediaRecorder.start();
+          setTimeout(() => {
+            mediaRecorder.stop();
+            playerRef.current?.pause();
+            setIsPlaying(false);
+          }, videoDuration / 30 * 1e3);
+        } catch (err) {
+          console.error(err);
+          alert("Your browser does not support local canvas recording. Use Chrome or Edge.");
+          setIsExporting(false);
+        }
+      }, 500);
     };
     const initializeManualScene = () => {
       const blankTimeline = {
@@ -64622,12 +64639,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       });
       if (extensionNeeded > 0) setVideoDuration((prev) => prev + extensionNeeded);
     };
-    const deleteLastKeyframe = () => {
+    const deleteSpecificKeyframe = (frameIndex) => {
       setTimeline((prev) => {
-        if (!prev || !prev.cameraKeyframes || prev.cameraKeyframes.length <= 1) return prev;
+        if (!prev || !prev.cameraKeyframes) return prev;
         const updated = { ...prev };
-        updated.cameraKeyframes = [...prev.cameraKeyframes];
-        updated.cameraKeyframes.pop();
+        updated.cameraKeyframes = updated.cameraKeyframes.filter((kf3) => kf3.frame !== frameIndex);
         return updated;
       });
     };
@@ -64911,7 +64927,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             boxShadow: "0 0 15px rgba(16,185,129,0.2)",
             marginBottom: "10px"
           },
-          children: isExporting ? "\u23F3 Rendering MP4..." : "\u{1F4BE} Export Video"
+          children: isExporting ? "\u23F3 Capturing MP4..." : "\u{1F4BE} Export Mobile Video"
         }
       ),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)" }, children: [
@@ -64920,7 +64936,16 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       ] }),
       !isLiveEdit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: startLiveEdit, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", width: "100%", height: "38px", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 0 15px rgba(56,189,248,0.1)" }, children: "\u{1F3AF} Enter Live Canvas Edit" }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: dropKeyframeLive, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "8px", padding: "8px", fontSize: "12px", fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 12px rgba(56,189,248,0.4)" }, children: "\u{1F4CD} Save Keyframe Here" }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", justifyContent: "space-between", gap: "8px" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: deleteLastKeyframe, style: { flex: 1, background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "6px", padding: "6px", fontSize: "10px", fontWeight: 700, cursor: "pointer" }, children: "\u21A9 Undo Last" }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px", maxHeight: "120px", overflowY: "auto" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "ACTIVE TIMELINE MARKERS:" }),
+          timeline?.cameraKeyframes?.map((kf3) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "4px" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "10px", color: "#fff" }, children: [
+              "Frame: ",
+              Math.round(kf3.frame)
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => deleteSpecificKeyframe(kf3.frame), style: { background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "10px" }, children: "\u2715 Delete" })
+          ] }, kf3.frame))
+        ] }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "PITCH" }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#38bdf8", fontWeight: 600 }, children: [

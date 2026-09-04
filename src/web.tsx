@@ -39,7 +39,6 @@ const WebApp: React.FC = () => {
   const dragPos = useRef<{x: number, y: number} | null>(null);
   const activePointers = useRef<Map<number, {x: number, y: number}>>(new Map());
   
-  // 🔥 UPGRADED: 2-Finger Math Ref 🔥
   const previousPinch = useRef<{ dist: number, angle: number, centerY: number, centerX: number } | null>(null);
   
   const [targetLat, setTargetLat] = useState<number>(38.0);
@@ -110,28 +109,56 @@ const WebApp: React.FC = () => {
     }
   };
 
-  const handleDownload = async () => {
+  // 🔥 COMPLETELY REWRITTEN EXPORT: Client-Side Canvas Capture (No Server Needed) 🔥
+  const handleDownload = () => {
     setIsExporting(true);
-    try {
-      const res = await fetch('/api/render', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeline: dynamicTimeline })
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${timeline?.title || 'Tactical_Map'}.mp4`;
-        a.click();
-      } else {
-        alert("Backend rendering failed. Ensure your server has a /api/render endpoint set up for Remotion!");
+    playerRef.current?.seekTo(0);
+    playerRef.current?.play();
+    setIsPlaying(true);
+
+    setTimeout(() => {
+      // Hook directly into MapLibre's WebGL canvas
+      const canvas = document.querySelector('canvas.maplibregl-canvas') as HTMLCanvasElement;
+      if (!canvas) {
+        alert("Map engine not detected. Please ensure the map is loaded.");
+        setIsExporting(false);
+        return;
       }
-    } catch (e) {
-      alert("Network error during export.");
-    }
-    setIsExporting(false);
+
+      try {
+        const stream = canvas.captureStream(30); 
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        const chunks: BlobPart[] = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Export'}_${Date.now()}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+          setIsExporting(false);
+        };
+
+        mediaRecorder.start();
+        
+        setTimeout(() => {
+          mediaRecorder.stop();
+          playerRef.current?.pause();
+          setIsPlaying(false);
+        }, (videoDuration / 30) * 1000); 
+
+      } catch (err) {
+        console.error(err);
+        alert("Your browser does not support local canvas recording. Use Chrome or Edge.");
+        setIsExporting(false);
+      }
+    }, 500); 
   };
 
   const initializeManualScene = () => {
@@ -187,12 +214,11 @@ const WebApp: React.FC = () => {
     if (extensionNeeded > 0) setVideoDuration(prev => prev + extensionNeeded);
   };
 
-  const deleteLastKeyframe = () => {
+  const deleteSpecificKeyframe = (frameIndex: number) => {
     setTimeline((prev: any) => {
-      if (!prev || !prev.cameraKeyframes || prev.cameraKeyframes.length <= 1) return prev;
+      if (!prev || !prev.cameraKeyframes) return prev;
       const updated = { ...prev };
-      updated.cameraKeyframes = [...prev.cameraKeyframes];
-      updated.cameraKeyframes.pop(); 
+      updated.cameraKeyframes = updated.cameraKeyframes.filter((kf: any) => kf.frame !== frameIndex);
       return updated;
     });
   };
@@ -517,7 +543,7 @@ const WebApp: React.FC = () => {
           boxShadow: '0 0 15px rgba(16,185,129,0.2)', 
           marginBottom: '10px' 
         }}>
-        {isExporting ? '⏳ Rendering MP4...' : '💾 Export Video'}
+        {isExporting ? '⏳ Capturing MP4...' : '💾 Export Mobile Video'}
       </button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -530,9 +556,17 @@ const WebApp: React.FC = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <button onClick={dropKeyframeLive} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(56,189,248,0.4)' }}>📍 Save Keyframe Here</button>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-             <button onClick={deleteLastKeyframe} style={{ flex: 1, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>↩ Undo Last</button>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+            <span style={{ fontSize: '9px', color: '#8e8e93' }}>ACTIVE TIMELINE MARKERS:</span>
+            {timeline?.cameraKeyframes?.map((kf: any) => (
+               <div key={kf.frame} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px' }}>
+                 <span style={{ fontSize: '10px', color: '#fff' }}>Frame: {Math.round(kf.frame)}</span>
+                 <button onClick={() => deleteSpecificKeyframe(kf.frame)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}>✕ Delete</button>
+               </div>
+            ))}
           </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
             <span style={{ color: '#8e8e93' }}>PITCH</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetPitch)}°</span>
           </div>
