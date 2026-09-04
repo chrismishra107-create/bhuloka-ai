@@ -2,12 +2,12 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   AbsoluteFill,
   useCurrentFrame,
+  interpolate,
   Easing,
   useVideoConfig,
   delayRender,
   continueRender,
   getRemotionEnvironment,
-  interpolate, // 🔥 RESTORED MISSING IMPORT
 } from 'remotion';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -42,13 +42,13 @@ export const MapAnimation: React.FC<{
 
   const rawKeyframes = timeline?.cameraKeyframes || [];
   const validKeyframes = rawKeyframes.filter(
-    (k: any) => k && typeof k.frame === 'number' && (typeof k.lng === 'number' || typeof k.latitude === 'number')
+    (k: any) => k && typeof k.frame === 'number' && (typeof k.lng === 'number' || typeof k.longitude === 'number')
   ).map((k: any) => ({
     frame: k.frame,
     lng: k.lng ?? k.longitude ?? 127.0,
     lat: k.lat ?? k.latitude ?? 38.0,
     zoom: k.zoom ?? 1.2,
-    pitch: Math.min(60, k.pitch ?? 0), 
+    pitch: Math.min(60, k.pitch ?? 0),
     bearing: k.bearing ?? 0
   }));
 
@@ -58,36 +58,34 @@ export const MapAnimation: React.FC<{
   ];
 
   const keyframes = validKeyframes.length > 0 ? validKeyframes : fallbackKeyframes;
-  const strictlySortedKeyframes = [...keyframes].sort((a, b) => a.frame - b.frame);
+  
+  const strictlySortedKeyframes: any[] = [];
+  let lastFrame = -1;
+  [...keyframes].sort((a, b) => a.frame - b.frame).forEach(kf => {
+     if (kf.frame > lastFrame) { strictlySortedKeyframes.push(kf); lastFrame = kf.frame; }
+  });
 
-  const getInterpolatedCamera = () => {
-    const kfs = strictlySortedKeyframes;
-    if (kfs.length === 0) return { lng: 0, lat: 0, zoom: 1, pitch: 0, bearing: 0 };
-    if (kfs.length === 1 || frame <= kfs[0].frame) return kfs[0];
-    if (frame >= kfs[kfs.length - 1].frame) return kfs[kfs.length - 1];
+  const frameIndices = strictlySortedKeyframes.map((k) => k.frame);
+  const lngs = strictlySortedKeyframes.map((k) => k.lng);
+  const lats = strictlySortedKeyframes.map((k) => k.lat);
+  const zooms = strictlySortedKeyframes.map((k) => k.zoom);
+  const pitches = strictlySortedKeyframes.map((k) => k.pitch || 0);
+  const bearings = strictlySortedKeyframes.map((k: any) => k.bearing || 0);
 
-    for (let i = 0; i < kfs.length - 1; i++) {
-      if (frame >= kfs[i].frame && frame < kfs[i+1].frame) {
-         const kf1 = kfs[i];
-         const kf2 = kfs[i+1];
-         
-         const duration = kf2.frame - kf1.frame;
-         const rawProgress = (frame - kf1.frame) / duration;
-         const easeProgress = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
-         
-         return {
-           lng: kf1.lng + (kf2.lng - kf1.lng) * easeProgress,
-           lat: kf1.lat + (kf2.lat - kf1.lat) * easeProgress,
-           zoom: kf1.zoom + (kf2.zoom - kf1.zoom) * easeProgress,
-           pitch: kf1.pitch + (kf2.pitch - kf1.pitch) * easeProgress,
-           bearing: kf1.bearing + (kf2.bearing - kf1.bearing) * easeProgress
-         };
-      }
-    }
-    return kfs[kfs.length - 1];
-  };
+  const kineticEasing = Easing.bezier(0.16, 1, 0.3, 1);
 
-  const { lng: currentLng, lat: currentLat, zoom: currentZoom, pitch: currentPitch, bearing: currentBearing } = getInterpolatedCamera();
+  const safeIndices = frameIndices.length > 1 ? frameIndices : [0, 9999];
+  const safeLngs = frameIndices.length > 1 ? lngs : [lngs[0], lngs[0]];
+  const safeLats = frameIndices.length > 1 ? lats : [lats[0], lats[0]];
+  const safeZooms = frameIndices.length > 1 ? zooms : [zooms[0], zooms[0]];
+  const safePitches = frameIndices.length > 1 ? pitches : [pitches[0], pitches[0]];
+  const safeBearings = frameIndices.length > 1 ? bearings : [bearings[0], bearings[0]];
+
+  const currentLng = interpolate(frame, safeIndices, safeLngs, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
+  const currentLat = interpolate(frame, safeIndices, safeLats, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
+  const currentZoom = interpolate(frame, safeIndices, safeZooms, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
+  const currentPitch = interpolate(frame, safeIndices, safePitches, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
+  const currentBearing = interpolate(frame, safeIndices, safeBearings, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: kineticEasing });
 
   const getStyleDef = (styleId: string): any => {
     const buildRasterStyle = (url: string, saturation: number, contrast: number, brightnessMin: number, brightnessMax: number) => ({
@@ -111,13 +109,15 @@ export const MapAnimation: React.FC<{
       container: mapContainer.current, 
       fadeDuration: 0, 
       maxTileCacheSize: 10000, 
+      // @ts-ignore: Required to prevent WebGL from clearing the buffer so the compositor can photograph it
+      preserveDrawingBuffer: true,
       renderWorldCopies: false,
       pixelRatio: isRendering ? 2 : 1, 
       style: getStyleDef(mapStyle),
-      center: [currentLng, currentLat], 
-      zoom: currentZoom, 
-      pitch: currentPitch, 
-      bearing: currentBearing,
+      center: [safeLngs[0], safeLats[0]], 
+      zoom: safeZooms[0], 
+      pitch: safePitches[0], 
+      bearing: safeBearings[0],
       maxPitch: 60,
       interactive: false, 
       attributionControl: false,
@@ -133,33 +133,13 @@ export const MapAnimation: React.FC<{
 
   useLayoutEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
-
-    let tileLockHandle: number | null = null;
-    
-    if (isRendering) {
-      tileLockHandle = delayRender(`Waiting for map tiles at frame ${frame}`);
-    }
-
     mapRef.current.jumpTo({ 
       center: [currentLng, currentLat], 
       zoom: currentZoom, 
       pitch: currentPitch, 
       bearing: currentBearing 
     });
-
-    if (isRendering && tileLockHandle !== null) {
-      if (mapRef.current.isStyleLoaded() && mapRef.current.areTilesLoaded()) {
-        continueRender(tileLockHandle);
-      } else {
-        mapRef.current.once('idle', () => {
-          try {
-            if (tileLockHandle !== null) continueRender(tileLockHandle);
-          } catch (e) {
-          }
-        });
-      }
-    }
-  }, [currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded, isRendering, frame]);
+  }, [currentLng, currentLat, currentZoom, currentPitch, currentBearing, mapLoaded]);
 
   const getGeometryFromSource = (name: string, dataSources: any[]) => {
     if (!mapRef.current || !mapLoaded || !name) return { path: '', center: null as [number, number] | null };
@@ -430,7 +410,8 @@ export const MapAnimation: React.FC<{
             })}
           </svg>
 
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 70 }}>
+          {/* 🚨 Converted HTML Labels to SVG for the Mobile Compositor Loop */}
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 70 }}>
             {labels.map((l: any, i: number) => {
               if (frame < (l.startFrame || 0)) return null;
               const p = mapRef.current?.project([l.lng, l.lat]);
@@ -438,12 +419,13 @@ export const MapAnimation: React.FC<{
               if (frame > (l.startFrame + (l.duration || 150)) && !l.pinned) return null;
 
               return (
-                <div key={l.id || `lbl-${i}`} style={{ position: 'absolute', left: `${p.x}px`, top: `${p.y}px`, transform: 'translate(-50%, -100%)', background: l.bg || 'rgba(0,0,0,0.7)', color: l.color || '#ffffff', fontSize: `${l.size || 24}px`, fontWeight: 700, padding: '4px 12px', borderRadius: '8px', whiteSpace: 'nowrap', marginTop: '-10px' }}>
-                  {l.text}
-                </div>
+                <g key={l.id || `lbl-${i}`} transform={`translate(${p.x}, ${p.y - 10})`}>
+                  <rect x="-60" y="-30" width="120" height="36" rx="8" fill={l.bg || 'rgba(0,0,0,0.7)'} />
+                  <text x="0" y="-6" fill={l.color || '#ffffff'} fontSize={l.size || 24} fontWeight="700" textAnchor="middle" alignmentBaseline="middle">{l.text}</text>
+                </g>
               );
             })}
-          </div>
+          </svg>
 
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 60 }}>
             {rawCountries.map((country: any, idx: number) => {

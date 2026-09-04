@@ -35,8 +35,6 @@ const WebApp: React.FC = () => {
   const [isLiveEdit, setIsLiveEdit] = useState<boolean>(false);
   
   const [isExporting, setIsExporting] = useState<boolean>(false);
-  const [isRecordingMode, setIsRecordingMode] = useState<boolean>(false);
-  const [isPreloading, setIsPreloading] = useState<boolean>(false);
   
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragPos = useRef<{x: number, y: number} | null>(null);
@@ -48,6 +46,7 @@ const WebApp: React.FC = () => {
   const [targetZoom, setTargetZoom] = useState<number>(1.2);
   const [targetPitch, setTargetPitch] = useState<number>(20);
   const [targetBearing, setTargetBearing] = useState<number>(0);
+  const [targetEasing, setTargetEasing] = useState<string>('easeInOut');
 
   const [pathStartCoord, setPathStartCoord] = useState<[number, number] | null>(null);
 
@@ -69,14 +68,14 @@ const WebApp: React.FC = () => {
   useEffect(() => {
     let animationFrameId: number;
     const syncTimeline = () => {
-      if (playerRef.current && isPlaying) {
+      if (playerRef.current && isPlaying && !isExporting) {
         setCurrentFrame(playerRef.current.getCurrentFrame());
       }
       animationFrameId = requestAnimationFrame(syncTimeline);
     };
     syncTimeline();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isPlaying]);
+  }, [isPlaying, isExporting]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,76 +109,75 @@ const WebApp: React.FC = () => {
     }
   };
 
-  const handleFinalizeCache = async () => {
-    setIsPreloading(true);
+  // 🚨 THE FRAME-BY-FRAME DEEP COMPOSITOR FOR MOBILE/NO-SERVER EXPORTS
+  const handleMobileDeepRender = async () => {
+    setIsExporting(true);
     playerRef.current?.pause();
     setIsPlaying(false);
-    
-    for(let f = 0; f < videoDuration; f += 10) {
+
+    // Create the master photographic canvas
+    const masterCanvas = document.createElement('canvas');
+    masterCanvas.width = 1080;
+    masterCanvas.height = 1920;
+    const ctx = masterCanvas.getContext('2d');
+    if (!ctx) return;
+
+    // Stream the canvas directly into the mobile hardware encoder
+    const stream = masterCanvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks: BlobPart[] = [];
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.start();
+
+    // Iterate through every single frame
+    for (let f = 0; f <= videoDuration; f++) {
+      setCurrentFrame(f);
       playerRef.current?.seekTo(f);
-      await new Promise(r => setTimeout(r, 100)); 
-    }
-    
-    playerRef.current?.seekTo(0);
-    setIsPreloading(false);
-    alert("Map Cache Finalized! Ready for flawless export.");
-  };
 
-  // 🔥 HIGH BITRATE BROWSER EXPORT (For rendering on phones/weak devices)
-  const handleGodTierExport = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: "browser", frameRate: { ideal: 30 } },
-        audio: false
-      });
+      // Wait 150ms for MapLibre to fetch tiles and React to render SVGs
+      await new Promise(r => setTimeout(r, 150));
 
-      setIsRecordingMode(true);
-      setIsExporting(true);
-      playerRef.current?.seekTo(0);
-      
-      await new Promise(r => setTimeout(r, 1000)); 
+      // 1. Photograph MapLibre Base Layer
+      const mapCanvas = document.querySelector('canvas.maplibregl-canvas') as HTMLCanvasElement;
+      if (mapCanvas) {
+        ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
+      }
 
-      playerRef.current?.play();
-      setIsPlaying(true);
-
-      // FORCE 30 Mbps Bitrate to stop pixelation
-      const options = MediaRecorder.isTypeSupported('video/webm; codecs=vp9') 
-        ? { mimeType: 'video/webm; codecs=vp9', videoBitsPerSecond: 30000000 } 
-        : { mimeType: 'video/webm', videoBitsPerSecond: 30000000 };
-
-      const mediaRecorder = new MediaRecorder(stream, options);
-      const chunks: BlobPart[] = [];
-      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
+      // 2. Photograph all SVG Overlays (Borders, Takeovers, Lines)
+      const svgs = document.querySelectorAll('svg');
+      for (let i = 0; i < svgs.length; i++) {
+        const svg = svgs[i];
+        if (!svg.getAttribute('xmlns')) svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        const xml = new XMLSerializer().serializeToString(svg);
+        const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Max_Export'}_${Date.now()}.webm`;
-        a.click();
+        const img = new Image();
+        
+        // Wait for image conversion
+        await new Promise(r => { img.onload = r; img.onerror = r; img.src = url; });
+        ctx.drawImage(img, 0, 0, 1080, 1920);
         URL.revokeObjectURL(url);
-        setIsRecordingMode(false);
-        setIsExporting(false);
-        stream.getTracks().forEach(t => t.stop());
-      };
+      }
 
-      mediaRecorder.start();
-      
-      setTimeout(() => {
-        mediaRecorder.stop();
-        playerRef.current?.pause();
-        setIsPlaying(false);
-      }, (videoDuration / 30) * 1000 + 500);
-
-    } catch (err) {
-      alert("Export cancelled or Tab Capture not supported on this browser.");
-      setIsRecordingMode(false);
-      setIsExporting(false);
+      // 3. Force stream to capture this merged frame
+      const track = stream.getVideoTracks()[0] as any;
+      if (track.requestFrame) track.requestFrame();
     }
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Mobile_Render'}_HD.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setIsExporting(false);
+    };
+    
+    setTimeout(() => recorder.stop(), 500);
   };
 
-  // 🔥 TRUE HD LOCAL EXPORT (For mathematically perfect MP4s when running on your PC)
   const handleHDLocalExport = async () => {
     setIsExporting(true);
     try {
@@ -543,26 +541,17 @@ const WebApp: React.FC = () => {
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
         <button 
-          onClick={handleHDLocalExport} 
-          disabled={isPreloading || isExporting} 
-          style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
-          {isExporting ? '⏳ Rendering HD MP4...' : '🖥️ True HD Server Export'}
+          onClick={handleMobileDeepRender} 
+          disabled={isExporting} 
+          style={{ background: isExporting ? '#f59e0b' : '#38bdf8', color: '#000', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+          {isExporting ? `⏳ Processing Frame ${currentFrame}...` : '📱 Deep Mobile Export (No Server)'}
         </button>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            onClick={handleFinalizeCache} 
-            disabled={isPreloading || isExporting} 
-            style={{ flex: 1, background: isPreloading ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isPreloading ? 'wait' : 'pointer' }}>
-            {isPreloading ? '⏳ Preloading...' : '📦 Finalize Cache'}
-          </button>
-          <button 
-            onClick={handleGodTierExport} 
-            disabled={isExporting || isPreloading} 
-            style={{ flex: 1, background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
-            {isExporting ? '⏳ Recording...' : '🎥 WebM Browser Export'}
-          </button>
-        </div>
+        <button 
+          onClick={handleHDLocalExport} 
+          disabled={isExporting} 
+          style={{ background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
+          {isExporting ? '⏳ Rendering HD MP4...' : '🖥️ True HD Desktop Export'}
+        </button>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -646,25 +635,6 @@ const WebApp: React.FC = () => {
       )}
     </>
   );
-
-  if (isRecordingMode) {
-    return (
-      <div style={{ width: '100vw', height: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-         <div style={{ height: '100vh', aspectRatio: '9/16' }}>
-            <Player 
-              ref={playerRef} 
-              component={MapAnimation} 
-              inputProps={playerInputProps} 
-              durationInFrames={videoDuration} 
-              compositionWidth={1080} 
-              compositionHeight={1920} 
-              fps={30} 
-              style={{ width: '100%', height: '100%' }} 
-            />
-         </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden' }}>
@@ -820,7 +790,6 @@ const WebApp: React.FC = () => {
                           if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
                           if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-                          // Mobile-calibrated sensitivity
                           setTargetZoom(z => Math.max(0.5, Math.min(15, z + distDiff * 0.01)));
                           setTargetBearing(b => b + angleDiff * 60);
                           
@@ -842,7 +811,6 @@ const WebApp: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Mobile Controls HUD */}
                     <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', padding: '8px 16px', borderRadius: '12px', fontSize: '10px', color: '#8e8e93', fontWeight: 600, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', gap: '12px', zIndex: 55 }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>📱 <strong style={{ color: '#fff' }}>1 Finger</strong> Pan</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🤏 <strong style={{ color: '#fff' }}>2 Fingers</strong> Zoom/Twist</span>
