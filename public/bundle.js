@@ -21723,6 +21723,493 @@
     }
   });
 
+  // node_modules/fix-webm-duration/fix-webm-duration.js
+  var require_fix_webm_duration = __commonJS({
+    "node_modules/fix-webm-duration/fix-webm-duration.js"(exports, module) {
+      (function(name, definition) {
+        if (typeof define === "function" && define.amd) {
+          define(definition);
+        } else if (typeof module !== "undefined" && module.exports) {
+          module.exports = definition();
+        } else {
+          window.ysFixWebmDuration = definition();
+        }
+      })("fix-webm-duration", function() {
+        var sections = {
+          172351395: { name: "EBML", type: "Container" },
+          646: { name: "EBMLVersion", type: "Uint" },
+          759: { name: "EBMLReadVersion", type: "Uint" },
+          754: { name: "EBMLMaxIDLength", type: "Uint" },
+          755: { name: "EBMLMaxSizeLength", type: "Uint" },
+          642: { name: "DocType", type: "String" },
+          647: { name: "DocTypeVersion", type: "Uint" },
+          645: { name: "DocTypeReadVersion", type: "Uint" },
+          108: { name: "Void", type: "Binary" },
+          63: { name: "CRC-32", type: "Binary" },
+          190023271: { name: "SignatureSlot", type: "Container" },
+          16010: { name: "SignatureAlgo", type: "Uint" },
+          16026: { name: "SignatureHash", type: "Uint" },
+          16037: { name: "SignaturePublicKey", type: "Binary" },
+          16053: { name: "Signature", type: "Binary" },
+          15963: { name: "SignatureElements", type: "Container" },
+          15995: { name: "SignatureElementList", type: "Container" },
+          9522: { name: "SignedElement", type: "Binary" },
+          139690087: { name: "Segment", type: "Container" },
+          21863284: { name: "SeekHead", type: "Container" },
+          3515: { name: "Seek", type: "Container" },
+          5035: { name: "SeekID", type: "Binary" },
+          5036: { name: "SeekPosition", type: "Uint" },
+          88713574: { name: "Info", type: "Container" },
+          13220: { name: "SegmentUID", type: "Binary" },
+          13188: { name: "SegmentFilename", type: "String" },
+          1882403: { name: "PrevUID", type: "Binary" },
+          1868715: { name: "PrevFilename", type: "String" },
+          2013475: { name: "NextUID", type: "Binary" },
+          1999803: { name: "NextFilename", type: "String" },
+          1092: { name: "SegmentFamily", type: "Binary" },
+          10532: { name: "ChapterTranslate", type: "Container" },
+          10748: { name: "ChapterTranslateEditionUID", type: "Uint" },
+          10687: { name: "ChapterTranslateCodec", type: "Uint" },
+          10661: { name: "ChapterTranslateID", type: "Binary" },
+          710577: { name: "TimecodeScale", type: "Uint" },
+          1161: { name: "Duration", type: "Float" },
+          1121: { name: "DateUTC", type: "Date" },
+          15273: { name: "Title", type: "String" },
+          3456: { name: "MuxingApp", type: "String" },
+          5953: { name: "WritingApp", type: "String" },
+          // 0xf43b675: { name: 'Cluster', type: 'Container' },
+          103: { name: "Timecode", type: "Uint" },
+          6228: { name: "SilentTracks", type: "Container" },
+          6359: { name: "SilentTrackNumber", type: "Uint" },
+          39: { name: "Position", type: "Uint" },
+          43: { name: "PrevSize", type: "Uint" },
+          35: { name: "SimpleBlock", type: "Binary" },
+          32: { name: "BlockGroup", type: "Container" },
+          33: { name: "Block", type: "Binary" },
+          34: { name: "BlockVirtual", type: "Binary" },
+          13729: { name: "BlockAdditions", type: "Container" },
+          38: { name: "BlockMore", type: "Container" },
+          110: { name: "BlockAddID", type: "Uint" },
+          37: { name: "BlockAdditional", type: "Binary" },
+          27: { name: "BlockDuration", type: "Uint" },
+          122: { name: "ReferencePriority", type: "Uint" },
+          123: { name: "ReferenceBlock", type: "Int" },
+          125: { name: "ReferenceVirtual", type: "Int" },
+          36: { name: "CodecState", type: "Binary" },
+          13730: { name: "DiscardPadding", type: "Int" },
+          14: { name: "Slices", type: "Container" },
+          104: { name: "TimeSlice", type: "Container" },
+          76: { name: "LaceNumber", type: "Uint" },
+          77: { name: "FrameNumber", type: "Uint" },
+          75: { name: "BlockAdditionID", type: "Uint" },
+          78: { name: "Delay", type: "Uint" },
+          79: { name: "SliceDuration", type: "Uint" },
+          72: { name: "ReferenceFrame", type: "Container" },
+          73: { name: "ReferenceOffset", type: "Uint" },
+          74: { name: "ReferenceTimeCode", type: "Uint" },
+          47: { name: "EncryptedBlock", type: "Binary" },
+          106212971: { name: "Tracks", type: "Container" },
+          46: { name: "TrackEntry", type: "Container" },
+          87: { name: "TrackNumber", type: "Uint" },
+          13253: { name: "TrackUID", type: "Uint" },
+          3: { name: "TrackType", type: "Uint" },
+          57: { name: "FlagEnabled", type: "Uint" },
+          8: { name: "FlagDefault", type: "Uint" },
+          5546: { name: "FlagForced", type: "Uint" },
+          28: { name: "FlagLacing", type: "Uint" },
+          11751: { name: "MinCache", type: "Uint" },
+          11768: { name: "MaxCache", type: "Uint" },
+          254851: { name: "DefaultDuration", type: "Uint" },
+          216698: { name: "DefaultDecodedFieldDuration", type: "Uint" },
+          209231: { name: "TrackTimecodeScale", type: "Float" },
+          4991: { name: "TrackOffset", type: "Int" },
+          5614: { name: "MaxBlockAdditionID", type: "Uint" },
+          4974: { name: "Name", type: "String" },
+          177564: { name: "Language", type: "String" },
+          6: { name: "CodecID", type: "String" },
+          9122: { name: "CodecPrivate", type: "Binary" },
+          362120: { name: "CodecName", type: "String" },
+          13382: { name: "AttachmentLink", type: "Uint" },
+          1742487: { name: "CodecSettings", type: "String" },
+          1785920: { name: "CodecInfoURL", type: "String" },
+          438848: { name: "CodecDownloadURL", type: "String" },
+          42: { name: "CodecDecodeAll", type: "Uint" },
+          12203: { name: "TrackOverlay", type: "Uint" },
+          5802: { name: "CodecDelay", type: "Uint" },
+          5819: { name: "SeekPreRoll", type: "Uint" },
+          9764: { name: "TrackTranslate", type: "Container" },
+          9980: { name: "TrackTranslateEditionUID", type: "Uint" },
+          9919: { name: "TrackTranslateCodec", type: "Uint" },
+          9893: { name: "TrackTranslateTrackID", type: "Binary" },
+          96: { name: "Video", type: "Container" },
+          26: { name: "FlagInterlaced", type: "Uint" },
+          5048: { name: "StereoMode", type: "Uint" },
+          5056: { name: "AlphaMode", type: "Uint" },
+          5049: { name: "OldStereoMode", type: "Uint" },
+          48: { name: "PixelWidth", type: "Uint" },
+          58: { name: "PixelHeight", type: "Uint" },
+          5290: { name: "PixelCropBottom", type: "Uint" },
+          5307: { name: "PixelCropTop", type: "Uint" },
+          5324: { name: "PixelCropLeft", type: "Uint" },
+          5341: { name: "PixelCropRight", type: "Uint" },
+          5296: { name: "DisplayWidth", type: "Uint" },
+          5306: { name: "DisplayHeight", type: "Uint" },
+          5298: { name: "DisplayUnit", type: "Uint" },
+          5299: { name: "AspectRatioType", type: "Uint" },
+          963876: { name: "ColourSpace", type: "Binary" },
+          1029411: { name: "GammaValue", type: "Float" },
+          230371: { name: "FrameRate", type: "Float" },
+          97: { name: "Audio", type: "Container" },
+          53: { name: "SamplingFrequency", type: "Float" },
+          14517: { name: "OutputSamplingFrequency", type: "Float" },
+          31: { name: "Channels", type: "Uint" },
+          15739: { name: "ChannelPositions", type: "Binary" },
+          8804: { name: "BitDepth", type: "Uint" },
+          98: { name: "TrackOperation", type: "Container" },
+          99: { name: "TrackCombinePlanes", type: "Container" },
+          100: { name: "TrackPlane", type: "Container" },
+          101: { name: "TrackPlaneUID", type: "Uint" },
+          102: { name: "TrackPlaneType", type: "Uint" },
+          105: { name: "TrackJoinBlocks", type: "Container" },
+          109: { name: "TrackJoinUID", type: "Uint" },
+          64: { name: "TrickTrackUID", type: "Uint" },
+          65: { name: "TrickTrackSegmentUID", type: "Binary" },
+          70: { name: "TrickTrackFlag", type: "Uint" },
+          71: { name: "TrickMasterTrackUID", type: "Uint" },
+          68: { name: "TrickMasterTrackSegmentUID", type: "Binary" },
+          11648: { name: "ContentEncodings", type: "Container" },
+          8768: { name: "ContentEncoding", type: "Container" },
+          4145: { name: "ContentEncodingOrder", type: "Uint" },
+          4146: { name: "ContentEncodingScope", type: "Uint" },
+          4147: { name: "ContentEncodingType", type: "Uint" },
+          4148: { name: "ContentCompression", type: "Container" },
+          596: { name: "ContentCompAlgo", type: "Uint" },
+          597: { name: "ContentCompSettings", type: "Binary" },
+          4149: { name: "ContentEncryption", type: "Container" },
+          2017: { name: "ContentEncAlgo", type: "Uint" },
+          2018: { name: "ContentEncKeyID", type: "Binary" },
+          2019: { name: "ContentSignature", type: "Binary" },
+          2020: { name: "ContentSigKeyID", type: "Binary" },
+          2021: { name: "ContentSigAlgo", type: "Uint" },
+          2022: { name: "ContentSigHashAlgo", type: "Uint" },
+          206814059: { name: "Cues", type: "Container" },
+          59: { name: "CuePoint", type: "Container" },
+          51: { name: "CueTime", type: "Uint" },
+          55: { name: "CueTrackPositions", type: "Container" },
+          119: { name: "CueTrack", type: "Uint" },
+          113: { name: "CueClusterPosition", type: "Uint" },
+          112: { name: "CueRelativePosition", type: "Uint" },
+          50: { name: "CueDuration", type: "Uint" },
+          4984: { name: "CueBlockNumber", type: "Uint" },
+          106: { name: "CueCodecState", type: "Uint" },
+          91: { name: "CueReference", type: "Container" },
+          22: { name: "CueRefTime", type: "Uint" },
+          23: { name: "CueRefCluster", type: "Uint" },
+          4959: { name: "CueRefNumber", type: "Uint" },
+          107: { name: "CueRefCodecState", type: "Uint" },
+          155296873: { name: "Attachments", type: "Container" },
+          8615: { name: "AttachedFile", type: "Container" },
+          1662: { name: "FileDescription", type: "String" },
+          1646: { name: "FileName", type: "String" },
+          1632: { name: "FileMimeType", type: "String" },
+          1628: { name: "FileData", type: "Binary" },
+          1710: { name: "FileUID", type: "Uint" },
+          1653: { name: "FileReferral", type: "Binary" },
+          1633: { name: "FileUsedStartTime", type: "Uint" },
+          1634: { name: "FileUsedEndTime", type: "Uint" },
+          4433776: { name: "Chapters", type: "Container" },
+          1465: { name: "EditionEntry", type: "Container" },
+          1468: { name: "EditionUID", type: "Uint" },
+          1469: { name: "EditionFlagHidden", type: "Uint" },
+          1499: { name: "EditionFlagDefault", type: "Uint" },
+          1501: { name: "EditionFlagOrdered", type: "Uint" },
+          54: { name: "ChapterAtom", type: "Container" },
+          13252: { name: "ChapterUID", type: "Uint" },
+          5716: { name: "ChapterStringUID", type: "String" },
+          17: { name: "ChapterTimeStart", type: "Uint" },
+          18: { name: "ChapterTimeEnd", type: "Uint" },
+          24: { name: "ChapterFlagHidden", type: "Uint" },
+          1432: { name: "ChapterFlagEnabled", type: "Uint" },
+          11879: { name: "ChapterSegmentUID", type: "Binary" },
+          11964: { name: "ChapterSegmentEditionUID", type: "Uint" },
+          9155: { name: "ChapterPhysicalEquiv", type: "Uint" },
+          15: { name: "ChapterTrack", type: "Container" },
+          9: { name: "ChapterTrackNumber", type: "Uint" },
+          0: { name: "ChapterDisplay", type: "Container" },
+          5: { name: "ChapString", type: "String" },
+          892: { name: "ChapLanguage", type: "String" },
+          894: { name: "ChapCountry", type: "String" },
+          10564: { name: "ChapProcess", type: "Container" },
+          10581: { name: "ChapProcessCodecID", type: "Uint" },
+          1293: { name: "ChapProcessPrivate", type: "Binary" },
+          10513: { name: "ChapProcessCommand", type: "Container" },
+          10530: { name: "ChapProcessTime", type: "Uint" },
+          10547: { name: "ChapProcessData", type: "Binary" },
+          39109479: { name: "Tags", type: "Container" },
+          13171: { name: "Tag", type: "Container" },
+          9152: { name: "Targets", type: "Container" },
+          10442: { name: "TargetTypeValue", type: "Uint" },
+          9162: { name: "TargetType", type: "String" },
+          9157: { name: "TagTrackUID", type: "Uint" },
+          9161: { name: "TagEditionUID", type: "Uint" },
+          9156: { name: "TagChapterUID", type: "Uint" },
+          9158: { name: "TagAttachmentUID", type: "Uint" },
+          10184: { name: "SimpleTag", type: "Container" },
+          1443: { name: "TagName", type: "String" },
+          1146: { name: "TagLanguage", type: "String" },
+          1156: { name: "TagDefault", type: "Uint" },
+          1159: { name: "TagString", type: "String" },
+          1157: { name: "TagBinary", type: "Binary" }
+        };
+        function doInherit(newClass, baseClass) {
+          newClass.prototype = Object.create(baseClass.prototype);
+          newClass.prototype.constructor = newClass;
+        }
+        function WebmBase(name, type) {
+          this.name = name || "Unknown";
+          this.type = type || "Unknown";
+        }
+        WebmBase.prototype.updateBySource = function() {
+        };
+        WebmBase.prototype.setSource = function(source) {
+          this.source = source;
+          this.updateBySource();
+        };
+        WebmBase.prototype.updateByData = function() {
+        };
+        WebmBase.prototype.setData = function(data) {
+          this.data = data;
+          this.updateByData();
+        };
+        function WebmUint(name, type) {
+          WebmBase.call(this, name, type || "Uint");
+        }
+        doInherit(WebmUint, WebmBase);
+        function padHex(hex) {
+          return hex.length % 2 === 1 ? "0" + hex : hex;
+        }
+        WebmUint.prototype.updateBySource = function() {
+          this.data = "";
+          for (var i2 = 0; i2 < this.source.length; i2++) {
+            var hex = this.source[i2].toString(16);
+            this.data += padHex(hex);
+          }
+        };
+        WebmUint.prototype.updateByData = function() {
+          var length = this.data.length / 2;
+          this.source = new Uint8Array(length);
+          for (var i2 = 0; i2 < length; i2++) {
+            var hex = this.data.substr(i2 * 2, 2);
+            this.source[i2] = parseInt(hex, 16);
+          }
+        };
+        WebmUint.prototype.getValue = function() {
+          return parseInt(this.data, 16);
+        };
+        WebmUint.prototype.setValue = function(value) {
+          this.setData(padHex(value.toString(16)));
+        };
+        function WebmFloat(name, type) {
+          WebmBase.call(this, name, type || "Float");
+        }
+        doInherit(WebmFloat, WebmBase);
+        WebmFloat.prototype.getFloatArrayType = function() {
+          return this.source && this.source.length === 4 ? Float32Array : Float64Array;
+        };
+        WebmFloat.prototype.updateBySource = function() {
+          var byteArray = this.source.reverse();
+          var floatArrayType = this.getFloatArrayType();
+          var floatArray = new floatArrayType(byteArray.buffer);
+          this.data = floatArray[0];
+        };
+        WebmFloat.prototype.updateByData = function() {
+          var floatArrayType = this.getFloatArrayType();
+          var floatArray = new floatArrayType([this.data]);
+          var byteArray = new Uint8Array(floatArray.buffer);
+          this.source = byteArray.reverse();
+        };
+        WebmFloat.prototype.getValue = function() {
+          return this.data;
+        };
+        WebmFloat.prototype.setValue = function(value) {
+          this.setData(value);
+        };
+        function WebmContainer(name, type) {
+          WebmBase.call(this, name, type || "Container");
+        }
+        doInherit(WebmContainer, WebmBase);
+        WebmContainer.prototype.readByte = function() {
+          return this.source[this.offset++];
+        };
+        WebmContainer.prototype.readUint = function() {
+          var firstByte = this.readByte();
+          var bytes = 8 - firstByte.toString(2).length;
+          var value = firstByte - (1 << 7 - bytes);
+          for (var i2 = 0; i2 < bytes; i2++) {
+            value *= 256;
+            value += this.readByte();
+          }
+          return value;
+        };
+        WebmContainer.prototype.updateBySource = function() {
+          this.data = [];
+          for (this.offset = 0; this.offset < this.source.length; this.offset = end) {
+            var id3 = this.readUint();
+            var len = this.readUint();
+            var end = Math.min(this.offset + len, this.source.length);
+            var data = this.source.slice(this.offset, end);
+            var info2 = sections[id3] || { name: "Unknown", type: "Unknown" };
+            var ctr = WebmBase;
+            switch (info2.type) {
+              case "Container":
+                ctr = WebmContainer;
+                break;
+              case "Uint":
+                ctr = WebmUint;
+                break;
+              case "Float":
+                ctr = WebmFloat;
+                break;
+            }
+            var section = new ctr(info2.name, info2.type);
+            section.setSource(data);
+            this.data.push({
+              id: id3,
+              idHex: id3.toString(16),
+              data: section
+            });
+          }
+        };
+        WebmContainer.prototype.writeUint = function(x2, draft) {
+          for (var bytes = 1, flag = 128; x2 >= flag && bytes < 8; bytes++, flag *= 128) {
+          }
+          if (!draft) {
+            var value = flag + x2;
+            for (var i2 = bytes - 1; i2 >= 0; i2--) {
+              var c4 = value % 256;
+              this.source[this.offset + i2] = c4;
+              value = (value - c4) / 256;
+            }
+          }
+          this.offset += bytes;
+        };
+        WebmContainer.prototype.writeSections = function(draft) {
+          this.offset = 0;
+          for (var i2 = 0; i2 < this.data.length; i2++) {
+            var section = this.data[i2], content = section.data.source, contentLength = content.length;
+            this.writeUint(section.id, draft);
+            this.writeUint(contentLength, draft);
+            if (!draft) {
+              this.source.set(content, this.offset);
+            }
+            this.offset += contentLength;
+          }
+          return this.offset;
+        };
+        WebmContainer.prototype.updateByData = function() {
+          var length = this.writeSections("draft");
+          this.source = new Uint8Array(length);
+          this.writeSections();
+        };
+        WebmContainer.prototype.getSectionById = function(id3) {
+          for (var i2 = 0; i2 < this.data.length; i2++) {
+            var section = this.data[i2];
+            if (section.id === id3) {
+              return section.data;
+            }
+          }
+          return null;
+        };
+        function WebmFile(source) {
+          WebmContainer.call(this, "File", "File");
+          this.setSource(source);
+        }
+        doInherit(WebmFile, WebmContainer);
+        WebmFile.prototype.fixDuration = function(duration, options) {
+          var logger = options && options.logger;
+          if (logger === void 0) {
+            logger = function(message) {
+              console.log(message);
+            };
+          } else if (!logger) {
+            logger = function() {
+            };
+          }
+          var segmentSection = this.getSectionById(139690087);
+          if (!segmentSection) {
+            logger("[fix-webm-duration] Segment section is missing");
+            return false;
+          }
+          var infoSection = segmentSection.getSectionById(88713574);
+          if (!infoSection) {
+            logger("[fix-webm-duration] Info section is missing");
+            return false;
+          }
+          var timeScaleSection = infoSection.getSectionById(710577);
+          if (!timeScaleSection) {
+            logger("[fix-webm-duration] TimecodeScale section is missing");
+            return false;
+          }
+          var durationSection = infoSection.getSectionById(1161);
+          if (durationSection) {
+            if (durationSection.getValue() <= 0) {
+              logger(`[fix-webm-duration] Duration section is present, but the value is ${durationSection.getValue()}`);
+              durationSection.setValue(duration);
+            } else {
+              logger(`[fix-webm-duration] Duration section is present, and the value is ${durationSection.getValue()}`);
+              return false;
+            }
+          } else {
+            logger("[fix-webm-duration] Duration section is missing");
+            durationSection = new WebmFloat("Duration", "Float");
+            durationSection.setValue(duration);
+            infoSection.data.push({
+              id: 1161,
+              data: durationSection
+            });
+          }
+          timeScaleSection.setValue(1e6);
+          infoSection.updateByData();
+          segmentSection.updateByData();
+          this.updateByData();
+          return true;
+        };
+        WebmFile.prototype.toBlob = function(mimeType) {
+          return new Blob([this.source.buffer], { type: mimeType || "video/webm" });
+        };
+        function fixWebmDuration2(blob, duration, callback, options) {
+          if (typeof callback === "object") {
+            options = callback;
+            callback = void 0;
+          }
+          if (!callback) {
+            return new Promise(function(resolve) {
+              fixWebmDuration2(blob, duration, resolve, options);
+            });
+          }
+          try {
+            var reader = new FileReader();
+            reader.onloadend = function() {
+              try {
+                var file = new WebmFile(new Uint8Array(reader.result));
+                if (file.fixDuration(duration, options)) {
+                  blob = file.toBlob(blob.type);
+                }
+              } catch (ex2) {
+              }
+              callback(blob);
+            };
+            reader.readAsArrayBuffer(blob);
+          } catch (ex2) {
+            callback(blob);
+          }
+        }
+        fixWebmDuration2.default = fixWebmDuration2;
+        return fixWebmDuration2;
+      });
+    }
+  });
+
   // src/web.tsx
   var import_react122 = __toESM(require_react());
   var import_client = __toESM(require_client());
@@ -64505,6 +64992,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
   };
 
   // src/web.tsx
+  var import_fix_webm_duration = __toESM(require_fix_webm_duration());
   var import_jsx_runtime60 = __toESM(require_jsx_runtime());
   var WebApp = () => {
     const playerRef = (0, import_react122.useRef)(null);
@@ -64529,6 +65017,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [selectedEntity, setSelectedEntity] = (0, import_react122.useState)(null);
     const [isLiveEdit, setIsLiveEdit] = (0, import_react122.useState)(false);
     const [isExporting, setIsExporting] = (0, import_react122.useState)(false);
+    const [exportProgress, setExportProgress] = (0, import_react122.useState)(0);
     const [isPreloading, setIsPreloading] = (0, import_react122.useState)(false);
     const [isDragging, setIsDragging] = (0, import_react122.useState)(false);
     const dragPos = (0, import_react122.useRef)(null);
@@ -64606,28 +65095,84 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     };
     const handleFastMobileExport = async () => {
       setIsExporting(true);
-      try {
-        const res = await fetch("/api/render", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // You can add a profile flag here later if your backend supports fast/low-res renders
-          body: JSON.stringify({ timeline: dynamicTimeline, profile: "mobile" })
-        });
-        if (res.ok) {
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a4 = document.createElement("a");
-          a4.href = url;
-          a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Mobile"}_${Date.now()}.mp4`;
-          a4.click();
-          URL.revokeObjectURL(url);
-        } else {
-          alert("Render failed. Ensure your Node.js backend is running.");
-        }
-      } catch (e63) {
-        alert("Network error. Ensure your server terminal is running.");
+      setExportProgress(0);
+      playerRef.current?.seekTo(0);
+      playerRef.current?.play();
+      setIsPlaying(true);
+      const compositeCanvas = document.createElement("canvas");
+      compositeCanvas.width = 1080;
+      compositeCanvas.height = 1920;
+      compositeCanvas.style.cssText = "position:absolute; top:0; left:0; width:1px; height:1px; opacity:0.01; z-index:-1; pointer-events:none;";
+      const playerContainer = document.querySelector(".remotion-player") || document.body;
+      playerContainer.appendChild(compositeCanvas);
+      const ctx = compositeCanvas.getContext("2d");
+      if (!ctx) {
+        setIsExporting(false);
+        return;
       }
-      setIsExporting(false);
+      const stream = compositeCanvas.captureStream(30);
+      const videoTrack = stream.getVideoTracks()[0];
+      const options = { mimeType: "video/webm", videoBitsPerSecond: 5e6 };
+      if (MediaRecorder.isTypeSupported("video/webm; codecs=vp9")) {
+        options.mimeType = "video/webm; codecs=vp9";
+      } else if (MediaRecorder.isTypeSupported("video/webm; codecs=vp8")) {
+        options.mimeType = "video/webm; codecs=vp8";
+      }
+      const recorder = new MediaRecorder(stream, options);
+      const chunks = [];
+      recorder.ondataavailable = (e63) => {
+        if (e63.data.size > 0) chunks.push(e63.data);
+      };
+      let animId;
+      const renderLoop = () => {
+        if (!isExporting) return;
+        ctx.clearRect(0, 0, 1080, 1920);
+        const mapCanvas = document.querySelector("canvas.maplibregl-canvas");
+        const blendCanvas = document.querySelector("canvas#vector-blend-overlay");
+        const uiCanvas = document.querySelector("canvas#vector-ui-overlay");
+        if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
+        ctx.globalCompositeOperation = "screen";
+        if (blendCanvas) ctx.drawImage(blendCanvas, 0, 0, 1080, 1920);
+        ctx.globalCompositeOperation = "source-over";
+        if (uiCanvas) ctx.drawImage(uiCanvas, 0, 0, 1080, 1920);
+        if (videoTrack && typeof videoTrack.requestFrame === "function") {
+          videoTrack.requestFrame();
+        }
+        animId = requestAnimationFrame(renderLoop);
+      };
+      renderLoop();
+      const startTime = Date.now();
+      const durationMs = videoDuration / 30 * 1e3;
+      const progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const prog = Math.min(100, Math.round(elapsed / durationMs * 100));
+        setExportProgress(prog);
+      }, 100);
+      recorder.onstop = async () => {
+        clearInterval(progressInterval);
+        cancelAnimationFrame(animId);
+        if (compositeCanvas.parentNode) compositeCanvas.parentNode.removeChild(compositeCanvas);
+        let blob = new Blob(chunks, { type: options.mimeType });
+        try {
+          blob = await (0, import_fix_webm_duration.default)(blob, durationMs);
+        } catch (err) {
+          console.warn("Duration patcher warning:", err);
+        }
+        const url = URL.createObjectURL(blob);
+        const a4 = document.createElement("a");
+        a4.href = url;
+        a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Mobile"}_${Date.now()}.webm`;
+        a4.click();
+        URL.revokeObjectURL(url);
+        setIsExporting(false);
+        setExportProgress(0);
+      };
+      recorder.start(250);
+      setTimeout(() => {
+        if (recorder.state === "recording") recorder.stop();
+        playerRef.current?.pause();
+        setIsPlaying(false);
+      }, durationMs + 500);
     };
     const handleHDLocalExport = async () => {
       setIsExporting(true);
@@ -64635,7 +65180,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const res = await fetch("/api/render", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ timeline: dynamicTimeline, profile: "hd" })
+          body: JSON.stringify({ timeline: dynamicTimeline })
         });
         if (res.ok) {
           const blob = await res.blob();
@@ -64644,7 +65189,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           a4.href = url;
           a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Tactical_Map"}_HD.mp4`;
           a4.click();
-          URL.revokeObjectURL(url);
         } else {
           alert("Backend rendering failed. Ensure your server terminal is running and has FFmpeg installed.");
         }
@@ -64677,11 +65221,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       const cFrame = currentFrame;
       const pastKfs = timeline?.cameraKeyframes?.filter((kf3) => kf3.frame <= cFrame) || [];
       const baseKf = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38, lng: 127, zoom: 1.2, pitch: 45, bearing: 0, easing: "easeInOut" };
-      setTargetLat(baseKf.lat ?? baseKf.latitude ?? 38);
-      setTargetLng(baseKf.lng ?? baseKf.longitude ?? 127);
-      setTargetZoom(baseKf.zoom ?? 1.2);
-      setTargetPitch(baseKf.pitch ?? 45);
-      setTargetBearing(baseKf.bearing ?? 0);
+      setTargetLat(baseKf.lat !== void 0 ? baseKf.lat : baseKf.latitude !== void 0 ? baseKf.latitude : 38);
+      setTargetLng(baseKf.lng !== void 0 ? baseKf.lng : baseKf.longitude !== void 0 ? baseKf.longitude : 127);
+      setTargetZoom(baseKf.zoom !== void 0 ? baseKf.zoom : 1.2);
+      setTargetPitch(baseKf.pitch !== void 0 ? baseKf.pitch : 45);
+      setTargetBearing(baseKf.bearing !== void 0 ? baseKf.bearing : 0);
       setIsLiveEdit(true);
     };
     const dropKeyframeLive = () => {
@@ -64987,7 +65531,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
               onClick: handleFastMobileExport,
               disabled: isExporting || isPreloading,
               style: { flex: 1, background: isExporting ? "#f59e0b" : "#10b981", color: "#000", border: "none", borderRadius: "10px", height: "38px", fontSize: "10px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer", boxShadow: "0 0 15px rgba(16,185,129,0.2)" },
-              children: isExporting ? "\u23F3 Compiling..." : "\u{1F3A5} Mobile WebM Export"
+              children: isExporting ? `\u23F3 Compiling... ${exportProgress}%` : "\u{1F3A5} Mobile WebM Export"
             }
           )
         ] })
@@ -65328,17 +65872,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             " / ",
             videoDuration
           ] })
-        ] }) }),
-        !isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", left: leftPanelOpen ? "0px" : "-280px", top: "50%", transform: "translateY(-50%)", transition: "left 0.4s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "280px", maxHeight: "85vh", borderLeft: "none", borderRadius: "0 24px 24px 0", padding: "18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }, children: leftPanelJSX }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setLeftPanelOpen(!leftPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderLeft: "none", borderRadius: "0 16px 16px 0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "16px", marginLeft: "-1px" }, children: leftPanelOpen ? "\u25C0" : "\u25B6" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", right: rightPanelOpen ? "0px" : "-280px", top: "50%", transform: "translateY(-50%)", transition: "right 0.4s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setRightPanelOpen(!rightPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderRight: "none", borderRadius: "16px 0 0 16px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "16px", marginRight: "-1px" }, children: rightPanelOpen ? "\u25B6" : "\u25C0" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "280px", maxHeight: "85vh", borderRight: "none", borderRadius: "24px 0 0 24px", padding: "18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }, children: rightPanelJSX })
-          ] })
-        ] })
+        ] }) })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("style", { children: `
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
