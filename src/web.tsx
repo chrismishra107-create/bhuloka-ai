@@ -57,6 +57,7 @@ const WebApp: React.FC = () => {
   const [entityB, setEntityB] = useState<string>('South Korea');
   const [eventType, setEventType] = useState<'arrow' | 'takeover'>('arrow');
   
+  // AUTOCOMPLETE SEARCH STATE
   const [newCountrySearch, setNewCountrySearch] = useState<string>('');
   const [allGeoNames, setAllGeoNames] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
@@ -75,8 +76,11 @@ const WebApp: React.FC = () => {
   });
   const toggleBranch = (key: string) => setOpenBranches(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // BACKGROUND DICTIONARY BUILDER WITH STRICT TYPE BYPASS
   useEffect(() => {
     const names = new Set<string>();
+    
+    // 1. Index Offline Countries
     if (worldData && (worldData as any).features) {
       (worldData as any).features.forEach((f: any) => {
         if (f.properties.ADMIN) names.add(f.properties.ADMIN);
@@ -85,6 +89,7 @@ const WebApp: React.FC = () => {
       });
     }
 
+    // 2. Fetch and Index Dynamic Rivers & States
     const loadExtras = async () => {
       try {
         const [rivRes, statRes] = await Promise.all([
@@ -92,6 +97,7 @@ const WebApp: React.FC = () => {
           fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson')
         ]);
         
+        // Force type 'any' to bypass strict TS checking on the parsed JSON
         const rivData: any = await rivRes.json();
         const statData: any = await statRes.json();
         
@@ -545,8 +551,8 @@ const WebApp: React.FC = () => {
   }), [dynamicTimeline, isLiveEdit, mapStyle]);
 
   const panelStyle: React.CSSProperties = {
-    background: 'rgba(20, 20, 24, 0.85)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-    border: '1px solid rgba(255, 255, 255, 0.15)', boxShadow: '0 30px 60px rgba(0,0,0,0.6)'
+    background: 'rgba(20, 20, 24, 0.55)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+    border: '1px solid rgba(255, 255, 255, 0.15)', boxShadow: '0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)'
   };
 
   const BranchHeader = ({ title, branchKey }: { title: string, branchKey: string }) => (
@@ -556,11 +562,13 @@ const WebApp: React.FC = () => {
   );
 
   const leftPanelJSX = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <BranchHeader title="🌍 SCENE ENTITIES" branchKey="entities" />
         {openBranches.entities && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            
+            {/* AUTOCOMPLETE SEARCH BAR */}
             <div style={{ display: 'flex', gap: '6px', position: 'relative' }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <input 
@@ -573,10 +581,20 @@ const WebApp: React.FC = () => {
                   style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} 
                   onKeyDown={(e) => e.key === 'Enter' && addCountryMap()} 
                 />
+                
+                {/* DROPDOWN MENU */}
                 {showSuggestions && filteredSuggestions.length > 0 && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#111827', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px', zIndex: 999, marginTop: '4px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.8)' }}>
                     {filteredSuggestions.map(s => (
-                       <div key={s} onClick={() => { setNewCountrySearch(s); setShowSuggestions(false); }} style={{ padding: '8px 12px', fontSize: '11px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{s}</div>
+                       <div 
+                         key={s} 
+                         onClick={() => { setNewCountrySearch(s); setShowSuggestions(false); }} 
+                         style={{ padding: '8px 12px', fontSize: '11px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(56,189,248,0.2)'}
+                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                       >
+                         {s}
+                       </div>
                     ))}
                   </div>
                 )}
@@ -605,6 +623,24 @@ const WebApp: React.FC = () => {
         {openBranches.typography && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <input type="text" value={labelText} onChange={(e) => setLabelText(e.target.value)} placeholder="Label Text..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} />
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93' }}>TXT</span>
+                <input type="color" value={labelColor} onChange={(e) => setLabelColor(e.target.value)} style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93' }}>BG</span>
+                <input type="color" value={labelBg} onChange={(e) => setLabelBg(e.target.value)} style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93' }}>SIZE</span>
+                <input type="range" min="12" max="72" value={labelSize} onChange={(e) => setLabelSize(Number(e.target.value))} style={{ width: '40px', accentColor: '#38bdf8' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button onClick={() => setLabelGlow(!labelGlow)} style={{ flex: 1, background: labelGlow ? '#38bdf8' : 'rgba(255,255,255,0.05)', color: labelGlow ? '#000' : '#8e8e93', border: 'none', borderRadius: '6px', padding: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{labelGlow ? 'GLOW ON' : 'GLOW OFF'}</button>
+              <button onClick={() => setLabelPinned(!labelPinned)} style={{ flex: 1, background: labelPinned ? '#10b981' : 'rgba(255,255,255,0.05)', color: labelPinned ? '#000' : '#8e8e93', border: 'none', borderRadius: '6px', padding: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{labelPinned ? '📌 PINNED' : 'FLOAT'}</button>
+            </div>
             <button onClick={() => { if(isLiveEdit) dropLabel(); }} style={{ background: isLiveEdit ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)', color: isLiveEdit ? '#38bdf8' : '#8e8e93', border: `1px solid ${isLiveEdit ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: isLiveEdit ? 'pointer' : 'not-allowed' }}>{isLiveEdit ? '📍 Drop Label at Crosshair' : 'Enter Live Edit to Drop'}</button>
           </div>
         )}
@@ -622,91 +658,312 @@ const WebApp: React.FC = () => {
           </div>
         )}
       </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <BranchHeader title="✏️ VECTORS & ROUTES" branchKey="vectors" />
+        {openBranches.vectors && (
+          <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+             {!pathStartCoord ? (
+              <button onClick={() => { if(isLiveEdit) setPathStartCoord([targetLng, targetLat]); }} style={{ background: isLiveEdit ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)', color: isLiveEdit ? '#38bdf8' : '#8e8e93', border: `1px solid ${isLiveEdit ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: isLiveEdit ? 'pointer' : 'not-allowed' }}>{isLiveEdit ? '📍 1. Lock Start at Crosshair' : 'Enter Live Edit to plot vectors'}</button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '10px', color: '#38bdf8' }}>Drag map to target, then fire:</span>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => addCustomVector('missile')} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: '8px', padding: '6px', color: '#fff', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>🚀 Missile</button>
+                  <button onClick={() => addCustomVector('arrow')} style={{ flex: 1, background: '#3b82f6', border: 'none', borderRadius: '8px', padding: '6px', color: '#fff', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>🏹 Arrow</button>
+                  <button onClick={() => setPathStartCoord(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '6px 10px', color: '#fff', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}>✕</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {((timeline as any)?.assets?.length > 0 || (timeline as any)?.arrows?.some((a:any) => a.id) || (timeline as any)?.takeovers?.some((t:any) => t.id) || (timeline as any)?.labels?.length > 0) && (
+        <React.Fragment>
+          <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', width: '100%', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '10px' }}>ACTIVE ASSETS</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {(timeline as any).labels?.map((l: any) => (
+              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px 12px' }}>
+                <span style={{ fontSize: '11px', color: '#fff' }}>📝 {l.text}</span>
+                <button onClick={() => deleteAsset(l.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+              </div>
+            ))}
+            {(timeline as any).arrows?.filter((a:any) => a.id).map((a: any) => (
+              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px 12px' }}>
+                <span style={{ fontSize: '11px', color: '#fff' }}>{a.type === 'missile' ? '🚀 Missile' : '🏹 Arrow'}</span>
+                <button onClick={() => deleteAsset(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+              </div>
+            ))}
+            {(timeline as any).takeovers?.filter((t:any) => t.id).map((t: any) => (
+              <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(239,68,68,0.1)', borderRadius: '8px', padding: '6px 12px' }}>
+                <span style={{ fontSize: '11px', color: '#ef4444' }}>⚔️ {t.attacker} › {t.target}</span>
+                <button onClick={() => deleteAsset(t.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+              </div>
+            ))}
+          </div>
+        </React.Fragment>
+      )}
     </div>
   );
 
   const rightPanelJSX = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+    <React.Fragment>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
-        <button onClick={handleHDLocalExport} disabled={isPreloading || isExporting} style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>🖥️ True HD Server Export</button>
-        <button onClick={handleFastMobileExport} disabled={isExporting || isPreloading} style={{ background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>🎥 Mobile WebM Export</button>
+        <button onClick={handleHDLocalExport} disabled={isPreloading || isExporting} style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+          {isExporting ? '⏳ Rendering HD MP4...' : '🖥️ True HD Server Export'}
+        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleFinalizeCache} disabled={isPreloading || isExporting} style={{ flex: 1, background: isPreloading ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isPreloading ? 'wait' : 'pointer' }}>
+            {isPreloading ? '⏳ Preloading...' : '📦 Finalize Cache'}
+          </button>
+          <button onClick={handleFastMobileExport} disabled={isExporting || isPreloading} style={{ flex: 1, background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
+            {isExporting ? `⏳ Compiling... ${exportProgress}%` : '🎥 Mobile WebM Export'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em' }}>CAMERA ENGINE</div>
+        {isLiveEdit && <button onClick={() => setIsLiveEdit(false)} style={{ background: 'transparent', color: '#8e8e93', border: 'none', fontSize: '10px', cursor: 'pointer' }}>✕ Close</button>}
       </div>
 
       {!isLiveEdit ? (
-        <button onClick={startLiveEdit} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🎯 Enter Live Canvas Edit</button>
+        <button onClick={startLiveEdit} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 0 15px rgba(56,189,248,0.1)', marginTop: '10px' }}>🎯 Enter Live Canvas Edit</button>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button onClick={dropKeyframeLive} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>📍 Save Keyframe Here</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+          <button onClick={dropKeyframeLive} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(56,189,248,0.4)' }}>📍 Save Keyframe Here</button>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+            <span style={{ fontSize: '9px', color: '#8e8e93' }}>ACTIVE TIMELINE MARKERS:</span>
+            {timeline?.cameraKeyframes?.map((kf: any) => (
+               <div key={kf.frame} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px' }}>
+                 <span style={{ fontSize: '10px', color: '#fff' }}>Frame: {Math.round(kf.frame)}</span>
+                 <button onClick={() => deleteSpecificKeyframe(kf.frame)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}>✕ Delete</button>
+               </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
+            <span style={{ color: '#8e8e93' }}>PITCH TILT</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetPitch)}°</span>
+          </div>
+          <input type="range" min="0" max="60" step="1" value={targetPitch} onChange={(e) => setTargetPitch(Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '2px' }}>
+            <span style={{ color: '#8e8e93' }}>BEARING ROTATION</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetBearing)}°</span>
+          </div>
+          <input type="range" min="-180" max="180" step="1" value={targetBearing} onChange={(e) => setTargetBearing(Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
         </div>
       )}
 
       {selectedEntity ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-          <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700 }}>STYLING: {selectedEntity.toUpperCase()}</div>
-          <select value={timeline?.highlightCountries?.find((c:any)=>c.name===selectedEntity)?.revealStyle || 'fade'} onChange={(e) => updateEntityStyle('revealStyle', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', fontSize: '10px', padding: '6px' }}>
-            <option value="fade">Fade</option><option value="ink">Ink</option><option value="trim">River Trim</option>
-          </select>
-          <input type="color" value={activeColor} onChange={(e) => updateEntityStyle('color', e.target.value)} style={{ width: '100%', height: '30px', border: 'none', borderRadius: '4px', background: 'transparent' }} />
-        </div>
+        <React.Fragment>
+          <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '2px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '8px' }}>STYLING: {selectedEntity.toUpperCase()}</div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
+            <span style={{ color: '#8e8e93', fontWeight: 500 }}>REVEAL ANIMATION</span>
+            <select value={timeline?.highlightCountries?.find((c:any)=>c.name===selectedEntity)?.revealStyle || 'fade'} onChange={(e) => updateEntityStyle('revealStyle', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
+              <option value="fade">Fade In</option><option value="ink">Ink Bleed</option><option value="trim">River Trim</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
+            <span style={{ color: '#8e8e93', fontWeight: 500 }}>FILL COLOR</span>
+            <input type="color" value={activeColor} onChange={(e) => updateEntityStyle('color', e.target.value)} style={{ width: '24px', height: '24px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }} />
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
+            <span style={{ color: '#8e8e93', fontWeight: 500 }}>GLOW</span>
+            <button onClick={() => updateEntityStyle('enableGlow', !activeEnableGlow)} style={{ background: activeEnableGlow ? '#38bdf8' : 'transparent', color: activeEnableGlow ? '#000' : '#8e8e93', border: '1px solid #38bdf8', borderRadius: '4px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{activeEnableGlow ? 'ON' : 'OFF'}</button>
+          </div>
+          {activeEnableGlow && <input type="range" min="0" max="50" step="1" value={activeGlowIntensity} onChange={(e) => updateEntityStyle('glowIntensity', Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />}
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
+            <span style={{ color: '#8e8e93', fontWeight: 500 }}>DROP SHADOW</span>
+            <button onClick={() => updateEntityStyle('dropShadow', !activeDropShadow)} style={{ background: activeDropShadow ? '#38bdf8' : 'transparent', color: activeDropShadow ? '#000' : '#8e8e93', border: '1px solid #38bdf8', borderRadius: '4px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{activeDropShadow ? 'ON' : 'OFF'}</button>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '6px' }}>
+            <span style={{ color: '#8e8e93', fontWeight: 500 }}>STROKE ({activeStrokeWidth}px)</span>
+            <input type="color" value={activeStrokeColor} onChange={(e) => updateEntityStyle('strokeColor', e.target.value)} style={{ width: '20px', height: '20px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }} />
+          </div>
+          <input type="range" min="0" max="10" step="0.5" value={activeStrokeWidth} onChange={(e) => updateEntityStyle('strokeWidth', Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
+            <span style={{ color: '#8e8e93', fontWeight: 500 }}>BLEND MODE</span>
+            <select value={activeBlendMode} onChange={(e) => updateEntityStyle('blendMode', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
+              <option value="normal">Normal</option><option value="screen">Screen</option><option value="multiply">Multiply</option><option value="overlay">Overlay</option><option value="add">Color Dodge</option>
+            </select>
+          </div>
+        </React.Fragment>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-          <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700 }}>AUTO INJECTOR</div>
-          <input type="text" value={entityA} onChange={(e)=>setEntityA(e.target.value)} placeholder="Origin" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '6px', borderRadius: '6px' }} />
-          <input type="text" value={entityB} onChange={(e)=>setEntityB(e.target.value)} placeholder="Target" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '6px', borderRadius: '6px' }} />
-          <button onClick={addStoryEvent} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '10px', fontWeight: 700 }}>＋ Inject Event</button>
-        </div>
+        <React.Fragment>
+          <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '2px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '8px' }}>AUTO INJECTOR</div>
+          <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
+            <input type="text" value={entityA} onChange={(e)=>setEntityA(e.target.value)} placeholder="Origin Country" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '8px', borderRadius: '6px', outline: 'none' }} />
+            <input type="text" value={entityB} onChange={(e)=>setEntityB(e.target.value)} placeholder="Target Country" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '8px', borderRadius: '6px', outline: 'none' }} />
+          </div>
+          <select value={eventType} onChange={(e) => setEventType(e.target.value as any)} style={{ width: '100%', background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '11px', padding: '8px', cursor: 'pointer', marginTop: '2px' }}>
+            <option value="arrow">Diplomatic Line (Arrow)</option><option value="takeover">Conflict (Invasion Wave)</option>
+          </select>
+          <button onClick={addStoryEvent} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', width: '100%', height: '36px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', marginTop: '4px' }}>＋ Inject Event</button>
+        </React.Fragment>
       )}
-    </div>
+    </React.Fragment>
   );
 
   return (
-    <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
+    <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden' }}>
+
+      {status !== 'editor' && <div style={{ position: 'absolute', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(148,163,184,0.02) 50%, transparent 70%)', borderRadius: '50%', zIndex: 1, pointerEvents: 'none', filter: 'blur(100px)' }} />}
+
+      {status === 'generating' && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(30px)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
+          <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '3px solid rgba(56,189,248,0.2)', borderTopColor: '#38bdf8', animation: 'spin 1s linear infinite' }} />
+          <div style={{ fontSize: '14px', letterSpacing: '0.2em', color: '#38bdf8', fontWeight: 600, animation: 'pulse 1.5s infinite' }}>COMPILING...</div>
+        </div>
+      )}
 
       {status !== 'editor' && status !== 'generating' && (
-        <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '680px', padding: '16px', boxSizing: 'border-box' }}>
-          <h1 style={{ fontSize: isDesktop ? '42px' : '28px', fontWeight: 700, letterSpacing: '-0.04em', marginBottom: '24px', textAlign: 'center' }}>Cinematic Timeline Studio</h1>
-          
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(255,255,255,0.06)', padding: '6px', borderRadius: '18px', width: '100%', maxWidth: '320px', boxSizing: 'border-box' }}>
-            <button onClick={() => setManualMode(false)} style={{ flex: 1, background: !manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: !manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>AI Directive</button>
-            <button onClick={() => setManualMode(true)} style={{ background: manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Manual Builder</button>
+        <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '90%', maxWidth: '680px', padding: '20px' }}>
+          <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.04em', marginBottom: '24px', textAlign: 'center' }}>Cinematic Timeline Studio</h1>
+          {errorMessage && (
+            <div style={{ width: '100%', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '16px', padding: '16px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '20px' }}>⚡</span><span style={{ fontSize: '13px', color: '#fde047' }}>{errorMessage}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(255,255,255,0.06)', padding: '6px', borderRadius: '18px' }}>
+            <button onClick={() => setManualMode(false)} style={{ background: !manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: !manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px 24px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>AI Directive</button>
+            <button onClick={() => setManualMode(true)} style={{ background: manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px 24px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Manual Builder</button>
           </div>
-
           {!manualMode ? (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '16px', boxSizing: 'border-box' }}>
-              <textarea placeholder="e.g., North Korea and South Korea relations..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontSize: '16px', outline: 'none', resize: 'none', boxSizing: 'border-box' }} required />
-              <button type="submit" style={{ background: '#fff', color: '#000', border: 'none', borderRadius: '16px', padding: '12px 24px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-end' }}>Generate ✦</button>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '32px', padding: '24px' }}>
+              <textarea placeholder="e.g., North Korea and South Korea relations..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontSize: '18px', outline: 'none', resize: 'none' }} required />
+              <button type="submit" style={{ background: '#fff', color: '#000', border: 'none', borderRadius: '20px', padding: '14px 28px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-end' }}>Generate ✦</button>
             </form>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '16px', boxSizing: 'border-box' }}>
-              <input type="text" value={entityA} onChange={(e) => setEntityA(e.target.value)} placeholder="Primary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
-              <input type="text" value={entityB} onChange={(e) => setEntityB(e.target.value)} placeholder="Secondary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
-              <button onClick={initializeManualScene} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '16px', padding: '14px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>Launch Empty Studio 🚀</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '32px', padding: '24px' }}>
+              <div style={{ display: 'flex', gap: '16px', flexDirection: 'column' }}>
+                <input type="text" value={entityA} onChange={(e) => setEntityA(e.target.value)} placeholder="Primary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '16px', padding: '16px', color: '#fff', fontSize: '16px', outline: 'none' }} />
+                <input type="text" value={entityB} onChange={(e) => setEntityB(e.target.value)} placeholder="Secondary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '16px', padding: '16px', color: '#fff', fontSize: '16px', outline: 'none' }} />
+              </div>
+              <button onClick={initializeManualScene} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '20px', padding: '16px 28px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', marginTop: '10px' }}>Launch Empty Studio 🚀</button>
             </div>
           )}
         </div>
       )}
 
       {status === 'editor' && dynamicTimeline && (
-        <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px 70px 10px', boxSizing: 'border-box', overflow: 'hidden' }}>
+        <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', paddingBottom: '100px' }}>
           
+          {/* MOBILE TOGGLE BUTTONS WRAPPER */}
           {!isDesktop && (
-            <div style={{ display: 'flex', gap: '8px', zIndex: 100, width: '100%', justifyContent: 'center', marginBottom: '4px', flexShrink: 0 }}>
-              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
-              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', zIndex: 100, flexShrink: 0 }}>
+              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
+              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: isDesktop ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', width: '100%', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '32px', width: '100%', height: '100%' }}>
             
-            {isDesktop && <div style={{ ...panelStyle, borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '75vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>{leftPanelJSX}</div>}
+            {isDesktop && (
+              <div style={{ ...panelStyle, display: 'flex', flexDirection: 'column', gap: '10px', borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '80vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>
+                {leftPanelJSX}
+              </div>
+            )}
 
-            <div style={{ height: '100%', maxHeight: isDesktop ? '75vh' : '52vh', aspectRatio: '9/16', borderRadius: '24px', border: '3px solid #1a1a1a', boxShadow: '0 0 0 2px #38bdf8, 0 0 30px rgba(56,189,248,0.2)', position: 'relative', overflow: 'hidden', background: '#040711', flexShrink: 0, zIndex: 10 }}>
+            <div style={{ 
+              height: '75vh', minHeight: '500px', maxHeight: '800px', aspectRatio: '9/16', borderRadius: '36px', border: '4px solid #1a1a1a', 
+              boxShadow: isLiveEdit ? '0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)' : '0 0 0 2px #38bdf8, 0 0 40px rgba(56,189,248,0.2)', 
+              position: 'relative', overflow: 'hidden', background: '#040711', flexShrink: 0, zIndex: 10
+            }}>
               <div className="remotion-player" style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%' }}>
-                <Player ref={playerRef} component={MapAnimation} inputProps={playerInputProps} durationInFrames={videoDuration} compositionWidth={1080} compositionHeight={1920} fps={30} controls={false} loop autoPlay style={{ width: '100%', height: '100%', display: 'block', pointerEvents: isLiveEdit ? 'auto' : 'none' }} />
+                <Player
+                  ref={playerRef} component={MapAnimation} inputProps={playerInputProps} durationInFrames={videoDuration} compositionWidth={1080} compositionHeight={1920} fps={30} controls={false} loop autoPlay
+                  style={{ width: '100%', height: '100%', display: 'block', pointerEvents: isLiveEdit ? 'auto' : 'none' }}
+                />
+
+                {isLiveEdit && (
+                  <React.Fragment>
+                    <div 
+                      onContextMenu={(e) => e.preventDefault()} 
+                      onWheel={(e) => setTargetZoom(z => Math.max(0.5, Math.min(15, z - (e.nativeEvent as WheelEvent).deltaY * 0.005)))}
+                      onPointerDown={(e) => { 
+                        activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        if (activePointers.current.size === 1) {
+                          setIsDragging(true); dragPos.current = { x: e.clientX, y: e.clientY };
+                        } else if (activePointers.current.size === 2) {
+                          setIsDragging(false);
+                          const pts = Array.from(activePointers.current.values());
+                          const dx = pts[0].x - pts[1].x; const dy = pts[0].y - pts[1].y;
+                          previousPinch.current = { dist: Math.hypot(dx, dy), angle: Math.atan2(dy, dx), centerY: (pts[0].y + pts[1].y) / 2, centerX: (pts[0].x + pts[1].x) / 2 };
+                        }
+                      }}
+                      onPointerUp={(e) => { 
+                        activePointers.current.delete(e.pointerId);
+                        e.currentTarget.releasePointerCapture(e.pointerId);
+                        if (activePointers.current.size < 2) previousPinch.current = null;
+                        if (activePointers.current.size === 0) setIsDragging(false);
+                        if (activePointers.current.size === 1) {
+                          const remainingPt = Array.from(activePointers.current.values())[0];
+                          dragPos.current = { x: remainingPt.x, y: remainingPt.y }; setIsDragging(true);
+                        }
+                      }}
+                      onPointerLeave={(e) => { 
+                        activePointers.current.delete(e.pointerId);
+                        if (activePointers.current.size < 2) previousPinch.current = null;
+                        if (activePointers.current.size === 0) setIsDragging(false);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!activePointers.current.has(e.pointerId)) return;
+                        activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                        if (activePointers.current.size === 1 && isDragging && dragPos.current) {
+                          const dx = e.clientX - dragPos.current.x; const dy = e.clientY - dragPos.current.y;
+                          dragPos.current = { x: e.clientX, y: e.clientY };
+                          if (e.buttons === 2 || e.shiftKey || e.altKey) {
+                            setTargetPitch(p => Math.max(0, Math.min(85, p - dy * 0.4))); setTargetBearing(b => b + dx * 0.8);
+                          } else {
+                            const panSens = 0.2 / Math.max(0.5, targetZoom);
+                            setTargetLng(l => l - dx * panSens); setTargetLat(l => Math.max(-85, Math.min(85, l + dy * panSens)));
+                          }
+                        } else if (activePointers.current.size === 2 && previousPinch.current) {
+                          const pts = Array.from(activePointers.current.values());
+                          const dx = pts[0].x - pts[1].x; const dy = pts[0].y - pts[1].y;
+                          const currentDist = Math.hypot(dx, dy); const currentAngle = Math.atan2(dy, dx);
+                          const currentCenterY = (pts[0].y + pts[1].y) / 2; const currentCenterX = (pts[0].x + pts[1].x) / 2;
+                          const distDiff = currentDist - previousPinch.current.dist;
+                          let angleDiff = currentAngle - previousPinch.current.angle;
+                          const yDiff = currentCenterY - previousPinch.current.centerY;
+                          const xDiff = currentCenterX - previousPinch.current.centerX;
+
+                          if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                          if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                          setTargetZoom(z => Math.max(0.5, Math.min(15, z + distDiff * 0.01)));
+                          setTargetBearing(b => b + angleDiff * 60);
+                          if (Math.abs(yDiff) > 2) setTargetPitch(p => Math.max(0, Math.min(85, p - yDiff * 0.4))); 
+                          const panSens = 0.1 / Math.max(0.5, targetZoom);
+                          setTargetLng(l => l - xDiff * panSens); setTargetLat(l => Math.max(-85, Math.min(85, l + yDiff * panSens)));
+                          previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY, centerX: currentCenterX };
+                        }
+                      }}
+                      style={{ position: 'absolute', inset: 0, cursor: isDragging ? 'grabbing' : 'grab', zIndex: 50, touchAction: 'none' }}
+                    >
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '28px', height: '28px', border: '1.5px solid rgba(56,189,248,0.5)', borderRadius: '50%', pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '4px', height: '4px', background: pathStartCoord ? '#ef4444' : '#38bdf8', borderRadius: '50%' }} />
+                      </div>
+                    </div>
+                  </React.Fragment>
+                )}
               </div>
             </div>
 
-            {isDesktop && <div style={{ ...panelStyle, borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '75vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>{rightPanelJSX}</div>}
+            {isDesktop && (
+              <div style={{ ...panelStyle, display: 'flex', flexDirection: 'column', gap: '14px', borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '80vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>
+                {rightPanelJSX}
+              </div>
+            )}
           </div>
 
           {!isDesktop && leftPanelOpen && (
@@ -724,13 +981,90 @@ const WebApp: React.FC = () => {
           )}
 
           {isTimelineOpen && (
-            <div style={{ position: 'fixed', bottom: '8px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120, padding: '0 8px', boxSizing: 'border-box' }}>
-              <div style={{ ...panelStyle, width: '100%', maxWidth: '800px', display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '18px', padding: '8px 14px', boxSizing: 'border-box' }}>
-                <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '30px', height: '30px', flexShrink: 0, cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>{isPlaying ? '❚❚' : '▶'}</button>
+            <div style={{ position: 'fixed', bottom: isDesktop ? '20px' : '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120 }}>
+              <div style={{ ...panelStyle, width: '90%', maxWidth: '800px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '24px', padding: '14px 24px' }}>
+                <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '36px', height: '36px', flexShrink: 0, cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{isPlaying ? '❚❚' : '▶'}</button>
                 <div style={{ position: 'relative', flex: 1, height: '30px', display: 'flex', alignItems: 'center' }}>
-                  <input type="range" min="0" max={videoDuration} step="1" value={currentFrame} onChange={(e) => { const tf = Number(e.target.value); setCurrentFrame(tf); playerRef.current?.seekTo(tf); }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer', position: 'relative', zIndex: 6, background: 'transparent' }} />
+                  
+                  {/* TIMELINE MARKERS FOR ENTITIES/RIVERS SO YOU CAN DRAG THEIR START TIME */}
+                  {timeline?.highlightCountries && timeline.highlightCountries.map((c: any, i: number) => {
+                    const leftPercent = ((c.startFrame || 0) / videoDuration) * 100;
+                    return (
+                      <div 
+                        key={`hc-drawer-${i}`}
+                        title={`Entity Reveal: ${c.name || c.country}`}
+                        onMouseDown={(e) => {
+                          const trackRect = e.currentTarget.parentElement?.getBoundingClientRect(); if (!trackRect) return;
+                          const handleMouseMove = (moveEvent: MouseEvent) => {
+                            const xPos = moveEvent.clientX - trackRect.left; const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
+                            const newFrame = Math.round(percentage * videoDuration);
+                            setTimeline((prev: any) => { if (!prev) return prev; const updated = JSON.parse(JSON.stringify(prev)); updated.highlightCountries[i].startFrame = newFrame; return updated; });
+                          };
+                          const handleMouseUp = () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
+                          window.addEventListener('mousemove', handleMouseMove); window.addEventListener('mouseup', handleMouseUp);
+                        }}
+                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', top: '22px', width: '8px', height: '8px', backgroundColor: c.color || '#3b82f6', borderRadius: '2px', cursor: 'ew-resize', zIndex: 16 }}
+                      />
+                    );
+                  })}
+
+                  {timeline?.takeovers && timeline.takeovers.map((t: any, i: number) => {
+                    const leftPercent = ((t.startFrame || 0) / videoDuration) * 100;
+                    return <div key={`inv-drawer-${i}`} title={`Conflict: ${t.attacker} > ${t.target}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', width: '4px', height: '14px', backgroundColor: '#ef4444', borderRadius: '2px', cursor: 'help', zIndex: 15 }} />
+                  })}
+                  {timeline?.arrows && timeline.arrows.map((a: any, i: number) => {
+                    const leftPercent = ((a.startFrame || 0) / videoDuration) * 100;
+                    return <div key={`arr-drawer-${i}`} title={`${a.type === 'missile' ? 'Missile' : 'Arrow'}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', width: '4px', height: '14px', backgroundColor: a.type === 'missile' ? '#ffffff' : '#3b82f6', borderRadius: '2px', cursor: 'help', zIndex: 15 }} />
+                  })}
+                  {timeline?.labels && timeline.labels.map((l: any, i: number) => {
+                    const leftPercent = ((l.startFrame || 0) / videoDuration) * 100;
+                    return <div key={`lbl-drawer-${i}`} title={`Label: ${l.text}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', width: '6px', height: '6px', backgroundColor: '#a855f7', borderRadius: '50%', cursor: 'help', zIndex: 15 }} />
+                  })}
+                  {timeline?.cameraKeyframes && timeline.cameraKeyframes.map((kf: any, i: number) => {
+                    const leftPercent = (kf.frame / videoDuration) * 100;
+                    return (
+                      <div 
+                        key={`kf-drawer-${i}`}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setTimeline((prev: any) => {
+                            if (!prev) return prev;
+                            const updated = JSON.parse(JSON.stringify(prev));
+                            updated.cameraKeyframes = updated.cameraKeyframes.filter((k: any) => k.frame !== kf.frame);
+                            return updated;
+                          });
+                        }}
+                        onMouseDown={(e) => {
+                          const trackRect = e.currentTarget.parentElement?.getBoundingClientRect();
+                          if (!trackRect) return;
+                          const handleMouseMove = (moveEvent: MouseEvent) => {
+                            const xPos = moveEvent.clientX - trackRect.left;
+                            const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
+                            const newFrame = Math.round(percentage * videoDuration);
+                            setTimeline((prev: any) => {
+                              if (!prev) return prev;
+                              const updated = JSON.parse(JSON.stringify(prev));
+                              const isCollision = updated.cameraKeyframes.some((k: any, idx: number) => idx !== i && Math.abs(k.frame - newFrame) < 15);
+                              if (isCollision) return prev;
+                              updated.cameraKeyframes[i].frame = newFrame;
+                              updated.cameraKeyframes.sort((a: any, b: any) => a.frame - b.frame);
+                              return updated;
+                            });
+                          };
+                          const handleMouseUp = () => {
+                            window.removeEventListener('mousemove', handleMouseMove);
+                            window.removeEventListener('mouseup', handleMouseUp);
+                          };
+                          window.addEventListener('mousemove', handleMouseMove);
+                          window.addEventListener('mouseup', handleMouseUp);
+                        }}
+                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translate(-50%, -50%) rotate(45deg)', top: '15px', width: '12px', height: '12px', backgroundColor: '#38bdf8', border: '2px solid #ffffff', cursor: 'ew-resize', zIndex: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
+                      />
+                    );
+                  })}
+                  <input type="range" min="0" max={videoDuration} step="1" value={currentFrame} onChange={(e) => { const targetFrame = Number(e.target.value); setCurrentFrame(targetFrame); playerRef.current?.seekTo(targetFrame); }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer', position: 'relative', zIndex: 6, background: 'transparent' }} />
                 </div>
-                <span style={{ fontSize: '10px', color: '#fff', fontWeight: 600, flexShrink: 0 }}>{Math.round(currentFrame)}/{videoDuration}</span>
+                <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.8)', flexShrink: 0 }}>{Math.round(currentFrame)} / {videoDuration}</span>
               </div>
             </div>
           )}
