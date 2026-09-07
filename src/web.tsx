@@ -125,7 +125,7 @@ const WebApp: React.FC = () => {
     alert("Map Cache Finalized! Ready for flawless export.");
   };
 
-  // 🚀 BULLETPROOF MOBILE CANVAS EXPORTER (OOM Crash Fix & Live Progress)
+  // 🚀 BULLETPROOF MOBILE CANVAS EXPORTER (Z-INDEX HACK)
   const handleFastMobileExport = async () => {
     setIsExporting(true);
     setExportProgress(0);
@@ -137,9 +137,9 @@ const WebApp: React.FC = () => {
     compositeCanvas.width = 1080;
     compositeCanvas.height = 1920;
     
-    // 🔥 FIX: Shrunk to 1px and made virtually invisible so it satisfies Chromium
-    // without blocking your screen or glitching the UI.
-    compositeCanvas.style.cssText = 'position:absolute; top:0; left:0; width:1px; height:1px; opacity:0.01; z-index:-1; pointer-events:none;';
+    // 🔥 FIX: Full size and fully opaque, but placed exactly BEHIND the player.
+    // This stops browser culling without blocking your UI.
+    compositeCanvas.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:-1; pointer-events:none; border-radius:36px;';
     
     const playerContainer = document.querySelector('.remotion-player') || document.body;
     playerContainer.appendChild(compositeCanvas);
@@ -153,7 +153,7 @@ const WebApp: React.FC = () => {
     const stream = compositeCanvas.captureStream(30);
     const videoTrack = stream.getVideoTracks()[0] as any;
 
-    const options = { mimeType: 'video/webm', videoBitsPerSecond: 5000000 }; // Dropped to 5Mbps to stop mobile RAM crashes
+    const options = { mimeType: 'video/webm', videoBitsPerSecond: 8000000 }; 
     if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
       options.mimeType = 'video/webm; codecs=vp9';
     } else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp8')) {
@@ -173,13 +173,20 @@ const WebApp: React.FC = () => {
       const blendCanvas = document.querySelector('canvas#vector-blend-overlay') as HTMLCanvasElement;
       const uiCanvas = document.querySelector('canvas#vector-ui-overlay') as HTMLCanvasElement;
       
-      if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
+      // Try/Catch blocks prevent silent CORS tainting crashes
+      try {
+        if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
+      } catch(e) {}
       
       ctx.globalCompositeOperation = 'screen';
-      if (blendCanvas) ctx.drawImage(blendCanvas, 0, 0, 1080, 1920);
+      try {
+        if (blendCanvas) ctx.drawImage(blendCanvas, 0, 0, 1080, 1920);
+      } catch(e) {}
       
       ctx.globalCompositeOperation = 'source-over';
-      if (uiCanvas) ctx.drawImage(uiCanvas, 0, 0, 1080, 1920);
+      try {
+        if (uiCanvas) ctx.drawImage(uiCanvas, 0, 0, 1080, 1920);
+      } catch(e) {}
       
       if (videoTrack && typeof videoTrack.requestFrame === 'function') {
           videoTrack.requestFrame();
@@ -192,7 +199,6 @@ const WebApp: React.FC = () => {
     const startTime = Date.now();
     const durationMs = (videoDuration / 30) * 1000;
 
-    // Progress Tracker Interval
     const progressInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const prog = Math.min(100, Math.round((elapsed / durationMs) * 100));
@@ -206,6 +212,13 @@ const WebApp: React.FC = () => {
       
       let blob = new Blob(chunks, { type: options.mimeType });
       
+      if (blob.size === 0) {
+        alert("Export failed: Browser security (CORS) blocked canvas extraction. Use True HD Server Export instead.");
+        setIsExporting(false);
+        setExportProgress(0);
+        return;
+      }
+
       try {
         blob = await fixWebmDuration(blob, durationMs);
       } catch (err) {
@@ -281,11 +294,11 @@ const WebApp: React.FC = () => {
     const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= cFrame) || [];
     const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0, easing: 'easeInOut' };
 
-    setTargetLat(baseKf.lat !== undefined ? baseKf.lat : (baseKf.latitude !== undefined ? baseKf.latitude : 38.0));
-    setTargetLng(baseKf.lng !== undefined ? baseKf.lng : (baseKf.longitude !== undefined ? baseKf.longitude : 127.0));
-    setTargetZoom(baseKf.zoom !== undefined ? baseKf.zoom : 1.2);
-    setTargetPitch(baseKf.pitch !== undefined ? baseKf.pitch : 45);
-    setTargetBearing(baseKf.bearing !== undefined ? baseKf.bearing : 0);
+    setTargetLat(baseKf.lat ?? baseKf.latitude ?? 38.0);
+    setTargetLng(baseKf.lng ?? baseKf.longitude ?? 127.0);
+    setTargetZoom(baseKf.zoom ?? 1.2);
+    setTargetPitch(baseKf.pitch ?? 45);
+    setTargetBearing(baseKf.bearing ?? 0);
     setIsLiveEdit(true);
   };
 
@@ -917,7 +930,27 @@ const WebApp: React.FC = () => {
             )}
           </div>
 
-          {/* TIMELINE BOTTOM DOCK */}
+          {!isDesktop && (
+            <React.Fragment>
+              <div style={{ position: 'fixed', left: leftPanelOpen ? '0px' : '-280px', top: '50%', transform: 'translateY(-50%)', transition: 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 100, display: 'flex', alignItems: 'center' }}>
+                <div style={{ ...panelStyle, width: '280px', maxHeight: '85vh', borderLeft: 'none', borderRadius: '0 24px 24px 0', padding: '18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {leftPanelJSX}
+                </div>
+                <div onClick={() => setLeftPanelOpen(!leftPanelOpen)} style={{ ...panelStyle, width: '36px', height: '72px', borderLeft: 'none', borderRadius: '0 16px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#38bdf8', fontSize: '16px', marginLeft: '-1px' }}>
+                   {leftPanelOpen ? '◀' : '▶'}
+                </div>
+              </div>
+              <div style={{ position: 'fixed', right: rightPanelOpen ? '0px' : '-280px', top: '50%', transform: 'translateY(-50%)', transition: 'right 0.4s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 100, display: 'flex', alignItems: 'center' }}>
+                <div onClick={() => setRightPanelOpen(!rightPanelOpen)} style={{ ...panelStyle, width: '36px', height: '72px', borderRight: 'none', borderRadius: '16px 0 0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#38bdf8', fontSize: '16px', marginRight: '-1px' }}>
+                   {rightPanelOpen ? '▶' : '◀'}
+                </div>
+                <div style={{ ...panelStyle, width: '280px', maxHeight: '85vh', borderRight: 'none', borderRadius: '24px 0 0 24px', padding: '18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {rightPanelJSX}
+                </div>
+              </div>
+            </React.Fragment>
+          )}
+
           {isTimelineOpen && (
             <div style={{ position: 'fixed', bottom: isDesktop ? '20px' : '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120 }}>
               <div style={{ ...panelStyle, width: '90%', maxWidth: '800px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '24px', padding: '14px 24px' }}>

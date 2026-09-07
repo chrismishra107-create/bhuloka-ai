@@ -29,7 +29,6 @@ export const MapAnimation: React.FC<{
 }> = ({ timeline, mapStyle = 'satellite' }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   
-  // 🔥 Split Canvases: One for glowing layers, one for solid text/UI
   const blendOverlayRef = useRef<HTMLCanvasElement>(null);
   const uiOverlayRef = useRef<HTMLCanvasElement>(null);
   
@@ -118,6 +117,16 @@ export const MapAnimation: React.FC<{
       maxPitch: 60, 
       interactive: false, 
       attributionControl: false,
+      // 🔥 TS FIX: Added strict string types to url and resourceType
+      transformRequest: (url: string, resourceType: string) => {
+        if (resourceType === 'Tile' && url.startsWith('http')) {
+          return {
+            url: url + (url.includes('?') ? '&' : '?') + 'nocache=' + Date.now(),
+            credentials: 'omit'
+          };
+        }
+        return { url };
+      }
     } as any); 
 
     map.on('load', () => { mapRef.current = map; setMapLoaded(true); continueRender(initialHandle); });
@@ -202,7 +211,6 @@ export const MapAnimation: React.FC<{
     return 'screen'; 
   };
 
-  // 🚀 DUAL-CANVAS RENDERER (Solves the flat-color bug)
   useLayoutEffect(() => {
     if (!blendOverlayRef.current || !uiOverlayRef.current || !mapLoaded) return;
     
@@ -216,7 +224,6 @@ export const MapAnimation: React.FC<{
     uiCtx.clearRect(0, 0, width, height);
     uiCtx.lineJoin = 'round'; uiCtx.lineCap = 'round';
 
-    // 1. BLEND LAYER: Glowing Countries, Shadows, Takeovers
     rawCountries.forEach((entity: any) => {
       if (frame < (entity.startFrame || 0)) return;
       if (takeovers.some((t: any) => (t.target || '').toLowerCase() === (entity.name || entity.country || '').toLowerCase() && frame >= (t.startFrame || 0))) return;
@@ -269,7 +276,6 @@ export const MapAnimation: React.FC<{
       blendCtx.restore();
     });
 
-    // 2. UI LAYER: Arrows, Assets, and Solid Labels (Drawn on a non-screened canvas)
     arrows.forEach((arrow: any) => {
       const startF = arrow.startFrame || arrow.frame || 0;
       if (frame < startF) return;
@@ -363,11 +369,9 @@ export const MapAnimation: React.FC<{
       <div ref={mapContainer} style={{ width: `${width}px`, height: `${height}px`, position: 'absolute', top: 0, left: 0 }} />
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
 
-      {/* 🔥 THE DUAL CANVAS ARCHITECTURE */}
       <canvas id="vector-blend-overlay" ref={blendOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none', mixBlendMode: 'screen' }} />
       <canvas id="vector-ui-overlay" ref={uiOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 61, pointerEvents: 'none' }} />
 
-      {/* Invisible SVG Hitboxes for Map Selection */}
       <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 65 }}>
         {rawCountries.map((country: any, idx: number) => {
           if (frame < (country.startFrame || 0)) return null;
