@@ -64805,7 +64805,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (!path) return;
         const p2d = new Path2D(path);
         blendCtx.save();
-        blendCtx.globalCompositeOperation = entity.blendMode || "screen";
+        blendCtx.globalCompositeOperation = entity.blendMode || "source-over";
         let masterAlpha = 1;
         const fadeInDuration = 45;
         const fadeOutDuration = 30;
@@ -64885,7 +64885,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const p2d = new Path2D(targetGeo.path);
         const targetData = rawCountries.find((c4) => (c4.name || c4.country) === takeover.target) || {};
         blendCtx.save();
-        blendCtx.globalCompositeOperation = targetData.blendMode || "screen";
+        blendCtx.globalCompositeOperation = targetData.blendMode || "source-over";
         blendCtx.fillStyle = targetData.color || "#1e3a8a";
         blendCtx.globalAlpha = 0.85;
         blendCtx.fill(p2d);
@@ -65017,7 +65017,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(AbsoluteFill, { style: { backgroundColor: "#040711", overflow: "hidden" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { ref: mapContainer, style: { width: `${width}px`, height: `${height}px`, position: "absolute", top: 0, left: 0 } }),
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)", pointerEvents: "none", zIndex: 10 } }),
-      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("canvas", { id: "vector-blend-overlay", ref: blendOverlayRef, width, height, style: { position: "absolute", inset: 0, zIndex: 60, pointerEvents: "none", mixBlendMode: "screen" } }),
+      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("canvas", { id: "vector-blend-overlay", ref: blendOverlayRef, width, height, style: { position: "absolute", inset: 0, zIndex: 60, pointerEvents: "none" } }),
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("canvas", { id: "vector-ui-overlay", ref: uiOverlayRef, width, height, style: { position: "absolute", inset: 0, zIndex: 61, pointerEvents: "none" } }),
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "auto", zIndex: 65 }, children: rawCountries.map((country, idx) => {
         if (frame < (country.startFrame || 0)) return null;
