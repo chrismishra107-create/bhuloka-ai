@@ -57,7 +57,6 @@ const WebApp: React.FC = () => {
   const [entityB, setEntityB] = useState<string>('South Korea');
   const [eventType, setEventType] = useState<'arrow' | 'takeover'>('arrow');
   
-  // AUTOCOMPLETE SEARCH STATE
   const [newCountrySearch, setNewCountrySearch] = useState<string>('');
   const [allGeoNames, setAllGeoNames] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
@@ -76,11 +75,8 @@ const WebApp: React.FC = () => {
   });
   const toggleBranch = (key: string) => setOpenBranches(prev => ({ ...prev, [key]: !prev[key] }));
 
-  // BACKGROUND DICTIONARY BUILDER WITH STRICT TYPE BYPASS
   useEffect(() => {
     const names = new Set<string>();
-    
-    // 1. Index Offline Countries
     if (worldData && (worldData as any).features) {
       (worldData as any).features.forEach((f: any) => {
         if (f.properties.ADMIN) names.add(f.properties.ADMIN);
@@ -89,7 +85,6 @@ const WebApp: React.FC = () => {
       });
     }
 
-    // 2. Fetch and Index Dynamic Rivers & States
     const loadExtras = async () => {
       try {
         const [rivRes, statRes] = await Promise.all([
@@ -97,7 +92,6 @@ const WebApp: React.FC = () => {
           fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson')
         ]);
         
-        // Force type 'any' to bypass strict TS checking on the parsed JSON
         const rivData: any = await rivRes.json();
         const statData: any = await statRes.json();
         
@@ -857,9 +851,9 @@ const WebApp: React.FC = () => {
           
           {/* MOBILE TOGGLE BUTTONS WRAPPER */}
           {!isDesktop && (
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', zIndex: 100, flexShrink: 0 }}>
-              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
-              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '10px', zIndex: 100, flexShrink: 0 }}>
+              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
+              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
             </div>
           )}
 
@@ -986,24 +980,25 @@ const WebApp: React.FC = () => {
                 <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '36px', height: '36px', flexShrink: 0, cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{isPlaying ? '❚❚' : '▶'}</button>
                 <div style={{ position: 'relative', flex: 1, height: '30px', display: 'flex', alignItems: 'center' }}>
                   
-                  {/* TIMELINE MARKERS FOR ENTITIES/RIVERS SO YOU CAN DRAG THEIR START TIME */}
+                  {/* MOBILE-FRIENDLY THUMB-SIZED DRAGGABLE TIMELINE HANDLES FOR ENTITIES/RIVERS */}
                   {timeline?.highlightCountries && timeline.highlightCountries.map((c: any, i: number) => {
                     const leftPercent = ((c.startFrame || 0) / videoDuration) * 100;
                     return (
                       <div 
                         key={`hc-drawer-${i}`}
                         title={`Entity Reveal: ${c.name || c.country}`}
-                        onMouseDown={(e) => {
+                        onPointerDown={(e) => {
                           const trackRect = e.currentTarget.parentElement?.getBoundingClientRect(); if (!trackRect) return;
-                          const handleMouseMove = (moveEvent: MouseEvent) => {
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                          const handlePointerMove = (moveEvent: PointerEvent) => {
                             const xPos = moveEvent.clientX - trackRect.left; const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
                             const newFrame = Math.round(percentage * videoDuration);
                             setTimeline((prev: any) => { if (!prev) return prev; const updated = JSON.parse(JSON.stringify(prev)); updated.highlightCountries[i].startFrame = newFrame; return updated; });
                           };
-                          const handleMouseUp = () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
-                          window.addEventListener('mousemove', handleMouseMove); window.addEventListener('mouseup', handleMouseUp);
+                          const handlePointerUp = () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
+                          window.addEventListener('pointermove', handlePointerMove); window.addEventListener('pointerup', handlePointerUp);
                         }}
-                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', top: '22px', width: '8px', height: '8px', backgroundColor: c.color || '#3b82f6', borderRadius: '2px', cursor: 'ew-resize', zIndex: 16 }}
+                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', top: '3px', width: '14px', height: '24px', backgroundColor: c.color || '#3b82f6', border: '2px solid #ffffff', borderRadius: '4px', cursor: 'ew-resize', zIndex: 16, boxShadow: '0 2px 6px rgba(0,0,0,0.8)' }}
                       />
                     );
                   })}
@@ -1020,6 +1015,8 @@ const WebApp: React.FC = () => {
                     const leftPercent = ((l.startFrame || 0) / videoDuration) * 100;
                     return <div key={`lbl-drawer-${i}`} title={`Label: ${l.text}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', width: '6px', height: '6px', backgroundColor: '#a855f7', borderRadius: '50%', cursor: 'help', zIndex: 15 }} />
                   })}
+                  
+                  {/* MOBILE-FRIENDLY THUMB-SIZED DRAGGABLE TIMELINE HANDLES FOR KEYFRAMES */}
                   {timeline?.cameraKeyframes && timeline.cameraKeyframes.map((kf: any, i: number) => {
                     const leftPercent = (kf.frame / videoDuration) * 100;
                     return (
@@ -1034,10 +1031,11 @@ const WebApp: React.FC = () => {
                             return updated;
                           });
                         }}
-                        onMouseDown={(e) => {
+                        onPointerDown={(e) => {
                           const trackRect = e.currentTarget.parentElement?.getBoundingClientRect();
                           if (!trackRect) return;
-                          const handleMouseMove = (moveEvent: MouseEvent) => {
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                          const handlePointerMove = (moveEvent: PointerEvent) => {
                             const xPos = moveEvent.clientX - trackRect.left;
                             const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
                             const newFrame = Math.round(percentage * videoDuration);
@@ -1051,14 +1049,14 @@ const WebApp: React.FC = () => {
                               return updated;
                             });
                           };
-                          const handleMouseUp = () => {
-                            window.removeEventListener('mousemove', handleMouseMove);
-                            window.removeEventListener('mouseup', handleMouseUp);
+                          const handlePointerUp = () => {
+                            window.removeEventListener('pointermove', handlePointerMove);
+                            window.removeEventListener('pointerup', handlePointerUp);
                           };
-                          window.addEventListener('mousemove', handleMouseMove);
-                          window.addEventListener('mouseup', handleMouseUp);
+                          window.addEventListener('pointermove', handlePointerMove);
+                          window.addEventListener('pointerup', handlePointerUp);
                         }}
-                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translate(-50%, -50%) rotate(45deg)', top: '15px', width: '12px', height: '12px', backgroundColor: '#38bdf8', border: '2px solid #ffffff', cursor: 'ew-resize', zIndex: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
+                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', top: '3px', width: '14px', height: '24px', backgroundColor: '#38bdf8', border: '2px solid #ffffff', borderRadius: '4px', cursor: 'ew-resize', zIndex: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
                       />
                     );
                   })}

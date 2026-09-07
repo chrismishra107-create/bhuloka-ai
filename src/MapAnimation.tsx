@@ -239,7 +239,8 @@ export const MapAnimation: React.FC<{
       const p2d = new Path2D(path);
 
       blendCtx.save();
-      blendCtx.globalCompositeOperation = entity.blendMode || 'screen';
+      // 🔥 FIX: RESPECT THE ACTUAL BLEND MODE CHOSEN BY USER IN UI 🔥
+      blendCtx.globalCompositeOperation = entity.blendMode || 'source-over';
       
       let masterAlpha = 1;
       const fadeInDuration = 45;
@@ -301,7 +302,7 @@ export const MapAnimation: React.FC<{
 
       const targetData: any = rawCountries.find((c: any) => (c.name || c.country) === takeover.target) || {};
       blendCtx.save();
-      blendCtx.globalCompositeOperation = targetData.blendMode || 'screen';
+      blendCtx.globalCompositeOperation = targetData.blendMode || 'source-over';
       blendCtx.fillStyle = targetData.color || '#1e3a8a'; blendCtx.globalAlpha = 0.85; blendCtx.fill(p2d);
       
       const duration = Math.max(takeover.duration || 120, 90);
@@ -411,7 +412,7 @@ export const MapAnimation: React.FC<{
       <div ref={mapContainer} style={{ width: `${width}px`, height: `${height}px`, position: 'absolute', top: 0, left: 0 }} />
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
 
-      <canvas id="vector-blend-overlay" ref={blendOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none', mixBlendMode: 'screen' }} />
+      <canvas id="vector-blend-overlay" ref={blendOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none' }} />
       <canvas id="vector-ui-overlay" ref={uiOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 61, pointerEvents: 'none' }} />
 
       <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 65 }}>
