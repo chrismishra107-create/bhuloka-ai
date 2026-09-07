@@ -556,7 +556,7 @@ const WebApp: React.FC = () => {
   );
 
   const leftPanelJSX = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <BranchHeader title="🌍 SCENE ENTITIES" branchKey="entities" />
         {openBranches.entities && (
@@ -626,7 +626,7 @@ const WebApp: React.FC = () => {
   );
 
   const rightPanelJSX = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
         <button onClick={handleHDLocalExport} disabled={isPreloading || isExporting} style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>🖥️ True HD Server Export</button>
         <button onClick={handleFastMobileExport} disabled={isExporting || isPreloading} style={{ background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>🎥 Mobile WebM Export</button>
@@ -640,7 +640,7 @@ const WebApp: React.FC = () => {
         </div>
       )}
 
-      {selectedEntity && (
+      {selectedEntity ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
           <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700 }}>STYLING: {selectedEntity.toUpperCase()}</div>
           <select value={timeline?.highlightCountries?.find((c:any)=>c.name===selectedEntity)?.revealStyle || 'fade'} onChange={(e) => updateEntityStyle('revealStyle', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', fontSize: '10px', padding: '6px' }}>
@@ -648,12 +648,19 @@ const WebApp: React.FC = () => {
           </select>
           <input type="color" value={activeColor} onChange={(e) => updateEntityStyle('color', e.target.value)} style={{ width: '100%', height: '30px', border: 'none', borderRadius: '4px', background: 'transparent' }} />
         </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+          <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700 }}>AUTO INJECTOR</div>
+          <input type="text" value={entityA} onChange={(e)=>setEntityA(e.target.value)} placeholder="Origin" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '6px', borderRadius: '6px' }} />
+          <input type="text" value={entityB} onChange={(e)=>setEntityB(e.target.value)} placeholder="Target" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '6px', borderRadius: '6px' }} />
+          <button onClick={addStoryEvent} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', padding: '6px', fontSize: '10px', fontWeight: 700 }}>＋ Inject Event</button>
+        </div>
       )}
     </div>
   );
 
   return (
-    <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden' }}>
+    <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
 
       {status !== 'editor' && status !== 'generating' && (
         <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '680px', padding: '16px', boxSizing: 'border-box' }}>
@@ -696,21 +703,21 @@ const WebApp: React.FC = () => {
 
           {!isDesktop && (
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px', zIndex: 100 }}>
-              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 700 }}>🌍 Entities</button>
-              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 700 }}>⚙️ Controls</button>
+              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
+              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
             </div>
           )}
 
           {!isDesktop && leftPanelOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto' }}>
-              <button onClick={() => setLeftPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 'bold' }}>✕</button>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', boxSizing: 'border-box' }}>
+              <button onClick={() => setLeftPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '10px' }}>✕</button>
               {leftPanelJSX}
             </div>
           )}
 
           {!isDesktop && rightPanelOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto' }}>
-              <button onClick={() => setRightPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 'bold' }}>✕</button>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', boxSizing: 'border-box' }}>
+              <button onClick={() => setRightPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '10px' }}>✕</button>
               {rightPanelJSX}
             </div>
           )}
