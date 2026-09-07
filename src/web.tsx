@@ -545,7 +545,7 @@ const WebApp: React.FC = () => {
   }), [dynamicTimeline, isLiveEdit, mapStyle]);
 
   const panelStyle: React.CSSProperties = {
-    background: 'rgba(20, 20, 24, 0.75)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+    background: 'rgba(20, 20, 24, 0.85)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)',
     border: '1px solid rgba(255, 255, 255, 0.15)', boxShadow: '0 30px 60px rgba(0,0,0,0.6)'
   };
 
@@ -687,44 +687,46 @@ const WebApp: React.FC = () => {
       )}
 
       {status === 'editor' && dynamicTimeline && (
-        <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px', paddingBottom: '80px', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', flexDirection: isDesktop ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', width: '100%', height: '100%', boxSizing: 'border-box' }}>
-            
-            {isDesktop && <div style={{ ...panelStyle, borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '80vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>{leftPanelJSX}</div>}
+        <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px 70px 10px', boxSizing: 'border-box', overflow: 'hidden' }}>
+          
+          {/* TOP CONTROLS / FLOATING BUTTONS FOR MOBILE */}
+          {!isDesktop && (
+            <div style={{ display: 'flex', gap: '8px', zIndex: 100, width: '100%', justifyContent: 'center', marginBottom: '4px' }}>
+              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
+              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
+            </div>
+          )}
 
-            <div style={{ height: isDesktop ? '75vh' : '60vh', aspectRatio: '9/16', borderRadius: '24px', border: '3px solid #1a1a1a', boxShadow: '0 0 0 2px #38bdf8, 0 0 30px rgba(56,189,248,0.2)', position: 'relative', overflow: 'hidden', background: '#040711', flexShrink: 0, zIndex: 10 }}>
+          <div style={{ display: 'flex', flexDirection: isDesktop ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', width: '100%', flex: 1, minHeight: 0, boxSizing: 'border-box' }}>
+            
+            {isDesktop && <div style={{ ...panelStyle, borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '75vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>{leftPanelJSX}</div>}
+
+            <div style={{ height: '100%', maxHeight: isDesktop ? '75vh' : '52vh', aspectRatio: '9/16', borderRadius: '24px', border: '3px solid #1a1a1a', boxShadow: '0 0 0 2px #38bdf8, 0 0 30px rgba(56,189,248,0.2)', position: 'relative', overflow: 'hidden', background: '#040711', flexShrink: 0, zIndex: 10 }}>
               <div className="remotion-player" style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%' }}>
                 <Player ref={playerRef} component={MapAnimation} inputProps={playerInputProps} durationInFrames={videoDuration} compositionWidth={1080} compositionHeight={1920} fps={30} controls={false} loop autoPlay style={{ width: '100%', height: '100%', display: 'block', pointerEvents: isLiveEdit ? 'auto' : 'none' }} />
               </div>
             </div>
 
-            {isDesktop && <div style={{ ...panelStyle, borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '80vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>{rightPanelJSX}</div>}
+            {isDesktop && <div style={{ ...panelStyle, borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '75vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>{rightPanelJSX}</div>}
           </div>
 
-          {!isDesktop && (
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', zIndex: 100 }}>
-              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
-              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
-            </div>
-          )}
-
           {!isDesktop && leftPanelOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', boxSizing: 'border-box' }}>
-              <button onClick={() => setLeftPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '10px' }}>✕</button>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', boxSizing: 'border-box' }}>
+              <button onClick={() => setLeftPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '36px', height: '36px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '15px', flexShrink: 0 }}>✕</button>
               {leftPanelJSX}
             </div>
           )}
 
           {!isDesktop && rightPanelOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', boxSizing: 'border-box' }}>
-              <button onClick={() => setRightPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '10px' }}>✕</button>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', boxSizing: 'border-box' }}>
+              <button onClick={() => setRightPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '36px', height: '36px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '15px', flexShrink: 0 }}>✕</button>
               {rightPanelJSX}
             </div>
           )}
 
           {isTimelineOpen && (
-            <div style={{ position: 'fixed', bottom: '10px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120, padding: '0 10px', boxSizing: 'border-box' }}>
-              <div style={{ ...panelStyle, width: '100%', maxWidth: '800px', display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '18px', padding: '10px 16px', boxSizing: 'border-box' }}>
+            <div style={{ position: 'fixed', bottom: '8px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120, padding: '0 8px', boxSizing: 'border-box' }}>
+              <div style={{ ...panelStyle, width: '100%', maxWidth: '800px', display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '18px', padding: '8px 14px', boxSizing: 'border-box' }}>
                 <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '30px', height: '30px', flexShrink: 0, cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>{isPlaying ? '❚❚' : '▶'}</button>
                 <div style={{ position: 'relative', flex: 1, height: '30px', display: 'flex', alignItems: 'center' }}>
                   <input type="range" min="0" max={videoDuration} step="1" value={currentFrame} onChange={(e) => { const tf = Number(e.target.value); setCurrentFrame(tf); playerRef.current?.seekTo(tf); }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer', position: 'relative', zIndex: 6, background: 'transparent' }} />
