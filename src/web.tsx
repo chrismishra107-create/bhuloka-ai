@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Player, PlayerRef } from '@remotion/player';
 import { MapAnimation } from './MapAnimation';
 import fixWebmDuration from 'fix-webm-duration';
+import worldData from './world.json';
 import './index.css';
 
 const WebApp: React.FC = () => {
@@ -55,9 +56,13 @@ const WebApp: React.FC = () => {
   const [entityA, setEntityA] = useState<string>('North Korea');
   const [entityB, setEntityB] = useState<string>('South Korea');
   const [eventType, setEventType] = useState<'arrow' | 'takeover'>('arrow');
+  
+  // AUTOCOMPLETE SEARCH STATE
   const [newCountrySearch, setNewCountrySearch] = useState<string>('');
+  const [allGeoNames, setAllGeoNames] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
-  const [mapStyle, setMapStyle] = useState<string>('satellite');
+  const [mapStyle, setMapStyle] = useState<string>('dark-documentary');
 
   const [labelText, setLabelText] = useState<string>('DMZ Border');
   const [labelColor, setLabelColor] = useState<string>('#ffffff');
@@ -65,6 +70,64 @@ const WebApp: React.FC = () => {
   const [labelSize, setLabelSize] = useState<number>(24);
   const [labelGlow, setLabelGlow] = useState<boolean>(true);
   const [labelPinned, setLabelPinned] = useState<boolean>(true);
+
+  const [openBranches, setOpenBranches] = useState<Record<string, boolean>>({
+    entities: true, typography: false, mapStyle: false, vectors: false
+  });
+  const toggleBranch = (key: string) => setOpenBranches(prev => ({ ...prev, [key]: !prev[key] }));
+
+  // BACKGROUND DICTIONARY BUILDER WITH STRICT TYPE BYPASS
+  useEffect(() => {
+    const names = new Set<string>();
+    
+    // 1. Index Offline Countries
+    if (worldData && (worldData as any).features) {
+      (worldData as any).features.forEach((f: any) => {
+        if (f.properties.ADMIN) names.add(f.properties.ADMIN);
+        if (f.properties.NAME) names.add(f.properties.NAME);
+        if (f.properties.name) names.add(f.properties.name);
+      });
+    }
+
+    // 2. Fetch and Index Dynamic Rivers & States
+    const loadExtras = async () => {
+      try {
+        const [rivRes, statRes] = await Promise.all([
+          fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson'),
+          fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson')
+        ]);
+        
+        // Force type 'any' to bypass strict TS checking on the parsed JSON
+        const rivData: any = await rivRes.json();
+        const statData: any = await statRes.json();
+        
+        if (rivData && rivData.features) {
+          rivData.features.forEach((f:any) => { 
+            if(f.properties.name) names.add(f.properties.name); 
+            if(f.properties.name_en) names.add(f.properties.name_en); 
+          });
+        }
+        
+        if (statData && statData.features) {
+          statData.features.forEach((f:any) => { 
+            if(f.properties.name) names.add(f.properties.name); 
+            if(f.properties.admin) names.add(f.properties.admin); 
+          });
+        }
+        
+        setAllGeoNames(Array.from(names).filter(Boolean).sort());
+      } catch(e) {
+        console.warn("Could not preload dynamic names for autocomplete.");
+      }
+    };
+    
+    loadExtras();
+    setAllGeoNames(Array.from(names).filter(Boolean).sort());
+  }, []);
+
+  const filteredSuggestions = newCountrySearch.length >= 2 
+    ? allGeoNames.filter(n => n.toLowerCase().includes(newCountrySearch.toLowerCase())).slice(0, 6)
+    : [];
 
   useEffect(() => {
     let animationFrameId: number;
@@ -104,7 +167,6 @@ const WebApp: React.FC = () => {
         setStatus('idle');
       }
     } catch (error) {
-      console.error(error);
       setErrorMessage("Network error. Please try again.");
       setStatus('idle');
     }
@@ -115,9 +177,9 @@ const WebApp: React.FC = () => {
     playerRef.current?.pause();
     setIsPlaying(false);
     
-    for(let f = 0; f < videoDuration; f += 10) {
+    for(let f = 0; f < videoDuration; f += 5) {
       playerRef.current?.seekTo(f);
-      await new Promise(r => setTimeout(r, 100)); 
+      await new Promise(r => setTimeout(r, 200)); 
     }
     
     playerRef.current?.seekTo(0);
@@ -125,7 +187,6 @@ const WebApp: React.FC = () => {
     alert("Map Cache Finalized! Ready for flawless export.");
   };
 
-  // 🚀 BULLETPROOF MOBILE CANVAS EXPORTER (Z-INDEX HACK)
   const handleFastMobileExport = async () => {
     setIsExporting(true);
     setExportProgress(0);
@@ -136,9 +197,6 @@ const WebApp: React.FC = () => {
     const compositeCanvas = document.createElement('canvas');
     compositeCanvas.width = 1080;
     compositeCanvas.height = 1920;
-    
-    // 🔥 FIX: Full size and fully opaque, but placed exactly BEHIND the player.
-    // This stops browser culling without blocking your UI.
     compositeCanvas.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:-1; pointer-events:none; border-radius:36px;';
     
     const playerContainer = document.querySelector('.remotion-player') || document.body;
@@ -173,25 +231,13 @@ const WebApp: React.FC = () => {
       const blendCanvas = document.querySelector('canvas#vector-blend-overlay') as HTMLCanvasElement;
       const uiCanvas = document.querySelector('canvas#vector-ui-overlay') as HTMLCanvasElement;
       
-      // Try/Catch blocks prevent silent CORS tainting crashes
-      try {
-        if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
-      } catch(e) {}
-      
+      try { if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920); } catch(e) {}
       ctx.globalCompositeOperation = 'screen';
-      try {
-        if (blendCanvas) ctx.drawImage(blendCanvas, 0, 0, 1080, 1920);
-      } catch(e) {}
-      
+      try { if (blendCanvas) ctx.drawImage(blendCanvas, 0, 0, 1080, 1920); } catch(e) {}
       ctx.globalCompositeOperation = 'source-over';
-      try {
-        if (uiCanvas) ctx.drawImage(uiCanvas, 0, 0, 1080, 1920);
-      } catch(e) {}
+      try { if (uiCanvas) ctx.drawImage(uiCanvas, 0, 0, 1080, 1920); } catch(e) {}
       
-      if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-          videoTrack.requestFrame();
-      }
-
+      if (videoTrack && typeof videoTrack.requestFrame === 'function') videoTrack.requestFrame();
       animId = requestAnimationFrame(renderLoop);
     };
     renderLoop();
@@ -219,11 +265,7 @@ const WebApp: React.FC = () => {
         return;
       }
 
-      try {
-        blob = await fixWebmDuration(blob, durationMs);
-      } catch (err) {
-        console.warn("Duration patcher warning:", err);
-      }
+      try { blob = await fixWebmDuration(blob, durationMs); } catch (err) { console.warn("Duration patcher warning:", err); }
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -276,10 +318,8 @@ const WebApp: React.FC = () => {
         { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: 0, revealStyle: 'ink' },
         { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: 0, revealStyle: 'ink' }
       ],
-      takeovers: [],
-      arrows: [],
-      labels: [],
-      cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, latitude: 38.0, longitude: 127.0, pitch: 45, bearing: 0, easing: 'easeInOut' }],
+      takeovers: [], arrows: [], labels: [],
+      cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, pitch: 45, bearing: 0 }],
       assets: [] 
     }; 
     setTimeline(blankTimeline);
@@ -292,7 +332,7 @@ const WebApp: React.FC = () => {
     setIsPlaying(false);
     const cFrame = currentFrame;
     const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= cFrame) || [];
-    const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0, easing: 'easeInOut' };
+    const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0 };
 
     setTargetLat(baseKf.lat ?? baseKf.latitude ?? 38.0);
     setTargetLng(baseKf.lng ?? baseKf.longitude ?? 127.0);
@@ -309,7 +349,7 @@ const WebApp: React.FC = () => {
       if (!prev) return prev;
       const updated = { ...prev };
       updated.cameraKeyframes = [...(prev.cameraKeyframes || [])].filter((kf: any) => Math.abs(kf.frame - cFrame) > 15);
-      updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, pitch: targetPitch, bearing: targetBearing });
+      updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, pitch: targetPitch, bearing: targetBearing });
       updated.cameraKeyframes.sort((a: any, b: any) => a.frame - b.frame);
       if (cFrame + 60 >= videoDuration) {
         extensionNeeded = (cFrame + 90) - videoDuration;
@@ -348,17 +388,7 @@ const WebApp: React.FC = () => {
       if (!prev) return prev;
       const updated = { ...prev };
       updated.labels = [...(prev.labels || []), { 
-        id: Math.random().toString(36).substr(2, 9), 
-        text: labelText, 
-        lat: targetLat, 
-        lng: targetLng, 
-        startFrame: cFrame, 
-        duration: 150, 
-        color: labelColor, 
-        bg: labelBg, 
-        size: labelSize, 
-        glow: labelGlow, 
-        pinned: labelPinned 
+        id: Math.random().toString(36).substr(2, 9), text: labelText, lat: targetLat, lng: targetLng, startFrame: cFrame, duration: 150, color: labelColor, bg: labelBg, size: labelSize, glow: labelGlow, pinned: labelPinned 
       }];
       return updated;
     });
@@ -381,9 +411,7 @@ const WebApp: React.FC = () => {
     setTimeline((prev: any) => {
       if (!prev) return prev;
       const updated = { ...prev };
-      if (updated.highlightCountries) {
-        updated.highlightCountries = updated.highlightCountries.filter((c: any) => c.name !== name && c.country !== name);
-      }
+      if (updated.highlightCountries) updated.highlightCountries = updated.highlightCountries.filter((c: any) => c.name !== name && c.country !== name);
       return updated;
     });
     if (selectedEntity === name) setSelectedEntity(null);
@@ -421,18 +449,36 @@ const WebApp: React.FC = () => {
 
   const addCountryMap = () => {
     if (!newCountrySearch.trim()) return;
+    const searchTarget = newCountrySearch.trim();
     const cFrame = currentFrame;
+    
     setTimeline((prev: any) => {
       if (!prev) return prev;
       const updated = { ...prev };
       updated.highlightCountries = [...(prev.highlightCountries || [])];
-      const exists = updated.highlightCountries.find((c: any) => (c.name || c.country).toLowerCase() === newCountrySearch.trim().toLowerCase());
+      const exists = updated.highlightCountries.find((c: any) => (c.name || c.country).toLowerCase() === searchTarget.toLowerCase());
+      
       if (!exists) {
-        updated.highlightCountries.push({ name: newCountrySearch.trim(), country: newCountrySearch.trim(), color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'fade' });
+        updated.highlightCountries.push({ 
+          name: searchTarget, 
+          country: searchTarget, 
+          color: '#3b82f6', 
+          strokeColor: '#ffffff', 
+          strokeWidth: 2, 
+          enableGlow: true, 
+          glowTarget: 'both', 
+          dropShadow: true, 
+          blendMode: 'screen', 
+          isPrimary: false, 
+          startFrame: cFrame, 
+          revealStyle: 'fade' 
+        });
       }
       return updated;
     });
-    setNewCountrySearch(''); 
+    
+    setNewCountrySearch('');
+    setShowSuggestions(false);
   };
 
   const updateEntityStyle = (key: string, value: any) => {
@@ -454,14 +500,11 @@ const WebApp: React.FC = () => {
     });
   };
 
-  const toggleEntitySuppression = (name: string) => {
-    setDisabledEntities(prev => prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]);
-  };
+  const toggleEntitySuppression = (name: string) => setDisabledEntities(prev => prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]);
 
   const togglePlay = () => {
     if (!playerRef.current) return;
-    if (isPlaying) playerRef.current.pause();
-    else playerRef.current.play();
+    if (isPlaying) playerRef.current.pause(); else playerRef.current.play();
     setIsPlaying(!isPlaying);
   };
 
@@ -472,7 +515,6 @@ const WebApp: React.FC = () => {
   const activeEnableGlow = activeEntityData?.enableGlow !== undefined ? activeEntityData.enableGlow : true;
   const activeGlowIntensity = activeEntityData?.glowIntensity !== undefined ? activeEntityData.glowIntensity : 20;
   const activeBlendMode = activeEntityData?.blendMode || 'screen';
-  const activeGlowTarget = activeEntityData?.glowTarget || 'both';
   const activeDropShadow = activeEntityData?.dropShadow !== undefined ? activeEntityData.dropShadow : true;
 
   const dynamicTimeline = useMemo(() => {
@@ -491,15 +533,14 @@ const WebApp: React.FC = () => {
     }
     
     let newKfs = [...(timeline.cameraKeyframes || [])];
-    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat !== undefined ? kf.lat : (kf.latitude !== undefined ? kf.latitude : 38.0), lng: kf.lng !== undefined ? kf.lng : (kf.longitude !== undefined ? kf.longitude : 127.0), latitude: kf.latitude !== undefined ? kf.latitude : (kf.lat !== undefined ? kf.lat : 38.0), longitude: kf.longitude !== undefined ? kf.longitude : (kf.lng !== undefined ? kf.lng : 127.0), zoom: kf.zoom !== undefined ? kf.zoom : 1.2, pitch: kf.pitch !== undefined ? kf.pitch : 0, bearing: kf.bearing !== undefined ? kf.bearing : 0 }));
+    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat !== undefined ? kf.lat : (kf.latitude !== undefined ? kf.latitude : 38.0), lng: kf.lng !== undefined ? kf.lng : (kf.longitude !== undefined ? kf.longitude : 127.0), zoom: kf.zoom !== undefined ? kf.zoom : 1.2, pitch: kf.pitch !== undefined ? kf.pitch : 0, bearing: kf.bearing !== undefined ? kf.bearing : 0 }));
     
     if (isLiveEdit && playerRef.current && !isPlaying) {
       newKfs = newKfs.filter((kf: any) => Math.abs(kf.frame - currentFrame) > 15);
-      newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, latitude: targetLat, longitude: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
+      newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
       newKfs.sort((a: any, b: any) => a.frame - b.frame);
     }
     modified.cameraKeyframes = newKfs;
-
     return modified;
   }, [timeline, videoDuration, disabledEntities, isLiveEdit, targetLat, targetLng, targetZoom, targetPitch, targetBearing, currentFrame, isPlaying]);
 
@@ -510,81 +551,133 @@ const WebApp: React.FC = () => {
   }), [dynamicTimeline, isLiveEdit, mapStyle]);
 
   const panelStyle: React.CSSProperties = {
-    background: 'rgba(20, 20, 24, 0.55)',
-    backdropFilter: 'blur(30px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    boxShadow: '0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)'
+    background: 'rgba(20, 20, 24, 0.55)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+    border: '1px solid rgba(255, 255, 255, 0.15)', boxShadow: '0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)'
   };
 
+  const BranchHeader = ({ title, branchKey }: { title: string, branchKey: string }) => (
+    <button onClick={() => toggleBranch(branchKey)} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(255,255,255,0.06)', borderRadius: '8px', color: '#fff', border: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', fontSize: '11px', fontWeight: 700, width: '100%', letterSpacing: '0.05em' }}>
+      <span>{title}</span><span>{openBranches[branchKey] ? '▼' : '▶'}</span>
+    </button>
+  );
+
   const leftPanelJSX = (
-    <React.Fragment>
-      <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>SCENE ENTITIES</div>
-      <div style={{ display: 'flex', gap: '6px' }}>
-        <input type="text" value={newCountrySearch} onChange={(e) => setNewCountrySearch(e.target.value)} placeholder="Search Country..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} onKeyDown={(e) => e.key === 'Enter' && addCountryMap()} />
-        <button onClick={addCountryMap} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px', padding: '0 10px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}>+</button>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-        {timeline?.highlightCountries && timeline.highlightCountries.map((c: any, idx: number) => {
-          const name = c.name || c.country;
-          const isDisabled = disabledEntities.includes(name);
-          const isSelected = selectedEntity === name;
-          return (
-            <div key={`entity-${idx}`} style={{ display: 'flex', gap: '4px' }}>
-              <button onClick={() => setSelectedEntity(name)} style={{ flex: 1, background: isSelected ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255, 255, 255, 0.05)', border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)', color: '#ffffff', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', textAlign: 'left', cursor: 'pointer', textDecoration: isDisabled ? 'line-through' : 'none' }}>{name}</button>
-              <button onClick={() => toggleEntitySuppression(name)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#8e8e93', borderRadius: '8px', padding: '0 6px', cursor: 'pointer', fontSize: '11px' }}>{isDisabled ? '🙈' : '👁️'}</button>
-              <button onClick={(e) => cutEntity(e, name)} style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', borderRadius: '8px', padding: '0 6px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <BranchHeader title="🌍 SCENE ENTITIES" branchKey="entities" />
+        {openBranches.entities && (
+          <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            
+            {/* AUTOCOMPLETE SEARCH BAR */}
+            <div style={{ display: 'flex', gap: '6px', position: 'relative' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <input 
+                  type="text" 
+                  value={newCountrySearch} 
+                  onChange={(e) => { setNewCountrySearch(e.target.value); setShowSuggestions(true); }} 
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  placeholder="Search river, state, country..." 
+                  style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} 
+                  onKeyDown={(e) => e.key === 'Enter' && addCountryMap()} 
+                />
+                
+                {/* DROPDOWN MENU */}
+                {showSuggestions && filteredSuggestions.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#111827', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px', zIndex: 999, marginTop: '4px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.8)' }}>
+                    {filteredSuggestions.map(s => (
+                       <div 
+                         key={s} 
+                         onClick={() => { setNewCountrySearch(s); setShowSuggestions(false); }} 
+                         style={{ padding: '8px 12px', fontSize: '11px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(56,189,248,0.2)'}
+                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                       >
+                         {s}
+                       </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button onClick={addCountryMap} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px', padding: '0 10px', fontWeight: 'bold', cursor: 'pointer' }}>+</button>
             </div>
-          );
-        })}
+
+            {timeline?.highlightCountries?.map((c: any, idx: number) => {
+              const name = c.name || c.country;
+              const isSelected = selectedEntity === name;
+              const isDisabled = disabledEntities.includes(name);
+              return (
+                <div key={idx} style={{ display: 'flex', gap: '4px' }}>
+                  <button onClick={() => setSelectedEntity(name)} style={{ flex: 1, background: isSelected ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255, 255, 255, 0.05)', border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)', color: '#ffffff', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', textAlign: 'left', cursor: 'pointer', textDecoration: isDisabled ? 'line-through' : 'none' }}>{name}</button>
+                  <button onClick={() => toggleEntitySuppression(name)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#8e8e93', borderRadius: '8px', padding: '0 6px', cursor: 'pointer', fontSize: '11px' }}>{isDisabled ? '🙈' : '👁️'}</button>
+                  <button onClick={(e) => cutEntity(e, name)} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '8px', border: 'none', padding: '0 8px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '12px' }}>MAP TYPOGRAPHY</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <input type="text" value={labelText} onChange={(e) => setLabelText(e.target.value)} placeholder="Label Text..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} />
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            <span style={{ fontSize: '9px', color: '#8e8e93' }}>TXT</span>
-            <input type="color" value={labelColor} onChange={(e) => setLabelColor(e.target.value)} style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <BranchHeader title="📝 TYPOGRAPHY" branchKey="typography" />
+        {openBranches.typography && (
+          <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <input type="text" value={labelText} onChange={(e) => setLabelText(e.target.value)} placeholder="Label Text..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} />
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93' }}>TXT</span>
+                <input type="color" value={labelColor} onChange={(e) => setLabelColor(e.target.value)} style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93' }}>BG</span>
+                <input type="color" value={labelBg} onChange={(e) => setLabelBg(e.target.value)} style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93' }}>SIZE</span>
+                <input type="range" min="12" max="72" value={labelSize} onChange={(e) => setLabelSize(Number(e.target.value))} style={{ width: '40px', accentColor: '#38bdf8' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button onClick={() => setLabelGlow(!labelGlow)} style={{ flex: 1, background: labelGlow ? '#38bdf8' : 'rgba(255,255,255,0.05)', color: labelGlow ? '#000' : '#8e8e93', border: 'none', borderRadius: '6px', padding: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{labelGlow ? 'GLOW ON' : 'GLOW OFF'}</button>
+              <button onClick={() => setLabelPinned(!labelPinned)} style={{ flex: 1, background: labelPinned ? '#10b981' : 'rgba(255,255,255,0.05)', color: labelPinned ? '#000' : '#8e8e93', border: 'none', borderRadius: '6px', padding: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{labelPinned ? '📌 PINNED' : 'FLOAT'}</button>
+            </div>
+            <button onClick={() => { if(isLiveEdit) dropLabel(); }} style={{ background: isLiveEdit ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)', color: isLiveEdit ? '#38bdf8' : '#8e8e93', border: `1px solid ${isLiveEdit ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: isLiveEdit ? 'pointer' : 'not-allowed' }}>{isLiveEdit ? '📍 Drop Label at Crosshair' : 'Enter Live Edit to Drop'}</button>
           </div>
-          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            <span style={{ fontSize: '9px', color: '#8e8e93' }}>BG</span>
-            <input type="color" value={labelBg} onChange={(e) => setLabelBg(e.target.value)} style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
-          </div>
-          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            <span style={{ fontSize: '9px', color: '#8e8e93' }}>SIZE</span>
-            <input type="range" min="12" max="72" value={labelSize} onChange={(e) => setLabelSize(Number(e.target.value))} style={{ width: '40px', accentColor: '#38bdf8' }} />
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button onClick={() => setLabelGlow(!labelGlow)} style={{ flex: 1, background: labelGlow ? '#38bdf8' : 'rgba(255,255,255,0.05)', color: labelGlow ? '#000' : '#8e8e93', border: 'none', borderRadius: '6px', padding: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{labelGlow ? 'GLOW ON' : 'GLOW OFF'}</button>
-          <button onClick={() => setLabelPinned(!labelPinned)} style={{ flex: 1, background: labelPinned ? '#10b981' : 'rgba(255,255,255,0.05)', color: labelPinned ? '#000' : '#8e8e93', border: 'none', borderRadius: '6px', padding: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{labelPinned ? '📌 PINNED' : 'FLOAT'}</button>
-        </div>
-        <button onClick={() => { if(isLiveEdit) dropLabel(); }} style={{ background: isLiveEdit ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)', color: isLiveEdit ? '#38bdf8' : '#8e8e93', border: `1px solid ${isLiveEdit ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: isLiveEdit ? 'pointer' : 'not-allowed' }}>{isLiveEdit ? '📍 Drop Label at Crosshair' : 'Enter Live Edit to Drop'}</button>
+        )}
       </div>
 
-      <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '12px' }}>MAP STYLE</div>
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-        {['satellite', 'dark', 'light', 'street'].map(style => (
-          <button key={style} onClick={() => setMapStyle(style)} style={{ flex: '1 1 45%', background: mapStyle === style ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255,255,255,0.05)', color: '#fff', border: mapStyle === style ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px', fontSize: '10px', cursor: 'pointer', textTransform: 'capitalize' }}>
-            {style}
-          </button>
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <BranchHeader title="🎨 MAP STYLE" branchKey="mapStyle" />
+        {openBranches.mapStyle && (
+          <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {['dark-documentary', 'satellite', 'natural-earth', 'light'].map(style => (
+              <button key={style} onClick={() => setMapStyle(style)} style={{ flex: '1 1 45%', background: mapStyle === style ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255,255,255,0.05)', color: '#fff', border: mapStyle === style ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px', fontSize: '10px', cursor: 'pointer', textTransform: 'capitalize' }}>
+                {style.replace('-', ' ')}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '12px' }}>CUSTOM VECTORS</div>
-      {!pathStartCoord ? (
-        <button onClick={() => { if(isLiveEdit) setPathStartCoord([targetLng, targetLat]); }} style={{ background: isLiveEdit ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)', color: isLiveEdit ? '#38bdf8' : '#8e8e93', border: `1px solid ${isLiveEdit ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: isLiveEdit ? 'pointer' : 'not-allowed' }}>{isLiveEdit ? '📍 1. Lock Start at Crosshair' : 'Enter Live Edit to plot vectors'}</button>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{ fontSize: '10px', color: '#38bdf8' }}>Drag map to target, then fire:</span>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button onClick={() => addCustomVector('missile')} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: '8px', padding: '6px', color: '#fff', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>🚀 Missile</button>
-            <button onClick={() => addCustomVector('arrow')} style={{ flex: 1, background: '#3b82f6', border: 'none', borderRadius: '8px', padding: '6px', color: '#fff', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>🏹 Arrow</button>
-            <button onClick={() => setPathStartCoord(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '6px 10px', color: '#fff', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}>✕</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <BranchHeader title="✏️ VECTORS & ROUTES" branchKey="vectors" />
+        {openBranches.vectors && (
+          <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+             {!pathStartCoord ? (
+              <button onClick={() => { if(isLiveEdit) setPathStartCoord([targetLng, targetLat]); }} style={{ background: isLiveEdit ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)', color: isLiveEdit ? '#38bdf8' : '#8e8e93', border: `1px solid ${isLiveEdit ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: isLiveEdit ? 'pointer' : 'not-allowed' }}>{isLiveEdit ? '📍 1. Lock Start at Crosshair' : 'Enter Live Edit to plot vectors'}</button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '10px', color: '#38bdf8' }}>Drag map to target, then fire:</span>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => addCustomVector('missile')} style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: '8px', padding: '6px', color: '#fff', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>🚀 Missile</button>
+                  <button onClick={() => addCustomVector('arrow')} style={{ flex: 1, background: '#3b82f6', border: 'none', borderRadius: '8px', padding: '6px', color: '#fff', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>🏹 Arrow</button>
+                  <button onClick={() => setPathStartCoord(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '6px 10px', color: '#fff', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}>✕</button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {((timeline as any)?.assets?.length > 0 || (timeline as any)?.arrows?.some((a:any) => a.id) || (timeline as any)?.takeovers?.some((t:any) => t.id) || (timeline as any)?.labels?.length > 0) && (
         <React.Fragment>
@@ -594,12 +687,6 @@ const WebApp: React.FC = () => {
               <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px 12px' }}>
                 <span style={{ fontSize: '11px', color: '#fff' }}>📝 {l.text}</span>
                 <button onClick={() => deleteAsset(l.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>✕</button>
-              </div>
-            ))}
-            {(timeline as any).assets?.map((a: any) => (
-              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px 12px' }}>
-                <span style={{ fontSize: '11px', color: '#fff' }}>{a.type === 'pin' ? '📍 Pin' : '💥 Boom'}</span>
-                <button onClick={() => deleteAsset(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>✕</button>
               </div>
             ))}
             {(timeline as any).arrows?.filter((a:any) => a.id).map((a: any) => (
@@ -617,30 +704,20 @@ const WebApp: React.FC = () => {
           </div>
         </React.Fragment>
       )}
-    </React.Fragment>
+    </div>
   );
 
   const rightPanelJSX = (
     <React.Fragment>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
-        <button 
-          onClick={handleHDLocalExport} 
-          disabled={isPreloading || isExporting} 
-          style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+        <button onClick={handleHDLocalExport} disabled={isPreloading || isExporting} style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
           {isExporting ? '⏳ Rendering HD MP4...' : '🖥️ True HD Server Export'}
         </button>
-
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            onClick={handleFinalizeCache} 
-            disabled={isPreloading || isExporting} 
-            style={{ flex: 1, background: isPreloading ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isPreloading ? 'wait' : 'pointer' }}>
+          <button onClick={handleFinalizeCache} disabled={isPreloading || isExporting} style={{ flex: 1, background: isPreloading ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isPreloading ? 'wait' : 'pointer' }}>
             {isPreloading ? '⏳ Preloading...' : '📦 Finalize Cache'}
           </button>
-          <button 
-            onClick={handleFastMobileExport} 
-            disabled={isExporting || isPreloading} 
-            style={{ flex: 1, background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
+          <button onClick={handleFastMobileExport} disabled={isExporting || isPreloading} style={{ flex: 1, background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
             {isExporting ? `⏳ Compiling... ${exportProgress}%` : '🎥 Mobile WebM Export'}
           </button>
         </div>
@@ -684,8 +761,8 @@ const WebApp: React.FC = () => {
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
             <span style={{ color: '#8e8e93', fontWeight: 500 }}>REVEAL ANIMATION</span>
-            <select value={activeEntityData?.revealStyle || 'fade'} onChange={(e) => updateEntityStyle('revealStyle', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
-              <option value="fade">Fade In</option><option value="ink">Ink Bleed</option><option value="scale">Pop Scale</option>
+            <select value={timeline?.highlightCountries?.find((c:any)=>c.name===selectedEntity)?.revealStyle || 'fade'} onChange={(e) => updateEntityStyle('revealStyle', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
+              <option value="fade">Fade In</option><option value="ink">Ink Bleed</option><option value="trim">River Trim</option>
             </select>
           </div>
 
@@ -693,26 +770,24 @@ const WebApp: React.FC = () => {
             <span style={{ color: '#8e8e93', fontWeight: 500 }}>FILL COLOR</span>
             <input type="color" value={activeColor} onChange={(e) => updateEntityStyle('color', e.target.value)} style={{ width: '24px', height: '24px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }} />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
             <span style={{ color: '#8e8e93', fontWeight: 500 }}>GLOW</span>
             <button onClick={() => updateEntityStyle('enableGlow', !activeEnableGlow)} style={{ background: activeEnableGlow ? '#38bdf8' : 'transparent', color: activeEnableGlow ? '#000' : '#8e8e93', border: '1px solid #38bdf8', borderRadius: '4px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{activeEnableGlow ? 'ON' : 'OFF'}</button>
           </div>
           {activeEnableGlow && <input type="range" min="0" max="50" step="1" value={activeGlowIntensity} onChange={(e) => updateEntityStyle('glowIntensity', Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
-            <span style={{ color: '#8e8e93', fontWeight: 500 }}>GLOW TARGET</span>
-            <select value={activeGlowTarget} onChange={(e) => updateEntityStyle('glowTarget', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
-              <option value="both">Both</option><option value="fill">Fill Only</option><option value="stroke">Stroke Only</option>
-            </select>
-          </div>
+          
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
             <span style={{ color: '#8e8e93', fontWeight: 500 }}>DROP SHADOW</span>
             <button onClick={() => updateEntityStyle('dropShadow', !activeDropShadow)} style={{ background: activeDropShadow ? '#38bdf8' : 'transparent', color: activeDropShadow ? '#000' : '#8e8e93', border: '1px solid #38bdf8', borderRadius: '4px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{activeDropShadow ? 'ON' : 'OFF'}</button>
           </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '6px' }}>
             <span style={{ color: '#8e8e93', fontWeight: 500 }}>STROKE ({activeStrokeWidth}px)</span>
             <input type="color" value={activeStrokeColor} onChange={(e) => updateEntityStyle('strokeColor', e.target.value)} style={{ width: '20px', height: '20px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }} />
           </div>
           <input type="range" min="0" max="10" step="0.5" value={activeStrokeWidth} onChange={(e) => updateEntityStyle('strokeWidth', Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
+          
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
             <span style={{ color: '#8e8e93', fontWeight: 500 }}>BLEND MODE</span>
             <select value={activeBlendMode} onChange={(e) => updateEntityStyle('blendMode', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
@@ -739,10 +814,7 @@ const WebApp: React.FC = () => {
   return (
     <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden' }}>
 
-      {/* SETUP SCREENS */}
-      {status !== 'editor' && (
-        <div style={{ position: 'absolute', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(148,163,184,0.02) 50%, transparent 70%)', borderRadius: '50%', zIndex: 1, pointerEvents: 'none', filter: 'blur(100px)' }} />
-      )}
+      {status !== 'editor' && <div style={{ position: 'absolute', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(148,163,184,0.02) 50%, transparent 70%)', borderRadius: '50%', zIndex: 1, pointerEvents: 'none', filter: 'blur(100px)' }} />}
 
       {status === 'generating' && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(30px)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
@@ -780,7 +852,6 @@ const WebApp: React.FC = () => {
         </div>
       )}
 
-      {/* MAIN EDITOR INTERFACE */}
       {status === 'editor' && dynamicTimeline && (
         <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', paddingBottom: '100px' }}>
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '32px', width: '100%', height: '100%' }}>
@@ -792,54 +863,31 @@ const WebApp: React.FC = () => {
             )}
 
             <div style={{ 
-              height: '75vh', 
-              minHeight: '500px',
-              maxHeight: '800px', 
-              aspectRatio: '9/16', 
-              borderRadius: '36px', 
-              border: '4px solid #1a1a1a', 
+              height: '75vh', minHeight: '500px', maxHeight: '800px', aspectRatio: '9/16', borderRadius: '36px', border: '4px solid #1a1a1a', 
               boxShadow: isLiveEdit ? '0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)' : '0 0 0 2px #38bdf8, 0 0 40px rgba(56,189,248,0.2)', 
               position: 'relative', overflow: 'hidden', background: '#040711', flexShrink: 0, zIndex: 10
             }}>
               <div className="remotion-player" style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%' }}>
                 <Player
-                  ref={playerRef}
-                  component={MapAnimation}
-                  inputProps={playerInputProps}
-                  durationInFrames={videoDuration}
-                  compositionWidth={1080}
-                  compositionHeight={1920}
-                  fps={30}
-                  controls={false}
+                  ref={playerRef} component={MapAnimation} inputProps={playerInputProps} durationInFrames={videoDuration} compositionWidth={1080} compositionHeight={1920} fps={30} controls={false} loop autoPlay
                   style={{ width: '100%', height: '100%', display: 'block', pointerEvents: isLiveEdit ? 'auto' : 'none' }}
-                  loop
-                  autoPlay
                 />
 
                 {isLiveEdit && (
                   <React.Fragment>
                     <div 
                       onContextMenu={(e) => e.preventDefault()} 
-                      onWheel={(e) => {
-                        setTargetZoom(z => Math.max(0.5, Math.min(15, z - (e.nativeEvent as WheelEvent).deltaY * 0.005)));
-                      }}
+                      onWheel={(e) => setTargetZoom(z => Math.max(0.5, Math.min(15, z - (e.nativeEvent as WheelEvent).deltaY * 0.005)))}
                       onPointerDown={(e) => { 
                         activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
                         e.currentTarget.setPointerCapture(e.pointerId);
                         if (activePointers.current.size === 1) {
-                          setIsDragging(true);
-                          dragPos.current = { x: e.clientX, y: e.clientY };
+                          setIsDragging(true); dragPos.current = { x: e.clientX, y: e.clientY };
                         } else if (activePointers.current.size === 2) {
                           setIsDragging(false);
                           const pts = Array.from(activePointers.current.values());
-                          const dx = pts[0].x - pts[1].x;
-                          const dy = pts[0].y - pts[1].y;
-                          previousPinch.current = { 
-                            dist: Math.hypot(dx, dy), 
-                            angle: Math.atan2(dy, dx), 
-                            centerY: (pts[0].y + pts[1].y) / 2,
-                            centerX: (pts[0].x + pts[1].x) / 2
-                          };
+                          const dx = pts[0].x - pts[1].x; const dy = pts[0].y - pts[1].y;
+                          previousPinch.current = { dist: Math.hypot(dx, dy), angle: Math.atan2(dy, dx), centerY: (pts[0].y + pts[1].y) / 2, centerX: (pts[0].x + pts[1].x) / 2 };
                         }
                       }}
                       onPointerUp={(e) => { 
@@ -849,8 +897,7 @@ const WebApp: React.FC = () => {
                         if (activePointers.current.size === 0) setIsDragging(false);
                         if (activePointers.current.size === 1) {
                           const remainingPt = Array.from(activePointers.current.values())[0];
-                          dragPos.current = { x: remainingPt.x, y: remainingPt.y };
-                          setIsDragging(true);
+                          dragPos.current = { x: remainingPt.x, y: remainingPt.y }; setIsDragging(true);
                         }
                       }}
                       onPointerLeave={(e) => { 
@@ -863,27 +910,19 @@ const WebApp: React.FC = () => {
                         activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
                         if (activePointers.current.size === 1 && isDragging && dragPos.current) {
-                          const dx = e.clientX - dragPos.current.x;
-                          const dy = e.clientY - dragPos.current.y;
+                          const dx = e.clientX - dragPos.current.x; const dy = e.clientY - dragPos.current.y;
                           dragPos.current = { x: e.clientX, y: e.clientY };
-
                           if (e.buttons === 2 || e.shiftKey || e.altKey) {
-                            setTargetPitch(p => Math.max(0, Math.min(85, p - dy * 0.4)));
-                            setTargetBearing(b => b + dx * 0.8);
+                            setTargetPitch(p => Math.max(0, Math.min(85, p - dy * 0.4))); setTargetBearing(b => b + dx * 0.8);
                           } else {
                             const panSens = 0.2 / Math.max(0.5, targetZoom);
-                            setTargetLng(l => l - dx * panSens);
-                            setTargetLat(l => Math.max(-85, Math.min(85, l + dy * panSens)));
+                            setTargetLng(l => l - dx * panSens); setTargetLat(l => Math.max(-85, Math.min(85, l + dy * panSens)));
                           }
                         } else if (activePointers.current.size === 2 && previousPinch.current) {
                           const pts = Array.from(activePointers.current.values());
-                          const dx = pts[0].x - pts[1].x;
-                          const dy = pts[0].y - pts[1].y;
-                          const currentDist = Math.hypot(dx, dy);
-                          const currentAngle = Math.atan2(dy, dx);
-                          const currentCenterY = (pts[0].y + pts[1].y) / 2;
-                          const currentCenterX = (pts[0].x + pts[1].x) / 2;
-
+                          const dx = pts[0].x - pts[1].x; const dy = pts[0].y - pts[1].y;
+                          const currentDist = Math.hypot(dx, dy); const currentAngle = Math.atan2(dy, dx);
+                          const currentCenterY = (pts[0].y + pts[1].y) / 2; const currentCenterX = (pts[0].x + pts[1].x) / 2;
                           const distDiff = currentDist - previousPinch.current.dist;
                           let angleDiff = currentAngle - previousPinch.current.angle;
                           const yDiff = currentCenterY - previousPinch.current.centerY;
@@ -894,15 +933,9 @@ const WebApp: React.FC = () => {
 
                           setTargetZoom(z => Math.max(0.5, Math.min(15, z + distDiff * 0.01)));
                           setTargetBearing(b => b + angleDiff * 60);
-                          
-                          if (Math.abs(yDiff) > 2) { 
-                            setTargetPitch(p => Math.max(0, Math.min(85, p - yDiff * 0.4))); 
-                          }
-                          
+                          if (Math.abs(yDiff) > 2) setTargetPitch(p => Math.max(0, Math.min(85, p - yDiff * 0.4))); 
                           const panSens = 0.1 / Math.max(0.5, targetZoom);
-                          setTargetLng(l => l - xDiff * panSens);
-                          setTargetLat(l => Math.max(-85, Math.min(85, l + yDiff * panSens)));
-
+                          setTargetLng(l => l - xDiff * panSens); setTargetLat(l => Math.max(-85, Math.min(85, l + yDiff * panSens)));
                           previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY, centerX: currentCenterX };
                         }
                       }}
@@ -911,12 +944,6 @@ const WebApp: React.FC = () => {
                       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '28px', height: '28px', border: '1.5px solid rgba(56,189,248,0.5)', borderRadius: '50%', pointerEvents: 'none' }}>
                         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '4px', height: '4px', background: pathStartCoord ? '#ef4444' : '#38bdf8', borderRadius: '50%' }} />
                       </div>
-                    </div>
-                    
-                    <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', padding: '8px 16px', borderRadius: '12px', fontSize: '10px', color: '#8e8e93', fontWeight: 600, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', gap: '12px', zIndex: 55 }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>📱 <strong style={{ color: '#fff' }}>1 Finger</strong> Pan</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🤏 <strong style={{ color: '#fff' }}>2 Fingers</strong> Zoom/Twist</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>↕️ <strong style={{ color: '#fff' }}>2 Fingers</strong> Tilt</span>
                     </div>
                   </React.Fragment>
                 )}
@@ -956,6 +983,29 @@ const WebApp: React.FC = () => {
               <div style={{ ...panelStyle, width: '90%', maxWidth: '800px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '24px', padding: '14px 24px' }}>
                 <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '36px', height: '36px', flexShrink: 0, cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{isPlaying ? '❚❚' : '▶'}</button>
                 <div style={{ position: 'relative', flex: 1, height: '30px', display: 'flex', alignItems: 'center' }}>
+                  
+                  {/* TIMELINE MARKERS FOR ENTITIES/RIVERS SO YOU CAN DRAG THEIR START TIME */}
+                  {timeline?.highlightCountries && timeline.highlightCountries.map((c: any, i: number) => {
+                    const leftPercent = ((c.startFrame || 0) / videoDuration) * 100;
+                    return (
+                      <div 
+                        key={`hc-drawer-${i}`}
+                        title={`Entity Reveal: ${c.name || c.country}`}
+                        onMouseDown={(e) => {
+                          const trackRect = e.currentTarget.parentElement?.getBoundingClientRect(); if (!trackRect) return;
+                          const handleMouseMove = (moveEvent: MouseEvent) => {
+                            const xPos = moveEvent.clientX - trackRect.left; const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
+                            const newFrame = Math.round(percentage * videoDuration);
+                            setTimeline((prev: any) => { if (!prev) return prev; const updated = JSON.parse(JSON.stringify(prev)); updated.highlightCountries[i].startFrame = newFrame; return updated; });
+                          };
+                          const handleMouseUp = () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
+                          window.addEventListener('mousemove', handleMouseMove); window.addEventListener('mouseup', handleMouseUp);
+                        }}
+                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', top: '22px', width: '8px', height: '8px', backgroundColor: c.color || '#3b82f6', borderRadius: '2px', cursor: 'ew-resize', zIndex: 16 }}
+                      />
+                    );
+                  })}
+
                   {timeline?.takeovers && timeline.takeovers.map((t: any, i: number) => {
                     const leftPercent = ((t.startFrame || 0) / videoDuration) * 100;
                     return <div key={`inv-drawer-${i}`} title={`Conflict: ${t.attacker} > ${t.target}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', width: '4px', height: '14px', backgroundColor: '#ef4444', borderRadius: '2px', cursor: 'help', zIndex: 15 }} />
@@ -1029,7 +1079,4 @@ const WebApp: React.FC = () => {
 
 export default WebApp;
 const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(<WebApp />);
-}
+if (container) { const root = createRoot(container); root.render(<WebApp />); }

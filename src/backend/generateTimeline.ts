@@ -19,13 +19,9 @@ export interface HighlightCountry {
   endFrame?: number;
   color: string;
   isPrimary: boolean;
-  revealStyle: 'flicker' | 'ink';
-}
-
-export interface BlastEvent {
-  frame: number;
-  coordinates: [number, number];
-  color: string;
+  revealStyle: 'flicker' | 'ink' | 'fade' | 'trim';
+  blendMode?: string;
+  enableGlow?: boolean;
 }
 
 export interface TakeoverEvent {
@@ -34,7 +30,19 @@ export interface TakeoverEvent {
   startFrame: number;
   duration: number;
   color: string;
-  origin: [number, number];
+  origin?: [number, number];
+}
+
+export interface ArrowEvent {
+  id: string;
+  type: 'arrow' | 'missile';
+  sourceName?: string;
+  targetName?: string;
+  origin?: [number, number];
+  target?: [number, number];
+  startFrame: number;
+  duration: number;
+  color: string;
 }
 
 export interface LabelEvent {
@@ -56,12 +64,10 @@ export interface GeneratedTimeline {
   cameraKeyframes: CameraKeyframe[];
   highlightCountries: HighlightCountry[];
   takeovers: TakeoverEvent[];
-  arrows?: any[];
-  blasts?: BlastEvent[];
+  arrows?: ArrowEvent[];
   labels?: LabelEvent[];
 }
 
-// 🌍 NEW: Dynamically finds the center of ANY country on Earth
 function getDynamicCountryCenter(countryName: string): [number, number] {
   try {
     const worldPath = path.resolve(__dirname, '..', 'world.json');
@@ -71,9 +77,7 @@ function getDynamicCountryCenter(countryName: string): [number, number] {
       
       const feature = data.features.find((f: any) => {
         const p = f.properties || {};
-        const candidates = [p.ADMIN, p.admin, p.NAME, p.name]
-          .filter(Boolean)
-          .map(v => String(v).toLowerCase());
+        const candidates = [p.ADMIN, p.admin, p.NAME, p.name].filter(Boolean).map(v => String(v).toLowerCase());
         return candidates.some(c => c === norm || c.includes(norm) || norm.includes(c));
       });
 
@@ -84,10 +88,7 @@ function getDynamicCountryCenter(countryName: string): [number, number] {
         const ring = coords[0];
         if (ring && Array.isArray(ring)) {
           let sumLng = 0, sumLat = 0;
-          ring.forEach((pt: [number, number]) => { 
-            sumLng += pt[0]; 
-            sumLat += pt[1]; 
-          });
+          ring.forEach((pt: [number, number]) => { sumLng += pt[0]; sumLat += pt[1]; });
           return [sumLng / ring.length, sumLat / ring.length];
         }
       }
@@ -95,68 +96,54 @@ function getDynamicCountryCenter(countryName: string): [number, number] {
   } catch (e) {
     console.error('[Geocoding] Failed to dynamically calculate center:', e);
   }
-  return [0, 0]; // Fallback if data is missing
+  return [0, 0]; 
 }
 
 export async function parseSrtWithGemini(inputContent: string): Promise<GeneratedTimeline> {
   const promptLower = inputContent.toLowerCase().trim();
 
-  // ------------------------------------------------------------------------
-  // 🚀 TIER 1: ZERO-COST FAST PARSER
-  // ------------------------------------------------------------------------
   const attackMatch = promptLower.match(/(.+?)\s+(?:invades|invading|attacks|attacking|captures|annexes|strikes)\s+(.+)/i);
   
   if (attackMatch) {
-    console.log('\n[FAST PARSER] Detected standard conflict prompt. Bypassing Gemini (Cost: $0).');
-    
+    console.log('\n[FAST PARSER] Detected standard conflict prompt. Bypassing AI compute.');
     const invader = attackMatch[1].trim();
     const target = attackMatch[2].replace(/but.*$/i, '').trim();
-
-    // Dynamically calculate camera center for ANY country
     const [centerLng, centerLat] = getDynamicCountryCenter(target);
 
     return {
       title: `${invader} Tactical Offensive on ${target}`,
       totalFrames: 300,
       cameraKeyframes: [
-        { frame: 0, lng: centerLng, lat: centerLat - 3, zoom: 4.2, pitch: 25 },
-        { frame: 300, lng: centerLng, lat: centerLat, zoom: 5.5, pitch: 45 }
+        { frame: 0, lng: centerLng, lat: centerLat - 5, zoom: 2.5, pitch: 10 },
+        { frame: 300, lng: centerLng, lat: centerLat, zoom: 4.8, pitch: 45 }
       ],
       highlightCountries: [
-        { name: invader, startFrame: 0, color: "#991b1b", isPrimary: true, revealStyle: "flicker" },
-        { name: target, startFrame: 0, color: "#1e3a8a", isPrimary: false, revealStyle: "flicker" }
+        { name: invader, startFrame: 0, color: "#ef4444", isPrimary: true, revealStyle: "ink", blendMode: "screen", enableGlow: true },
+        { name: target, startFrame: 0, color: "#3b82f6", isPrimary: false, revealStyle: "fade", blendMode: "screen", enableGlow: true }
       ],
       takeovers: [
-        { 
-          invader: invader, 
-          target: target, 
-          startFrame: 45, 
-          duration: 180, 
-          color: "#991b1b", 
-          origin: [centerLng, centerLat] 
-        }
+        { invader: invader, target: target, startFrame: 45, duration: 180, color: "#ef4444", origin: [centerLng, centerLat] }
       ],
-      blasts: [],
       arrows: [],
-      labels: []
+      labels: [{ text: "Conflict Zone", lat: centerLat, lng: centerLng, startFrame: 30, duration: 250, glow: true, pinned: true }]
     };
   }
 
-  // ------------------------------------------------------------------------
-  // 🤖 TIER 2: GEMINI API FALLBACK FOR COMPLEX PROMPTS
-  // ------------------------------------------------------------------------
-  console.log(`\n[Gemini AI] Complex prompt detected. Sending to Google...`);
+  console.log(`\n[Gemini AI] Orchestrating cinematic sequence...`);
 
   const prompt = `
-You are a highly strict geopolitical data generator.
-Convert this prompt into a timeline: "${inputContent}"
+You are the lead motion graphics director for a high-end geopolitical short-form content channel. 
+Convert this narrative into a precise 300-frame (10-second) cinematic timeline: "${inputContent}"
 
-RULES:
-1. "totalFrames" MUST be 300.
-2. If the prompt implies war, invasion, or capture, YOU MUST populate the "takeovers" array.
-3. The "takeovers" array MUST have "duration": 180.
-4. The invader and target MUST both be listed in "highlightCountries".
-5. Automatically generate "labels" to tag cities, borders, or regions mentioned. Ensure duration is at least 150.
+CRITICAL DIRECTIVES:
+1. THE CAMERA ENGINE: Simulate a dynamic 3D camera move. Frame 0 should start wide (zoom 1.5 - 3, pitch 0-15). Frame 300 should push in tightly on the primary action area (zoom 4 - 6, pitch 40-55). Estimate the real-world Geographic Longitude and Latitude for these keyframes.
+2. TIMING: Total frames is strictly 300.
+3. ENTITIES & RIVERS: Highlight relevant countries, global states, or rivers. 
+   - For Countries/States: Set 'revealStyle' to "ink" or "fade".
+   - For Rivers (e.g., "Nile River", "Ganges"): You MUST set 'revealStyle' to "trim". Our dynamic MapLibre engine will automatically intercept the name, fetch the water body GeoJSON, and animate a trim-path stroke along the river centerline.
+4. CONFLICT: If the prompt describes war or invasion, completely populate the "takeovers" array. Duration MUST be between 120 and 180.
+5. LOGISTICS: For trade routes or troop movements, populate the "arrows" array.
+6. TYPOGRAPHY: Drop 1 or 2 "labels" on key capitals or borders. Estimate the lat/lng accurately.
 `;
 
   const response = await ai.models.generateContent({
@@ -193,7 +180,7 @@ RULES:
                 endFrame: { type: Type.INTEGER },
                 color: { type: Type.STRING },
                 isPrimary: { type: Type.BOOLEAN },
-                revealStyle: { type: Type.STRING },
+                revealStyle: { type: Type.STRING, description: "Use 'ink' or 'fade' for countries, and STRICTLY use 'trim' for rivers." },
               },
               required: ['name', 'startFrame', 'color', 'isPrimary', 'revealStyle'],
             },
@@ -208,9 +195,8 @@ RULES:
                 startFrame: { type: Type.INTEGER },
                 duration: { type: Type.INTEGER },
                 color: { type: Type.STRING },
-                origin: { type: Type.ARRAY, items: { type: Type.NUMBER } },
               },
-              required: ['invader', 'target', 'startFrame', 'duration', 'color', 'origin'],
+              required: ['invader', 'target', 'startFrame', 'duration', 'color'],
             },
           },
           arrows: { 
@@ -218,17 +204,15 @@ RULES:
             items: { 
               type: Type.OBJECT,
               properties: {
-                frame: { type: Type.INTEGER }
-              }
-            } 
-          },
-          blasts: { 
-            type: Type.ARRAY, 
-            items: { 
-              type: Type.OBJECT,
-              properties: {
-                frame: { type: Type.INTEGER }
-              }
+                id: { type: Type.STRING },
+                type: { type: Type.STRING },
+                sourceName: { type: Type.STRING },
+                targetName: { type: Type.STRING },
+                startFrame: { type: Type.INTEGER },
+                duration: { type: Type.INTEGER },
+                color: { type: Type.STRING }
+              },
+              required: ['type', 'startFrame', 'duration', 'color']
             } 
           },
           labels: { 
@@ -242,7 +226,8 @@ RULES:
                 startFrame: { type: Type.INTEGER },
                 duration: { type: Type.INTEGER },
                 pinned: { type: Type.BOOLEAN }
-              }
+              },
+              required: ['text', 'lat', 'lng', 'startFrame', 'duration']
             } 
           },
         },
@@ -256,36 +241,24 @@ RULES:
 
   let timeline = JSON.parse(text) as GeneratedTimeline;
 
-  // 🔥 ULTIMATE JAVASCRIPT CHOKEHOLD 🔥
-  const isConflict = promptLower.includes('invade') || promptLower.includes('capture') || promptLower.includes('attack');
+  const isConflict = promptLower.includes('invade') || promptLower.includes('capture') || promptLower.includes('attack') || promptLower.includes('war');
 
   if (isConflict && (!timeline.takeovers || timeline.takeovers.length === 0)) {
     console.log("🔥 AI HALLUCINATED EMPTY TAKEOVERS! Hijacking JSON and forcing injection...");
-    
     const words = inputContent.split(' ').map(w => w.trim());
     const attacker = words[0]; 
     const target = words[words.length - 1]; 
-    
     const [centerLng, centerLat] = getDynamicCountryCenter(target);
 
     timeline.totalFrames = 300; 
     timeline.takeovers = [{
-      invader: attacker,
-      target: target,
-      startFrame: 45,
-      duration: 180, 
-      color: "#991b1b", 
-      origin: [centerLng, centerLat] 
+      invader: attacker, target: target, startFrame: 45, duration: 180, color: "#ef4444", origin: [centerLng, centerLat] 
     }];
 
     timeline.highlightCountries = [
-      { name: attacker, startFrame: 0, color: "#991b1b", isPrimary: true, revealStyle: "ink" },
-      { name: target, startFrame: 0, color: "#1e3a8a", isPrimary: false, revealStyle: "ink" }
+      { name: attacker, startFrame: 0, color: "#ef4444", isPrimary: true, revealStyle: "ink" },
+      { name: target, startFrame: 0, color: "#3b82f6", isPrimary: false, revealStyle: "ink" }
     ];
-  }
-
-  if (timeline.takeovers && timeline.takeovers.length > 0) {
-    timeline.arrows = [];
   }
 
   return timeline;
