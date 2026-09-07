@@ -64605,7 +64605,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     states: "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson"
   };
   var dynamicGeoCache = /* @__PURE__ */ new Map();
-  var MapAnimation = ({ timeline, mapStyle = "dark-documentary" }) => {
+  var MapAnimation = ({ timeline, isLiveEditMode = false, mapStyle = "dark-documentary" }) => {
     const mapContainer = (0, import_react121.useRef)(null);
     const blendOverlayRef = (0, import_react121.useRef)(null);
     const uiOverlayRef = (0, import_react121.useRef)(null);
@@ -64660,18 +64660,16 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       if (frame >= kfs[kfs.length - 1].frame) return kfs[kfs.length - 1];
       for (let i2 = 0; i2 < kfs.length - 1; i2++) {
         if (frame >= kfs[i2].frame && frame < kfs[i2 + 1].frame) {
-          const kf1 = kfs[i2];
-          const kf22 = kfs[i2 + 1];
-          const duration = kf22.frame - kf1.frame;
-          const rawProgress = (frame - kf1.frame) / duration;
-          const panEase = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
-          const zoomEase = Easing.bezier(0.33, 1, 0.68, 1)(rawProgress);
+          const duration = kfs[i2 + 1].frame - kfs[i2].frame;
+          const rawProgress = (frame - kfs[i2].frame) / duration;
+          const panEase = Easing.bezier(0.33, 1, 0.68, 1)(rawProgress);
+          const zoomEase = Easing.bezier(0.65, 0, 0.35, 1)(rawProgress);
           return {
-            lng: kf1.lng + (kf22.lng - kf1.lng) * panEase,
-            lat: kf1.lat + (kf22.lat - kf1.lat) * panEase,
-            zoom: kf1.zoom + (kf22.zoom - kf1.zoom) * zoomEase,
-            pitch: kf1.pitch + (kf22.pitch - kf1.pitch) * zoomEase,
-            bearing: kf1.bearing + (kf22.bearing - kf1.bearing) * panEase
+            lng: kfs[i2].lng + (kfs[i2 + 1].lng - kfs[i2].lng) * panEase,
+            lat: kfs[i2].lat + (kfs[i2 + 1].lat - kfs[i2].lat) * panEase,
+            zoom: kfs[i2].zoom + (kfs[i2 + 1].zoom - kfs[i2].zoom) * zoomEase,
+            pitch: kfs[i2].pitch + (kfs[i2 + 1].pitch - kfs[i2].pitch) * zoomEase,
+            bearing: kfs[i2].bearing + (kfs[i2 + 1].bearing - kfs[i2].bearing) * panEase
           };
         }
       }
@@ -64681,22 +64679,23 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const getStyleDef = (styleId) => {
       if (styleId === "satellite") return { version: 8, sources: { raster_tiles: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 } }, layers: [{ id: "base-layer", type: "raster", source: "raster_tiles", paint: { "raster-saturation": -0.2, "raster-contrast": 0.1 } }] };
       if (styleId === "natural-earth") return { version: 8, sources: { raster_tiles: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 } }, layers: [{ id: "base-layer", type: "raster", source: "raster_tiles" }] };
-      if (styleId === "light") return { version: 8, sources: { "carto-light": { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png"], tileSize: 256 } }, layers: [{ id: "carto-light-layer", type: "raster", source: "carto-light" }] };
+      if (styleId === "light") return { version: 8, sources: { raster_tiles: { type: "raster", tiles: ["https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 } }, layers: [{ id: "base-layer", type: "raster", source: "raster_tiles" }] };
       return {
         version: 8,
-        sources: { "carto-dark": { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png"], tileSize: 256 } },
-        layers: [{ id: "carto-dark-layer", type: "raster", source: "carto-dark", paint: { "raster-saturation": -1, "raster-contrast": 0.35, "raster-brightness-max": 0.7, "raster-brightness-min": 0.05 } }]
+        sources: { raster_tiles: { type: "raster", tiles: ["https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 } },
+        layers: [{ id: "base-layer", type: "raster", source: "raster_tiles", paint: { "raster-contrast": 0.2, "raster-brightness-max": 0.8 } }]
       };
     };
     (0, import_react121.useLayoutEffect)(() => {
       if (!mapContainer.current) return;
+      const isMobileEdit = isLiveEditMode && typeof window !== "undefined" && window.innerWidth < 1024;
       const map = new Ap2({
         container: mapContainer.current,
         fadeDuration: 0,
         maxTileCacheSize: 1e4,
         preserveDrawingBuffer: true,
         renderWorldCopies: false,
-        pixelRatio: isRendering ? 2 : 1,
+        pixelRatio: isMobileEdit ? 1 : isRendering ? 2 : 1,
         style: getStyleDef(mapStyle),
         center: [currentCam.lng, currentCam.lat],
         zoom: currentCam.zoom,
@@ -64712,7 +64711,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         continueRender(initialHandle);
       });
       return () => map.remove();
-    }, [mapStyle]);
+    }, [mapStyle, isLiveEditMode]);
     (0, import_react121.useLayoutEffect)(() => {
       if (!mapRef.current || !mapLoaded) return;
       let tileLockHandle = null;
@@ -64795,8 +64794,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       uiCtx.clearRect(0, 0, width, height);
       uiCtx.lineJoin = "round";
       uiCtx.lineCap = "round";
+      const isMobileEdit = isLiveEditMode && typeof window !== "undefined" && window.innerWidth < 1024;
       rawCountries.forEach((entity) => {
-        if (frame < (entity.startFrame || 0)) return;
+        const startF = entity.startFrame || 0;
+        const endF = entity.endFrame || totalFrames + 100;
+        if (frame < startF || frame > endF) return;
         if (takeovers.some((t3) => (t3.target || "").toLowerCase() === (entity.name || entity.country || "").toLowerCase() && frame >= (t3.startFrame || 0))) return;
         const eName = entity.name || entity.country || entity.state;
         const { path, center, isLine } = getGeometryFromSource(eName, [world_default, ...extraData]);
@@ -64804,23 +64806,30 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const p2d = new Path2D(path);
         blendCtx.save();
         blendCtx.globalCompositeOperation = entity.blendMode || "screen";
-        const animProgress = Math.min(1, Math.max(0, (frame - (entity.startFrame || 0)) / 45));
-        const activeColor = entity.color || "#3b82f6";
-        if (animProgress < 1) {
-          if (entity.revealStyle === "fade") {
-            blendCtx.globalAlpha *= animProgress;
-          } else if (entity.revealStyle === "ink") {
-            const cx2 = center ? mapRef.current.project(center).x : width / 2;
-            const cy2 = center ? mapRef.current.project(center).y : height / 2;
-            const maxRad = Math.max(width, height) * 1.5;
-            blendCtx.beginPath();
-            blendCtx.arc(cx2, cy2, maxRad * Easing.bezier(0.25, 1, 0.5, 1)(animProgress), 0, Math.PI * 2);
-            blendCtx.clip();
-          }
+        let masterAlpha = 1;
+        const fadeInDuration = 45;
+        const fadeOutDuration = 30;
+        if (frame < startF + fadeInDuration) {
+          masterAlpha = (frame - startF) / fadeInDuration;
+        } else if (frame > endF - fadeOutDuration) {
+          masterAlpha = Math.max(0, (endF - frame) / fadeOutDuration);
         }
+        if (entity.revealStyle === "fade") {
+          blendCtx.globalAlpha = masterAlpha;
+        } else if (entity.revealStyle === "ink") {
+          const cx2 = center ? mapRef.current.project(center).x : width / 2;
+          const cy2 = center ? mapRef.current.project(center).y : height / 2;
+          const maxRad = Math.max(width, height) * 1.5;
+          blendCtx.beginPath();
+          blendCtx.arc(cx2, cy2, maxRad * Easing.bezier(0.25, 1, 0.5, 1)(Math.min(1, (frame - startF) / fadeInDuration)), 0, Math.PI * 2);
+          blendCtx.clip();
+          blendCtx.globalAlpha = frame > endF - fadeOutDuration ? masterAlpha : 1;
+        }
+        const activeColor = entity.color || "#3b82f6";
         if (isLine) {
-          if (entity.enableGlow !== false) {
+          if (entity.enableGlow !== false && !isMobileEdit) {
             blendCtx.save();
+            blendCtx.globalAlpha = masterAlpha;
             blendCtx.shadowColor = activeColor;
             blendCtx.shadowBlur = entity.glowIntensity || 20;
             blendCtx.lineWidth = (entity.strokeWidth || 4) + 4;
@@ -64828,17 +64837,19 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             blendCtx.stroke(p2d);
             blendCtx.restore();
           }
-          if (entity.revealStyle === "trim" && animProgress < 1) {
+          if (entity.revealStyle === "trim" && frame < startF + fadeInDuration) {
             const approxLen = 4e3;
             blendCtx.setLineDash([approxLen]);
-            blendCtx.lineDashOffset = approxLen - animProgress * approxLen;
+            blendCtx.lineDashOffset = approxLen - (frame - startF) / fadeInDuration * approxLen;
           }
+          blendCtx.globalAlpha = masterAlpha;
           blendCtx.lineWidth = entity.strokeWidth || 4;
           blendCtx.strokeStyle = entity.strokeColor || activeColor;
           blendCtx.stroke(p2d);
         } else {
-          if (entity.dropShadow !== false) {
+          if (entity.dropShadow !== false && !isMobileEdit) {
             blendCtx.save();
+            blendCtx.globalAlpha = masterAlpha;
             blendCtx.translate(0, 15);
             blendCtx.shadowColor = "rgba(0,0,0,0.95)";
             blendCtx.shadowBlur = 15;
@@ -64846,16 +64857,16 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             blendCtx.fill(p2d);
             blendCtx.restore();
           }
-          if (entity.enableGlow !== false) {
+          if (entity.enableGlow !== false && !isMobileEdit) {
             blendCtx.save();
             blendCtx.shadowColor = activeColor;
             blendCtx.shadowBlur = entity.glowIntensity !== void 0 ? entity.glowIntensity : 20;
-            blendCtx.globalAlpha = 0.55;
+            blendCtx.globalAlpha = 0.55 * masterAlpha;
             blendCtx.fillStyle = activeColor;
             blendCtx.fill(p2d);
             blendCtx.restore();
           }
-          blendCtx.globalAlpha = 0.9;
+          blendCtx.globalAlpha = 0.9 * masterAlpha;
           blendCtx.fillStyle = activeColor;
           blendCtx.fill(p2d);
           if (entity.strokeWidth) {
@@ -64913,8 +64924,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           const t4 = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
           uiCtx.strokeStyle = arrow.color || "#f59e0b";
           uiCtx.lineWidth = arrow.strokeWidth || 4;
-          uiCtx.shadowColor = "rgba(0,0,0,0.8)";
-          uiCtx.shadowBlur = 10;
+          if (!isMobileEdit) {
+            uiCtx.shadowColor = "rgba(0,0,0,0.8)";
+            uiCtx.shadowBlur = 10;
+          }
           uiCtx.stroke();
           uiCtx.restore();
           return;
@@ -64937,9 +64950,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const p2d = new Path2D(pathD);
         const t3 = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
         uiCtx.save();
-        uiCtx.shadowColor = "#000000";
-        uiCtx.shadowBlur = 12;
-        uiCtx.shadowOffsetY = 10;
+        if (!isMobileEdit) {
+          uiCtx.shadowColor = "#000000";
+          uiCtx.shadowBlur = 12;
+          uiCtx.shadowOffsetY = 10;
+        }
         const approxLen = dist * 1.2;
         uiCtx.setLineDash([approxLen]);
         uiCtx.lineDashOffset = approxLen - t3 * approxLen;
@@ -64965,13 +64980,21 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         uiCtx.restore();
       });
       labels.forEach((l2) => {
-        if (frame < (l2.startFrame || 0)) return;
-        if (frame > l2.startFrame + (l2.duration || 150) && !l2.pinned) return;
+        const lStart = l2.startFrame || 0;
+        const lDur = l2.duration || 150;
+        const lEnd = lStart + lDur;
+        if (frame < lStart) return;
+        if (!l2.pinned && frame > lEnd) return;
         const p2 = projectClamped(mapRef.current, [l2.lng, l2.lat]);
         if (!p2) return;
+        let lAlpha = 1;
+        const lFade = 15;
+        if (frame < lStart + lFade) lAlpha = (frame - lStart) / lFade;
+        if (!l2.pinned && frame > lEnd - lFade) lAlpha = Math.max(0, (lEnd - frame) / lFade);
         uiCtx.save();
+        uiCtx.globalAlpha = lAlpha;
         uiCtx.translate(p2.x, p2.y - 10);
-        if (l2.glow) {
+        if (l2.glow && !isMobileEdit) {
           uiCtx.shadowColor = "#38bdf8";
           uiCtx.shadowBlur = 20;
         }
@@ -64990,7 +65013,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         uiCtx.fillText(l2.text, 0, -2);
         uiCtx.restore();
       });
-    }, [frame, currentCam, mapLoaded, rawCountries, takeovers, arrows, labels, extraData]);
+    }, [frame, currentCam, mapLoaded, rawCountries, takeovers, arrows, labels, extraData, isLiveEditMode]);
     return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(AbsoluteFill, { style: { backgroundColor: "#040711", overflow: "hidden" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { ref: mapContainer, style: { width: `${width}px`, height: `${height}px`, position: "absolute", top: 0, left: 0 } }),
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)", pointerEvents: "none", zIndex: 10 } }),
@@ -65502,17 +65525,17 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       mapStyle
     }), [dynamicTimeline, isLiveEdit, mapStyle]);
     const panelStyle = {
-      background: "rgba(20, 20, 24, 0.55)",
+      background: "rgba(20, 20, 24, 0.75)",
       backdropFilter: "blur(30px) saturate(180%)",
       WebkitBackdropFilter: "blur(30px) saturate(180%)",
       border: "1px solid rgba(255, 255, 255, 0.15)",
-      boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)"
+      boxShadow: "0 30px 60px rgba(0,0,0,0.6)"
     };
     const BranchHeader = ({ title, branchKey }) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("button", { onClick: () => toggleBranch(branchKey), style: { display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "rgba(255,255,255,0.06)", borderRadius: "8px", color: "#fff", border: "1px solid rgba(255,255,255,0.05)", cursor: "pointer", fontSize: "11px", fontWeight: 700, width: "100%", letterSpacing: "0.05em" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { children: title }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { children: openBranches[branchKey] ? "\u25BC" : "\u25B6" })
     ] });
-    const leftPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [
+    const leftPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", width: "100%" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(BranchHeader, { title: "\u{1F30D} SCENE ENTITIES", branchKey: "entities" }),
         openBranches.entities && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: "8px", background: "rgba(0,0,0,0.3)", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "6px" }, children: [
@@ -65534,20 +65557,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                   onKeyDown: (e63) => e63.key === "Enter" && addCountryMap()
                 }
               ),
-              showSuggestions && filteredSuggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "100%", left: 0, right: 0, background: "#111827", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", zIndex: 999, marginTop: "4px", overflow: "hidden", boxShadow: "0 10px 25px rgba(0,0,0,0.8)" }, children: filteredSuggestions.map((s2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-                "div",
-                {
-                  onClick: () => {
-                    setNewCountrySearch(s2);
-                    setShowSuggestions(false);
-                  },
-                  style: { padding: "8px 12px", fontSize: "11px", color: "#fff", cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)" },
-                  onMouseEnter: (e63) => e63.currentTarget.style.backgroundColor = "rgba(56,189,248,0.2)",
-                  onMouseLeave: (e63) => e63.currentTarget.style.backgroundColor = "transparent",
-                  children: s2
-                },
-                s2
-              )) })
+              showSuggestions && filteredSuggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "100%", left: 0, right: 0, background: "#111827", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", zIndex: 999, marginTop: "4px", overflow: "hidden", boxShadow: "0 10px 25px rgba(0,0,0,0.8)" }, children: filteredSuggestions.map((s2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => {
+                setNewCountrySearch(s2);
+                setShowSuggestions(false);
+              }, style: { padding: "8px 12px", fontSize: "11px", color: "#fff", cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)" }, children: s2 }, s2)) })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: addCountryMap, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", padding: "0 10px", fontWeight: "bold", cursor: "pointer" }, children: "+" })
           ] }),
@@ -65567,24 +65580,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(BranchHeader, { title: "\u{1F4DD} TYPOGRAPHY", branchKey: "typography" }),
         openBranches.typography && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: "8px", background: "rgba(0,0,0,0.3)", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "6px" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: labelText, onChange: (e63) => setLabelText(e63.target.value), placeholder: "Label Text...", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "11px", padding: "8px", borderRadius: "8px", outline: "none" } }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px", alignItems: "center", justifyContent: "space-between" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px", alignItems: "center" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "TXT" }),
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: labelColor, onChange: (e63) => setLabelColor(e63.target.value), style: { width: "18px", height: "18px", border: "none", background: "transparent", cursor: "pointer" } })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px", alignItems: "center" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "BG" }),
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: labelBg, onChange: (e63) => setLabelBg(e63.target.value), style: { width: "18px", height: "18px", border: "none", background: "transparent", cursor: "pointer" } })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px", alignItems: "center" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "SIZE" }),
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "12", max: "72", value: labelSize, onChange: (e63) => setLabelSize(Number(e63.target.value)), style: { width: "40px", accentColor: "#38bdf8" } })
-            ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setLabelGlow(!labelGlow), style: { flex: 1, background: labelGlow ? "#38bdf8" : "rgba(255,255,255,0.05)", color: labelGlow ? "#000" : "#8e8e93", border: "none", borderRadius: "6px", padding: "4px", fontSize: "9px", fontWeight: 700, cursor: "pointer" }, children: labelGlow ? "GLOW ON" : "GLOW OFF" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setLabelPinned(!labelPinned), style: { flex: 1, background: labelPinned ? "#10b981" : "rgba(255,255,255,0.05)", color: labelPinned ? "#000" : "#8e8e93", border: "none", borderRadius: "6px", padding: "4px", fontSize: "9px", fontWeight: 700, cursor: "pointer" }, children: labelPinned ? "\u{1F4CC} PINNED" : "FLOAT" })
-          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => {
             if (isLiveEdit) dropLabel();
           }, style: { background: isLiveEdit ? "rgba(56, 189, 248, 0.15)" : "rgba(255,255,255,0.05)", color: isLiveEdit ? "#38bdf8" : "#8e8e93", border: `1px solid ${isLiveEdit ? "rgba(56,189,248,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: "8px", padding: "8px", fontSize: "11px", fontWeight: 700, cursor: isLiveEdit ? "pointer" : "not-allowed" }, children: isLiveEdit ? "\u{1F4CD} Drop Label at Crosshair" : "Enter Live Edit to Drop" })
@@ -65593,394 +65588,71 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(BranchHeader, { title: "\u{1F3A8} MAP STYLE", branchKey: "mapStyle" }),
         openBranches.mapStyle && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { padding: "8px", background: "rgba(0,0,0,0.3)", borderRadius: "6px", display: "flex", gap: "6px", flexWrap: "wrap" }, children: ["dark-documentary", "satellite", "natural-earth", "light"].map((style2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setMapStyle(style2), style: { flex: "1 1 45%", background: mapStyle === style2 ? "rgba(56, 189, 248, 0.3)" : "rgba(255,255,255,0.05)", color: "#fff", border: mapStyle === style2 ? "1px solid #38bdf8" : "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", padding: "6px", fontSize: "10px", cursor: "pointer", textTransform: "capitalize" }, children: style2.replace("-", " ") }, style2)) })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(BranchHeader, { title: "\u270F\uFE0F VECTORS & ROUTES", branchKey: "vectors" }),
-        openBranches.vectors && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { padding: "8px", background: "rgba(0,0,0,0.3)", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "6px" }, children: !pathStartCoord ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => {
-          if (isLiveEdit) setPathStartCoord([targetLng, targetLat]);
-        }, style: { background: isLiveEdit ? "rgba(56, 189, 248, 0.15)" : "rgba(255,255,255,0.05)", color: isLiveEdit ? "#38bdf8" : "#8e8e93", border: `1px solid ${isLiveEdit ? "rgba(56,189,248,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: "8px", padding: "8px", fontSize: "11px", fontWeight: 700, cursor: isLiveEdit ? "pointer" : "not-allowed" }, children: isLiveEdit ? "\u{1F4CD} 1. Lock Start at Crosshair" : "Enter Live Edit to plot vectors" }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "6px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "10px", color: "#38bdf8" }, children: "Drag map to target, then fire:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => addCustomVector("missile"), style: { flex: 1, background: "#ef4444", border: "none", borderRadius: "8px", padding: "6px", color: "#fff", fontSize: "10px", fontWeight: 700, cursor: "pointer" }, children: "\u{1F680} Missile" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => addCustomVector("arrow"), style: { flex: 1, background: "#3b82f6", border: "none", borderRadius: "8px", padding: "6px", color: "#fff", fontSize: "10px", fontWeight: 700, cursor: "pointer" }, children: "\u{1F3F9} Arrow" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setPathStartCoord(null), style: { background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "8px", padding: "6px 10px", color: "#fff", fontSize: "10px", fontWeight: 600, cursor: "pointer" }, children: "\u2715" })
-          ] })
-        ] }) })
-      ] }),
-      (timeline?.assets?.length > 0 || timeline?.arrows?.some((a4) => a4.id) || timeline?.takeovers?.some((t3) => t3.id) || timeline?.labels?.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", width: "100%", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "10px" }, children: "ACTIVE ASSETS" }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "6px" }, children: [
-          timeline.labels?.map((l2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "6px 12px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "11px", color: "#fff" }, children: [
-              "\u{1F4DD} ",
-              l2.text
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => deleteAsset(l2.id), style: { background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "12px" }, children: "\u2715" })
-          ] }, l2.id)),
-          timeline.arrows?.filter((a4) => a4.id).map((a4) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "6px 12px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "11px", color: "#fff" }, children: a4.type === "missile" ? "\u{1F680} Missile" : "\u{1F3F9} Arrow" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => deleteAsset(a4.id), style: { background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "12px" }, children: "\u2715" })
-          ] }, a4.id)),
-          timeline.takeovers?.filter((t3) => t3.id).map((t3) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(239,68,68,0.1)", borderRadius: "8px", padding: "6px 12px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "11px", color: "#ef4444" }, children: [
-              "\u2694\uFE0F ",
-              t3.attacker,
-              " \u203A ",
-              t3.target
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => deleteAsset(t3.id), style: { background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "12px" }, children: "\u2715" })
-          ] }, t3.id))
-        ] })
       ] })
     ] });
-    const rightPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
+    const rightPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", width: "100%" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleHDLocalExport, disabled: isPreloading || isExporting, style: { background: isExporting ? "#f59e0b" : "#a855f7", color: "#fff", border: "none", borderRadius: "10px", width: "100%", height: "34px", fontSize: "11px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer" }, children: isExporting ? "\u23F3 Rendering HD MP4..." : "\u{1F5A5}\uFE0F True HD Server Export" }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleFinalizeCache, disabled: isPreloading || isExporting, style: { flex: 1, background: isPreloading ? "#f59e0b" : "#3b82f6", color: "#fff", border: "none", borderRadius: "10px", height: "38px", fontSize: "10px", fontWeight: 800, cursor: isPreloading ? "wait" : "pointer" }, children: isPreloading ? "\u23F3 Preloading..." : "\u{1F4E6} Finalize Cache" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleFastMobileExport, disabled: isExporting || isPreloading, style: { flex: 1, background: isExporting ? "#f59e0b" : "#10b981", color: "#000", border: "none", borderRadius: "10px", height: "38px", fontSize: "10px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer", boxShadow: "0 0 15px rgba(16,185,129,0.2)" }, children: isExporting ? `\u23F3 Compiling... ${exportProgress}%` : "\u{1F3A5} Mobile WebM Export" })
-        ] })
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleHDLocalExport, disabled: isPreloading || isExporting, style: { background: isExporting ? "#f59e0b" : "#a855f7", color: "#fff", border: "none", borderRadius: "10px", width: "100%", height: "34px", fontSize: "11px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer" }, children: "\u{1F5A5}\uFE0F True HD Server Export" }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleFastMobileExport, disabled: isExporting || isPreloading, style: { background: isExporting ? "#f59e0b" : "#10b981", color: "#000", border: "none", borderRadius: "10px", height: "38px", fontSize: "10px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer" }, children: "\u{1F3A5} Mobile WebM Export" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em" }, children: "CAMERA ENGINE" }),
-        isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setIsLiveEdit(false), style: { background: "transparent", color: "#8e8e93", border: "none", fontSize: "10px", cursor: "pointer" }, children: "\u2715 Close" })
-      ] }),
-      !isLiveEdit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: startLiveEdit, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", width: "100%", height: "38px", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 0 15px rgba(56,189,248,0.1)", marginTop: "10px" }, children: "\u{1F3AF} Enter Live Canvas Edit" }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: dropKeyframeLive, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "8px", padding: "8px", fontSize: "12px", fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 12px rgba(56,189,248,0.4)" }, children: "\u{1F4CD} Save Keyframe Here" }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px", maxHeight: "120px", overflowY: "auto" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "ACTIVE TIMELINE MARKERS:" }),
-          timeline?.cameraKeyframes?.map((kf3) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "4px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "10px", color: "#fff" }, children: [
-              "Frame: ",
-              Math.round(kf3.frame)
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => deleteSpecificKeyframe(kf3.frame), style: { background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "10px" }, children: "\u2715 Delete" })
-          ] }, kf3.frame))
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "PITCH TILT" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#38bdf8", fontWeight: 600 }, children: [
-            Math.round(targetPitch),
-            "\xB0"
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "60", step: "1", value: targetPitch, onChange: (e63) => setTargetPitch(Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "2px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "BEARING ROTATION" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#38bdf8", fontWeight: 600 }, children: [
-            Math.round(targetBearing),
-            "\xB0"
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "-180", max: "180", step: "1", value: targetBearing, onChange: (e63) => setTargetBearing(Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } })
-      ] }),
-      selectedEntity ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { fontSize: "9px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", paddingBottom: "2px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "8px" }, children: [
+      !isLiveEdit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: startLiveEdit, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", width: "100%", height: "38px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }, children: "\u{1F3AF} Enter Live Canvas Edit" }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: dropKeyframeLive, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "8px", padding: "8px", fontSize: "12px", fontWeight: 800, cursor: "pointer" }, children: "\u{1F4CD} Save Keyframe Here" }) }),
+      selectedEntity && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { fontSize: "9px", color: "#8e8e93", fontWeight: 700 }, children: [
           "STYLING: ",
           selectedEntity.toUpperCase()
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "REVEAL ANIMATION" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: timeline?.highlightCountries?.find((c4) => c4.name === selectedEntity)?.revealStyle || "fade", onChange: (e63) => updateEntityStyle("revealStyle", e63.target.value), style: { background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", outline: "none", fontSize: "10px", padding: "6px", cursor: "pointer" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "fade", children: "Fade In" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "ink", children: "Ink Bleed" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "trim", children: "River Trim" })
-          ] })
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: timeline?.highlightCountries?.find((c4) => c4.name === selectedEntity)?.revealStyle || "fade", onChange: (e63) => updateEntityStyle("revealStyle", e63.target.value), style: { background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", fontSize: "10px", padding: "6px" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "fade", children: "Fade" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "ink", children: "Ink" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "trim", children: "River Trim" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "FILL COLOR" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: activeColor, onChange: (e63) => updateEntityStyle("color", e63.target.value), style: { width: "24px", height: "24px", border: "none", borderRadius: "4px", cursor: "pointer", background: "transparent" } })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "GLOW" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => updateEntityStyle("enableGlow", !activeEnableGlow), style: { background: activeEnableGlow ? "#38bdf8" : "transparent", color: activeEnableGlow ? "#000" : "#8e8e93", border: "1px solid #38bdf8", borderRadius: "4px", padding: "2px 8px", fontSize: "9px", fontWeight: 700, cursor: "pointer" }, children: activeEnableGlow ? "ON" : "OFF" })
-        ] }),
-        activeEnableGlow && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "50", step: "1", value: activeGlowIntensity, onChange: (e63) => updateEntityStyle("glowIntensity", Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "DROP SHADOW" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => updateEntityStyle("dropShadow", !activeDropShadow), style: { background: activeDropShadow ? "#38bdf8" : "transparent", color: activeDropShadow ? "#000" : "#8e8e93", border: "1px solid #38bdf8", borderRadius: "4px", padding: "2px 8px", fontSize: "9px", fontWeight: 700, cursor: "pointer" }, children: activeDropShadow ? "ON" : "OFF" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "6px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: [
-            "STROKE (",
-            activeStrokeWidth,
-            "px)"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: activeStrokeColor, onChange: (e63) => updateEntityStyle("strokeColor", e63.target.value), style: { width: "20px", height: "20px", border: "none", borderRadius: "4px", cursor: "pointer", background: "transparent" } })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "10", step: "0.5", value: activeStrokeWidth, onChange: (e63) => updateEntityStyle("strokeWidth", Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "BLEND MODE" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: activeBlendMode, onChange: (e63) => updateEntityStyle("blendMode", e63.target.value), style: { background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", outline: "none", fontSize: "10px", padding: "6px", cursor: "pointer" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "normal", children: "Normal" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "screen", children: "Screen" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "multiply", children: "Multiply" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "overlay", children: "Overlay" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "add", children: "Color Dodge" })
-          ] })
-        ] })
-      ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "9px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", paddingBottom: "2px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "8px" }, children: "AUTO INJECTOR" }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px", flexDirection: "column" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityA, onChange: (e63) => setEntityA(e63.target.value), placeholder: "Origin Country", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "10px", padding: "8px", borderRadius: "6px", outline: "none" } }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityB, onChange: (e63) => setEntityB(e63.target.value), placeholder: "Target Country", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "10px", padding: "8px", borderRadius: "6px", outline: "none" } })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: eventType, onChange: (e63) => setEventType(e63.target.value), style: { width: "100%", background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", outline: "none", fontSize: "11px", padding: "8px", cursor: "pointer", marginTop: "2px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "arrow", children: "Diplomatic Line (Arrow)" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "takeover", children: "Conflict (Invasion Wave)" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: addStoryEvent, style: { background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "8px", width: "100%", height: "36px", fontSize: "11px", fontWeight: 700, cursor: "pointer", marginTop: "4px" }, children: "\uFF0B Inject Event" })
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: activeColor, onChange: (e63) => updateEntityStyle("color", e63.target.value), style: { width: "100%", height: "30px", border: "none", borderRadius: "4px", background: "transparent" } })
       ] })
     ] });
     return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { backgroundColor: "#000000", width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: "#ffffff", margin: 0, padding: 0, overflow: "hidden" }, children: [
-      status !== "editor" && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", width: "800px", height: "800px", background: "radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(148,163,184,0.02) 50%, transparent 70%)", borderRadius: "50%", zIndex: 1, pointerEvents: "none", filter: "blur(100px)" } }),
-      status === "generating" && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "absolute", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(30px)", zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { width: "60px", height: "60px", borderRadius: "50%", border: "3px solid rgba(56,189,248,0.2)", borderTopColor: "#38bdf8", animation: "spin 1s linear infinite" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "14px", letterSpacing: "0.2em", color: "#38bdf8", fontWeight: 600, animation: "pulse 1.5s infinite" }, children: "COMPILING..." })
-      ] }),
-      status !== "editor" && status !== "generating" && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", width: "90%", maxWidth: "680px", padding: "20px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("h1", { style: { fontSize: "42px", fontWeight: 700, letterSpacing: "-0.04em", marginBottom: "24px", textAlign: "center" }, children: "Cinematic Timeline Studio" }),
-        errorMessage && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: "100%", background: "rgba(245, 158, 11, 0.12)", border: "1px solid rgba(245, 158, 11, 0.35)", borderRadius: "16px", padding: "16px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "12px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "20px" }, children: "\u26A1" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "13px", color: "#fde047" }, children: errorMessage })
+      status !== "editor" && status !== "generating" && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "680px", padding: "16px", boxSizing: "border-box" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("h1", { style: { fontSize: isDesktop ? "42px" : "28px", fontWeight: 700, letterSpacing: "-0.04em", marginBottom: "24px", textAlign: "center" }, children: "Cinematic Timeline Studio" }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "8px", marginBottom: "24px", background: "rgba(255,255,255,0.06)", padding: "6px", borderRadius: "18px", width: "100%", maxWidth: "320px", boxSizing: "border-box" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setManualMode(false), style: { flex: 1, background: !manualMode ? "rgba(255,255,255,0.15)" : "transparent", color: !manualMode ? "#fff" : "#8e8e93", border: "none", borderRadius: "12px", padding: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }, children: "AI Directive" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setManualMode(true), style: { background: manualMode ? "rgba(255,255,255,0.15)" : "transparent", color: manualMode ? "#fff" : "#8e8e93", border: "none", borderRadius: "12px", padding: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }, children: "Manual Builder" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "8px", marginBottom: "24px", background: "rgba(255,255,255,0.06)", padding: "6px", borderRadius: "18px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setManualMode(false), style: { background: !manualMode ? "rgba(255,255,255,0.15)" : "transparent", color: !manualMode ? "#fff" : "#8e8e93", border: "none", borderRadius: "12px", padding: "10px 24px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }, children: "AI Directive" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setManualMode(true), style: { background: manualMode ? "rgba(255,255,255,0.15)" : "transparent", color: manualMode ? "#fff" : "#8e8e93", border: "none", borderRadius: "12px", padding: "10px 24px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }, children: "Manual Builder" })
-        ] }),
-        !manualMode ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("form", { onSubmit: handleSubmit, style: { display: "flex", flexDirection: "column", gap: "16px", width: "100%", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "32px", padding: "24px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("textarea", { placeholder: "e.g., North Korea and South Korea relations...", value: prompt, onChange: (e63) => setPrompt(e63.target.value), rows: 2, style: { width: "100%", background: "transparent", border: "none", color: "#ffffff", fontSize: "18px", outline: "none", resize: "none" }, required: true }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { type: "submit", style: { background: "#fff", color: "#000", border: "none", borderRadius: "20px", padding: "14px 28px", fontSize: "15px", fontWeight: 600, cursor: "pointer", alignSelf: "flex-end" }, children: "Generate \u2726" })
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "16px", width: "100%", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "32px", padding: "24px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "16px", flexDirection: "column" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityA, onChange: (e63) => setEntityA(e63.target.value), placeholder: "Primary Entity", style: { width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px", padding: "16px", color: "#fff", fontSize: "16px", outline: "none" } }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityB, onChange: (e63) => setEntityB(e63.target.value), placeholder: "Secondary Entity", style: { width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px", padding: "16px", color: "#fff", fontSize: "16px", outline: "none" } })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: initializeManualScene, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "20px", padding: "16px 28px", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginTop: "10px" }, children: "Launch Empty Studio \u{1F680}" })
+        !manualMode ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("form", { onSubmit: handleSubmit, style: { display: "flex", flexDirection: "column", gap: "16px", width: "100%", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "24px", padding: "16px", boxSizing: "border-box" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("textarea", { placeholder: "e.g., North Korea and South Korea relations...", value: prompt, onChange: (e63) => setPrompt(e63.target.value), rows: 3, style: { width: "100%", background: "transparent", border: "none", color: "#ffffff", fontSize: "16px", outline: "none", resize: "none", boxSizing: "border-box" }, required: true }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { type: "submit", style: { background: "#fff", color: "#000", border: "none", borderRadius: "16px", padding: "12px 24px", fontSize: "14px", fontWeight: 600, cursor: "pointer", alignSelf: "flex-end" }, children: "Generate \u2726" })
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "16px", width: "100%", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "24px", padding: "16px", boxSizing: "border-box" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityA, onChange: (e63) => setEntityA(e63.target.value), placeholder: "Primary Entity", style: { width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "14px", outline: "none", boxSizing: "border-box" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityB, onChange: (e63) => setEntityB(e63.target.value), placeholder: "Secondary Entity", style: { width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "14px", outline: "none", boxSizing: "border-box" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: initializeManualScene, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "16px", padding: "14px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }, children: "Launch Empty Studio \u{1F680}" })
         ] })
       ] }),
-      status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", paddingBottom: "100px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "32px", width: "100%", height: "100%" }, children: [
-          isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, display: "flex", flexDirection: "column", gap: "10px", borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: leftPanelJSX }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: {
-            height: "75vh",
-            minHeight: "500px",
-            maxHeight: "800px",
-            aspectRatio: "9/16",
-            borderRadius: "36px",
-            border: "4px solid #1a1a1a",
-            boxShadow: isLiveEdit ? "0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)" : "0 0 0 2px #38bdf8, 0 0 40px rgba(56,189,248,0.2)",
-            position: "relative",
-            overflow: "hidden",
-            background: "#040711",
-            flexShrink: 0,
-            zIndex: 10
-          }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { className: "remotion-player", style: { position: "absolute", inset: 0, zIndex: 10, width: "100%", height: "100%" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-              Player,
-              {
-                ref: playerRef,
-                component: MapAnimation,
-                inputProps: playerInputProps,
-                durationInFrames: videoDuration,
-                compositionWidth: 1080,
-                compositionHeight: 1920,
-                fps: 30,
-                controls: false,
-                loop: true,
-                autoPlay: true,
-                style: { width: "100%", height: "100%", display: "block", pointerEvents: isLiveEdit ? "auto" : "none" }
-              }
-            ),
-            isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(import_react122.default.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-              "div",
-              {
-                onContextMenu: (e63) => e63.preventDefault(),
-                onWheel: (e63) => setTargetZoom((z2) => Math.max(0.5, Math.min(15, z2 - e63.nativeEvent.deltaY * 5e-3))),
-                onPointerDown: (e63) => {
-                  activePointers.current.set(e63.pointerId, { x: e63.clientX, y: e63.clientY });
-                  e63.currentTarget.setPointerCapture(e63.pointerId);
-                  if (activePointers.current.size === 1) {
-                    setIsDragging(true);
-                    dragPos.current = { x: e63.clientX, y: e63.clientY };
-                  } else if (activePointers.current.size === 2) {
-                    setIsDragging(false);
-                    const pts = Array.from(activePointers.current.values());
-                    const dx2 = pts[0].x - pts[1].x;
-                    const dy2 = pts[0].y - pts[1].y;
-                    previousPinch.current = { dist: Math.hypot(dx2, dy2), angle: Math.atan2(dy2, dx2), centerY: (pts[0].y + pts[1].y) / 2, centerX: (pts[0].x + pts[1].x) / 2 };
-                  }
-                },
-                onPointerUp: (e63) => {
-                  activePointers.current.delete(e63.pointerId);
-                  e63.currentTarget.releasePointerCapture(e63.pointerId);
-                  if (activePointers.current.size < 2) previousPinch.current = null;
-                  if (activePointers.current.size === 0) setIsDragging(false);
-                  if (activePointers.current.size === 1) {
-                    const remainingPt = Array.from(activePointers.current.values())[0];
-                    dragPos.current = { x: remainingPt.x, y: remainingPt.y };
-                    setIsDragging(true);
-                  }
-                },
-                onPointerLeave: (e63) => {
-                  activePointers.current.delete(e63.pointerId);
-                  if (activePointers.current.size < 2) previousPinch.current = null;
-                  if (activePointers.current.size === 0) setIsDragging(false);
-                },
-                onPointerMove: (e63) => {
-                  if (!activePointers.current.has(e63.pointerId)) return;
-                  activePointers.current.set(e63.pointerId, { x: e63.clientX, y: e63.clientY });
-                  if (activePointers.current.size === 1 && isDragging && dragPos.current) {
-                    const dx2 = e63.clientX - dragPos.current.x;
-                    const dy2 = e63.clientY - dragPos.current.y;
-                    dragPos.current = { x: e63.clientX, y: e63.clientY };
-                    if (e63.buttons === 2 || e63.shiftKey || e63.altKey) {
-                      setTargetPitch((p2) => Math.max(0, Math.min(85, p2 - dy2 * 0.4)));
-                      setTargetBearing((b4) => b4 + dx2 * 0.8);
-                    } else {
-                      const panSens = 0.2 / Math.max(0.5, targetZoom);
-                      setTargetLng((l2) => l2 - dx2 * panSens);
-                      setTargetLat((l2) => Math.max(-85, Math.min(85, l2 + dy2 * panSens)));
-                    }
-                  } else if (activePointers.current.size === 2 && previousPinch.current) {
-                    const pts = Array.from(activePointers.current.values());
-                    const dx2 = pts[0].x - pts[1].x;
-                    const dy2 = pts[0].y - pts[1].y;
-                    const currentDist = Math.hypot(dx2, dy2);
-                    const currentAngle = Math.atan2(dy2, dx2);
-                    const currentCenterY = (pts[0].y + pts[1].y) / 2;
-                    const currentCenterX = (pts[0].x + pts[1].x) / 2;
-                    const distDiff = currentDist - previousPinch.current.dist;
-                    let angleDiff = currentAngle - previousPinch.current.angle;
-                    const yDiff = currentCenterY - previousPinch.current.centerY;
-                    const xDiff = currentCenterX - previousPinch.current.centerX;
-                    if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                    setTargetZoom((z2) => Math.max(0.5, Math.min(15, z2 + distDiff * 0.01)));
-                    setTargetBearing((b4) => b4 + angleDiff * 60);
-                    if (Math.abs(yDiff) > 2) setTargetPitch((p2) => Math.max(0, Math.min(85, p2 - yDiff * 0.4)));
-                    const panSens = 0.1 / Math.max(0.5, targetZoom);
-                    setTargetLng((l2) => l2 - xDiff * panSens);
-                    setTargetLat((l2) => Math.max(-85, Math.min(85, l2 + yDiff * panSens)));
-                    previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY, centerX: currentCenterX };
-                  }
-                },
-                style: { position: "absolute", inset: 0, cursor: isDragging ? "grabbing" : "grab", zIndex: 50, touchAction: "none" },
-                children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "28px", height: "28px", border: "1.5px solid rgba(56,189,248,0.5)", borderRadius: "50%", pointerEvents: "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "4px", height: "4px", background: pathStartCoord ? "#ef4444" : "#38bdf8", borderRadius: "50%" } }) })
-              }
-            ) })
-          ] }) }),
-          isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, display: "flex", flexDirection: "column", gap: "14px", borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: rightPanelJSX })
+      status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px", paddingBottom: "80px", boxSizing: "border-box" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: isDesktop ? "row" : "column", alignItems: "center", justifyContent: "center", gap: "16px", width: "100%", height: "100%", boxSizing: "border-box" }, children: [
+          isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: leftPanelJSX }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { height: isDesktop ? "75vh" : "60vh", aspectRatio: "9/16", borderRadius: "24px", border: "3px solid #1a1a1a", boxShadow: "0 0 0 2px #38bdf8, 0 0 30px rgba(56,189,248,0.2)", position: "relative", overflow: "hidden", background: "#040711", flexShrink: 0, zIndex: 10 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { className: "remotion-player", style: { position: "absolute", inset: 0, zIndex: 10, width: "100%", height: "100%" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(Player, { ref: playerRef, component: MapAnimation, inputProps: playerInputProps, durationInFrames: videoDuration, compositionWidth: 1080, compositionHeight: 1920, fps: 30, controls: false, loop: true, autoPlay: true, style: { width: "100%", height: "100%", display: "block", pointerEvents: isLiveEdit ? "auto" : "none" } }) }) }),
+          isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: rightPanelJSX })
         ] }),
-        !isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", left: leftPanelOpen ? "0px" : "-280px", top: "50%", transform: "translateY(-50%)", transition: "left 0.4s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "280px", maxHeight: "85vh", borderLeft: "none", borderRadius: "0 24px 24px 0", padding: "18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }, children: leftPanelJSX }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setLeftPanelOpen(!leftPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderLeft: "none", borderRadius: "0 16px 16px 0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "16px", marginLeft: "-1px" }, children: leftPanelOpen ? "\u25C0" : "\u25B6" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", right: rightPanelOpen ? "0px" : "-280px", top: "50%", transform: "translateY(-50%)", transition: "right 0.4s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setRightPanelOpen(!rightPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderRight: "none", borderRadius: "16px 0 0 16px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "16px", marginRight: "-1px" }, children: rightPanelOpen ? "\u25B6" : "\u25C0" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "280px", maxHeight: "85vh", borderRight: "none", borderRadius: "24px 0 0 24px", padding: "18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }, children: rightPanelJSX })
-          ] })
+        !isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "10px", marginTop: "10px", zIndex: 100 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setLeftPanelOpen(true), style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "8px", padding: "8px 12px", fontSize: "11px", fontWeight: 700 }, children: "\u{1F30D} Entities" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setRightPanelOpen(true), style: { background: "#a855f7", color: "#fff", border: "none", borderRadius: "8px", padding: "8px 12px", fontSize: "11px", fontWeight: 700 }, children: "\u2699\uFE0F Controls" })
         ] }),
-        isTimelineOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "fixed", bottom: isDesktop ? "20px" : "30px", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 120 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { ...panelStyle, width: "90%", maxWidth: "800px", display: "flex", alignItems: "center", gap: "16px", borderRadius: "24px", padding: "14px 24px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: togglePlay, style: { background: "#ffffff", color: "#000", border: "none", borderRadius: "50%", width: "36px", height: "36px", flexShrink: 0, cursor: "pointer", fontWeight: "bold", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 15px rgba(0,0,0,0.5)" }, children: isPlaying ? "\u275A\u275A" : "\u25B6" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "relative", flex: 1, height: "30px", display: "flex", alignItems: "center" }, children: [
-            timeline?.highlightCountries && timeline.highlightCountries.map((c4, i2) => {
-              const leftPercent = (c4.startFrame || 0) / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-                "div",
-                {
-                  title: `Entity Reveal: ${c4.name || c4.country}`,
-                  onMouseDown: (e63) => {
-                    const trackRect = e63.currentTarget.parentElement?.getBoundingClientRect();
-                    if (!trackRect) return;
-                    const handleMouseMove = (moveEvent) => {
-                      const xPos = moveEvent.clientX - trackRect.left;
-                      const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
-                      const newFrame = Math.round(percentage * videoDuration);
-                      setTimeline((prev) => {
-                        if (!prev) return prev;
-                        const updated = JSON.parse(JSON.stringify(prev));
-                        updated.highlightCountries[i2].startFrame = newFrame;
-                        return updated;
-                      });
-                    };
-                    const handleMouseUp = () => {
-                      window.removeEventListener("mousemove", handleMouseMove);
-                      window.removeEventListener("mouseup", handleMouseUp);
-                    };
-                    window.addEventListener("mousemove", handleMouseMove);
-                    window.addEventListener("mouseup", handleMouseUp);
-                  },
-                  style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", top: "22px", width: "8px", height: "8px", backgroundColor: c4.color || "#3b82f6", borderRadius: "2px", cursor: "ew-resize", zIndex: 16 }
-                },
-                `hc-drawer-${i2}`
-              );
-            }),
-            timeline?.takeovers && timeline.takeovers.map((t3, i2) => {
-              const leftPercent = (t3.startFrame || 0) / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { title: `Conflict: ${t3.attacker} > ${t3.target}`, style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", width: "4px", height: "14px", backgroundColor: "#ef4444", borderRadius: "2px", cursor: "help", zIndex: 15 } }, `inv-drawer-${i2}`);
-            }),
-            timeline?.arrows && timeline.arrows.map((a4, i2) => {
-              const leftPercent = (a4.startFrame || 0) / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { title: `${a4.type === "missile" ? "Missile" : "Arrow"}`, style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", width: "4px", height: "14px", backgroundColor: a4.type === "missile" ? "#ffffff" : "#3b82f6", borderRadius: "2px", cursor: "help", zIndex: 15 } }, `arr-drawer-${i2}`);
-            }),
-            timeline?.labels && timeline.labels.map((l2, i2) => {
-              const leftPercent = (l2.startFrame || 0) / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { title: `Label: ${l2.text}`, style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", width: "6px", height: "6px", backgroundColor: "#a855f7", borderRadius: "50%", cursor: "help", zIndex: 15 } }, `lbl-drawer-${i2}`);
-            }),
-            timeline?.cameraKeyframes && timeline.cameraKeyframes.map((kf3, i2) => {
-              const leftPercent = kf3.frame / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-                "div",
-                {
-                  onContextMenu: (e63) => {
-                    e63.preventDefault();
-                    setTimeline((prev) => {
-                      if (!prev) return prev;
-                      const updated = JSON.parse(JSON.stringify(prev));
-                      updated.cameraKeyframes = updated.cameraKeyframes.filter((k2) => k2.frame !== kf3.frame);
-                      return updated;
-                    });
-                  },
-                  onMouseDown: (e63) => {
-                    const trackRect = e63.currentTarget.parentElement?.getBoundingClientRect();
-                    if (!trackRect) return;
-                    const handleMouseMove = (moveEvent) => {
-                      const xPos = moveEvent.clientX - trackRect.left;
-                      const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
-                      const newFrame = Math.round(percentage * videoDuration);
-                      setTimeline((prev) => {
-                        if (!prev) return prev;
-                        const updated = JSON.parse(JSON.stringify(prev));
-                        const isCollision = updated.cameraKeyframes.some((k2, idx) => idx !== i2 && Math.abs(k2.frame - newFrame) < 15);
-                        if (isCollision) return prev;
-                        updated.cameraKeyframes[i2].frame = newFrame;
-                        updated.cameraKeyframes.sort((a4, b4) => a4.frame - b4.frame);
-                        return updated;
-                      });
-                    };
-                    const handleMouseUp = () => {
-                      window.removeEventListener("mousemove", handleMouseMove);
-                      window.removeEventListener("mouseup", handleMouseUp);
-                    };
-                    window.addEventListener("mousemove", handleMouseMove);
-                    window.addEventListener("mouseup", handleMouseUp);
-                  },
-                  style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translate(-50%, -50%) rotate(45deg)", top: "15px", width: "12px", height: "12px", backgroundColor: "#38bdf8", border: "2px solid #ffffff", cursor: "ew-resize", zIndex: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.8)" }
-                },
-                `kf-drawer-${i2}`
-              );
-            }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: videoDuration, step: "1", value: currentFrame, onChange: (e63) => {
-              const targetFrame = Number(e63.target.value);
-              setCurrentFrame(targetFrame);
-              playerRef.current?.seekTo(targetFrame);
-            }, style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer", position: "relative", zIndex: 6, background: "transparent" } })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "11px", color: "#fff", fontWeight: 600, letterSpacing: "0.05em", textShadow: "0 2px 8px rgba(0,0,0,0.8)", flexShrink: 0 }, children: [
+        !isDesktop && leftPanelOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", flexDirection: "column", padding: "20px", overflowY: "auto" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setLeftPanelOpen(false), style: { alignSelf: "flex-end", background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: "32px", height: "32px", fontWeight: "bold" }, children: "\u2715" }),
+          leftPanelJSX
+        ] }),
+        !isDesktop && rightPanelOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", flexDirection: "column", padding: "20px", overflowY: "auto" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setRightPanelOpen(false), style: { alignSelf: "flex-end", background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: "32px", height: "32px", fontWeight: "bold" }, children: "\u2715" }),
+          rightPanelJSX
+        ] }),
+        isTimelineOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "fixed", bottom: "10px", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 120, padding: "0 10px", boxSizing: "border-box" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { ...panelStyle, width: "100%", maxWidth: "800px", display: "flex", alignItems: "center", gap: "10px", borderRadius: "18px", padding: "10px 16px", boxSizing: "border-box" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: togglePlay, style: { background: "#ffffff", color: "#000", border: "none", borderRadius: "50%", width: "30px", height: "30px", flexShrink: 0, cursor: "pointer", fontWeight: "bold", fontSize: "12px" }, children: isPlaying ? "\u275A\u275A" : "\u25B6" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "relative", flex: 1, height: "30px", display: "flex", alignItems: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: videoDuration, step: "1", value: currentFrame, onChange: (e63) => {
+            const tf3 = Number(e63.target.value);
+            setCurrentFrame(tf3);
+            playerRef.current?.seekTo(tf3);
+          }, style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer", position: "relative", zIndex: 6, background: "transparent" } }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "10px", color: "#fff", fontWeight: 600, flexShrink: 0 }, children: [
             Math.round(currentFrame),
-            " / ",
+            "/",
             videoDuration
           ] })
         ] }) })

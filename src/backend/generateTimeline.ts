@@ -68,6 +68,39 @@ export interface GeneratedTimeline {
   labels?: LabelEvent[];
 }
 
+function getCountriesByContinent(continentName: string): string[] {
+  try {
+    const worldPath = path.resolve(__dirname, '..', 'world.json');
+    if (fs.existsSync(worldPath)) {
+      const data = JSON.parse(fs.readFileSync(worldPath, 'utf8'));
+      const norm = continentName.toLowerCase();
+      const matches: string[] = [];
+      
+      data.features.forEach((f: any) => {
+        const p = f.properties || {};
+        const cont = String(p.CONTINENT || p.continent || p.REGION || p.region || '').toLowerCase();
+        const name = p.ADMIN || p.admin || p.NAME || p.name;
+        
+        if (cont.includes(norm) && name) {
+          matches.push(name);
+        }
+      });
+      if (matches.length > 0) return matches;
+    }
+  } catch (e) {
+    console.error('[Region Engine] Failed to read world.json:', e);
+  }
+
+  if (continentName.toLowerCase().includes('asia')) {
+    return [
+      "India", "China", "Japan", "South Korea", "North Korea", "Vietnam", "Thailand", 
+      "Indonesia", "Philippines", "Malaysia", "Singapore", "Pakistan", "Bangladesh", 
+      "Saudi Arabia", "Iran", "Iraq", "Turkey", "Israel", "UAE", "Kazakhstan", "Mongolia"
+    ];
+  }
+  return [];
+}
+
 function getDynamicCountryCenter(countryName: string): [number, number] {
   try {
     const worldPath = path.resolve(__dirname, '..', 'world.json');
@@ -102,8 +135,47 @@ function getDynamicCountryCenter(countryName: string): [number, number] {
 export async function parseSrtWithGemini(inputContent: string): Promise<GeneratedTimeline> {
   const promptLower = inputContent.toLowerCase().trim();
 
+  if (promptLower.includes('all countries') || promptLower.includes('countries of') || promptLower.includes('countries in')) {
+    let targetContinent = 'asia';
+    if (promptLower.includes('europe')) targetContinent = 'europe';
+    else if (promptLower.includes('africa')) targetContinent = 'africa';
+    else if (promptLower.includes('americas') || promptLower.includes('america')) targetContinent = 'north america';
+
+    const countries = getCountriesByContinent(targetContinent);
+    if (countries.length > 0) {
+      console.log(`\n[PROGRAMMATIC ENGINE] Detected mass-region query for '${targetContinent}'. Generating ${countries.length} entities via code loop.`);
+      
+      const totalFrames = Math.max(300, countries.length * 15);
+      const highlightCountries = countries.map((country, index) => {
+        const startFrame = index * 12;
+        return {
+          name: country,
+          startFrame: startFrame,
+          endFrame: startFrame + 40,
+          color: index % 2 === 0 ? "#3b82f6" : "#ef4444",
+          isPrimary: false,
+          revealStyle: "fade" as const,
+          blendMode: "screen",
+          enableGlow: true
+        };
+      });
+
+      return {
+        title: `Countries of ${targetContinent.toUpperCase()}`,
+        totalFrames: totalFrames,
+        cameraKeyframes: [
+          { frame: 0, lng: targetContinent === 'asia' ? 90 : 10, lat: targetContinent === 'asia' ? 30 : 50, zoom: 2.0, pitch: 15 },
+          { frame: totalFrames, lng: targetContinent === 'asia' ? 100 : 20, lat: targetContinent === 'asia' ? 25 : 45, zoom: 3.2, pitch: 35 }
+        ],
+        highlightCountries,
+        takeovers: [],
+        arrows: [],
+        labels: [{ text: `${targetContinent.toUpperCase()} REGION`, lat: 30, lng: 80, startFrame: 0, duration: totalFrames, glow: true, pinned: true }]
+      };
+    }
+  }
+
   const attackMatch = promptLower.match(/(.+?)\s+(?:invades|invading|attacks|attacking|captures|annexes|strikes)\s+(.+)/i);
-  
   if (attackMatch) {
     console.log('\n[FAST PARSER] Detected standard conflict prompt. Bypassing AI compute.');
     const invader = attackMatch[1].trim();
@@ -118,8 +190,8 @@ export async function parseSrtWithGemini(inputContent: string): Promise<Generate
         { frame: 300, lng: centerLng, lat: centerLat, zoom: 4.8, pitch: 45 }
       ],
       highlightCountries: [
-        { name: invader, startFrame: 0, color: "#ef4444", isPrimary: true, revealStyle: "ink", blendMode: "screen", enableGlow: true },
-        { name: target, startFrame: 0, color: "#3b82f6", isPrimary: false, revealStyle: "fade", blendMode: "screen", enableGlow: true }
+        { name: invader, startFrame: 0, endFrame: 300, color: "#ef4444", isPrimary: true, revealStyle: "ink", blendMode: "screen", enableGlow: true },
+        { name: target, startFrame: 0, endFrame: 300, color: "#3b82f6", isPrimary: false, revealStyle: "fade", blendMode: "screen", enableGlow: true }
       ],
       takeovers: [
         { invader: invader, target: target, startFrame: 45, duration: 180, color: "#ef4444", origin: [centerLng, centerLat] }
@@ -136,14 +208,9 @@ You are the lead motion graphics director for a high-end geopolitical short-form
 Convert this narrative into a precise 300-frame (10-second) cinematic timeline: "${inputContent}"
 
 CRITICAL DIRECTIVES:
-1. THE CAMERA ENGINE: Simulate a dynamic 3D camera move. Frame 0 should start wide (zoom 1.5 - 3, pitch 0-15). Frame 300 should push in tightly on the primary action area (zoom 4 - 6, pitch 40-55). Estimate the real-world Geographic Longitude and Latitude for these keyframes.
+1. THE CAMERA ENGINE: Simulate a dynamic 3D camera move. Frame 0 should start wide (zoom 1.5 - 3, pitch 0-15). Frame 300 should push in tightly on the primary action area (zoom 4 - 6, pitch 40-55). 
 2. TIMING: Total frames is strictly 300.
-3. ENTITIES & RIVERS: Highlight relevant countries, global states, or rivers. 
-   - For Countries/States: Set 'revealStyle' to "ink" or "fade".
-   - For Rivers (e.g., "Nile River", "Ganges"): You MUST set 'revealStyle' to "trim". Our dynamic MapLibre engine will automatically intercept the name, fetch the water body GeoJSON, and animate a trim-path stroke along the river centerline.
-4. CONFLICT: If the prompt describes war or invasion, completely populate the "takeovers" array. Duration MUST be between 120 and 180.
-5. LOGISTICS: For trade routes or troop movements, populate the "arrows" array.
-6. TYPOGRAPHY: Drop 1 or 2 "labels" on key capitals or borders. Estimate the lat/lng accurately.
+3. ENTITIES & REVEALS: Every item in 'highlightCountries' MUST specify a 'revealStyle' ("ink" or "fade" for countries/states, "trim" for rivers) and an explicit 'endFrame' integer so it fades out correctly.
 `;
 
   const response = await ai.models.generateContent({
@@ -180,9 +247,9 @@ CRITICAL DIRECTIVES:
                 endFrame: { type: Type.INTEGER },
                 color: { type: Type.STRING },
                 isPrimary: { type: Type.BOOLEAN },
-                revealStyle: { type: Type.STRING, description: "Use 'ink' or 'fade' for countries, and STRICTLY use 'trim' for rivers." },
+                revealStyle: { type: Type.STRING },
               },
-              required: ['name', 'startFrame', 'color', 'isPrimary', 'revealStyle'],
+              required: ['name', 'startFrame', 'endFrame', 'color', 'isPrimary', 'revealStyle'],
             },
           },
           takeovers: {
@@ -240,26 +307,5 @@ CRITICAL DIRECTIVES:
   if (!text) throw new Error('Empty response from Gemini.');
 
   let timeline = JSON.parse(text) as GeneratedTimeline;
-
-  const isConflict = promptLower.includes('invade') || promptLower.includes('capture') || promptLower.includes('attack') || promptLower.includes('war');
-
-  if (isConflict && (!timeline.takeovers || timeline.takeovers.length === 0)) {
-    console.log("🔥 AI HALLUCINATED EMPTY TAKEOVERS! Hijacking JSON and forcing injection...");
-    const words = inputContent.split(' ').map(w => w.trim());
-    const attacker = words[0]; 
-    const target = words[words.length - 1]; 
-    const [centerLng, centerLat] = getDynamicCountryCenter(target);
-
-    timeline.totalFrames = 300; 
-    timeline.takeovers = [{
-      invader: attacker, target: target, startFrame: 45, duration: 180, color: "#ef4444", origin: [centerLng, centerLat] 
-    }];
-
-    timeline.highlightCountries = [
-      { name: attacker, startFrame: 0, color: "#ef4444", isPrimary: true, revealStyle: "ink" },
-      { name: target, startFrame: 0, color: "#3b82f6", isPrimary: false, revealStyle: "ink" }
-    ];
-  }
-
   return timeline;
 }

@@ -17,7 +17,7 @@ export const MapAnimation: React.FC<{
   timeline: any;
   isLiveEditMode?: boolean;
   mapStyle?: string;
-}> = ({ timeline, mapStyle = 'dark-documentary' }) => {
+}> = ({ timeline, isLiveEditMode = false, mapStyle = 'dark-documentary' }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const blendOverlayRef = useRef<HTMLCanvasElement>(null);
   const uiOverlayRef = useRef<HTMLCanvasElement>(null);
@@ -79,20 +79,18 @@ export const MapAnimation: React.FC<{
 
     for (let i = 0; i < kfs.length - 1; i++) {
       if (frame >= kfs[i].frame && frame < kfs[i+1].frame) {
-         const kf1 = kfs[i];
-         const kf2 = kfs[i+1];
-         const duration = kf2.frame - kf1.frame;
-         const rawProgress = (frame - kf1.frame) / duration;
+         const duration = kfs[i+1].frame - kfs[i].frame;
+         const rawProgress = (frame - kfs[i].frame) / duration;
          
-         const panEase = Easing.bezier(0.25, 0.1, 0.25, 1)(rawProgress);
-         const zoomEase = Easing.bezier(0.33, 1, 0.68, 1)(rawProgress);
+         const panEase = Easing.bezier(0.33, 1, 0.68, 1)(rawProgress);
+         const zoomEase = Easing.bezier(0.65, 0, 0.35, 1)(rawProgress);
          
          return {
-           lng: kf1.lng + (kf2.lng - kf1.lng) * panEase,
-           lat: kf1.lat + (kf2.lat - kf1.lat) * panEase,
-           zoom: kf1.zoom + (kf2.zoom - kf1.zoom) * zoomEase,
-           pitch: kf1.pitch + (kf2.pitch - kf1.pitch) * zoomEase,
-           bearing: kf1.bearing + (kf2.bearing - kf1.bearing) * panEase
+           lng: kfs[i].lng + (kfs[i+1].lng - kfs[i].lng) * panEase,
+           lat: kfs[i].lat + (kfs[i+1].lat - kfs[i].lat) * panEase,
+           zoom: kfs[i].zoom + (kfs[i+1].zoom - kfs[i].zoom) * zoomEase,
+           pitch: kfs[i].pitch + (kfs[i+1].pitch - kfs[i].pitch) * zoomEase,
+           bearing: kfs[i].bearing + (kfs[i+1].bearing - kfs[i].bearing) * panEase
          };
       }
     }
@@ -104,23 +102,26 @@ export const MapAnimation: React.FC<{
   const getStyleDef = (styleId: string): any => {
     if (styleId === 'satellite') return { version: 8, sources: { raster_tiles: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles', paint: { 'raster-saturation': -0.2, 'raster-contrast': 0.1 } }] };
     if (styleId === 'natural-earth') return { version: 8, sources: { raster_tiles: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles' }] };
-    if (styleId === 'light') return { version: 8, sources: { 'carto-light': { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png'], tileSize: 256 } }, layers: [{ id: 'carto-light-layer', type: 'raster', source: 'carto-light' }] };
+    if (styleId === 'light') return { version: 8, sources: { raster_tiles: { type: 'raster', tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles' }] };
+    
     return {
       version: 8,
-      sources: { 'carto-dark': { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png'], tileSize: 256 } },
-      layers: [{ id: 'carto-dark-layer', type: 'raster', source: 'carto-dark', paint: { 'raster-saturation': -1.0, 'raster-contrast': 0.35, 'raster-brightness-max': 0.7, 'raster-brightness-min': 0.05 } }]
+      sources: { raster_tiles: { type: 'raster', tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
+      layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles', paint: { 'raster-contrast': 0.2, 'raster-brightness-max': 0.8 } }]
     };
   };
 
   useLayoutEffect(() => {
     if (!mapContainer.current) return;
+    const isMobileEdit = isLiveEditMode && typeof window !== 'undefined' && window.innerWidth < 1024;
+    
     const map = new maplibregl.Map({
       container: mapContainer.current, 
       fadeDuration: 0, 
       maxTileCacheSize: 10000,
       preserveDrawingBuffer: true, 
       renderWorldCopies: false, 
-      pixelRatio: isRendering ? 2 : 1, 
+      pixelRatio: isMobileEdit ? 1 : (isRendering ? 2 : 1), 
       style: getStyleDef(mapStyle), 
       center: [currentCam.lng, currentCam.lat], 
       zoom: currentCam.zoom, 
@@ -133,7 +134,7 @@ export const MapAnimation: React.FC<{
 
     map.on('load', () => { mapRef.current = map; setMapLoaded(true); continueRender(initialHandle); });
     return () => map.remove();
-  }, [mapStyle]);
+  }, [mapStyle, isLiveEditMode]);
 
   useLayoutEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
@@ -223,8 +224,13 @@ export const MapAnimation: React.FC<{
     uiCtx.clearRect(0, 0, width, height);
     uiCtx.lineJoin = 'round'; uiCtx.lineCap = 'round';
 
+    const isMobileEdit = isLiveEditMode && typeof window !== 'undefined' && window.innerWidth < 1024;
+
     rawCountries.forEach((entity: any) => {
-      if (frame < (entity.startFrame || 0)) return;
+      const startF = entity.startFrame || 0;
+      const endF = entity.endFrame || totalFrames + 100;
+      
+      if (frame < startF || frame > endF) return;
       if (takeovers.some((t: any) => (t.target || '').toLowerCase() === (entity.name || entity.country || '').toLowerCase() && frame >= (t.startFrame || 0))) return;
 
       const eName = entity.name || entity.country || entity.state;
@@ -235,41 +241,50 @@ export const MapAnimation: React.FC<{
       blendCtx.save();
       blendCtx.globalCompositeOperation = entity.blendMode || 'screen';
       
-      const animProgress = Math.min(1, Math.max(0, (frame - (entity.startFrame || 0)) / 45));
-      const activeColor = entity.color || '#3b82f6';
+      let masterAlpha = 1;
+      const fadeInDuration = 45;
+      const fadeOutDuration = 30;
 
-      if (animProgress < 1) {
-        if (entity.revealStyle === 'fade') {
-          blendCtx.globalAlpha *= animProgress;
-        } else if (entity.revealStyle === 'ink') {
-          const cx = center ? mapRef.current!.project(center).x : width/2;
-          const cy = center ? mapRef.current!.project(center).y : height/2;
-          const maxRad = Math.max(width, height) * 1.5;
-          blendCtx.beginPath();
-          blendCtx.arc(cx, cy, maxRad * Easing.bezier(0.25, 1, 0.5, 1)(animProgress), 0, Math.PI*2);
-          blendCtx.clip();
-        }
+      if (frame < startF + fadeInDuration) {
+        masterAlpha = (frame - startF) / fadeInDuration;
+      } else if (frame > endF - fadeOutDuration) {
+        masterAlpha = Math.max(0, (endF - frame) / fadeOutDuration);
       }
 
+      if (entity.revealStyle === 'fade') {
+        blendCtx.globalAlpha = masterAlpha;
+      } else if (entity.revealStyle === 'ink') {
+        const cx = center ? mapRef.current!.project(center).x : width/2;
+        const cy = center ? mapRef.current!.project(center).y : height/2;
+        const maxRad = Math.max(width, height) * 1.5;
+        blendCtx.beginPath();
+        blendCtx.arc(cx, cy, maxRad * Easing.bezier(0.25, 1, 0.5, 1)(Math.min(1, (frame - startF) / fadeInDuration)), 0, Math.PI*2);
+        blendCtx.clip();
+        blendCtx.globalAlpha = frame > endF - fadeOutDuration ? masterAlpha : 1; 
+      }
+
+      const activeColor = entity.color || '#3b82f6';
+
       if (isLine) {
-        if (entity.enableGlow !== false) {
-          blendCtx.save(); blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity || 20; blendCtx.lineWidth = (entity.strokeWidth || 4) + 4; blendCtx.strokeStyle = activeColor; blendCtx.stroke(p2d); blendCtx.restore();
+        if (entity.enableGlow !== false && !isMobileEdit) {
+          blendCtx.save(); blendCtx.globalAlpha = masterAlpha; blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity || 20; blendCtx.lineWidth = (entity.strokeWidth || 4) + 4; blendCtx.strokeStyle = activeColor; blendCtx.stroke(p2d); blendCtx.restore();
         }
-        
-        if (entity.revealStyle === 'trim' && animProgress < 1) {
+        if (entity.revealStyle === 'trim' && frame < startF + fadeInDuration) {
           const approxLen = 4000; 
           blendCtx.setLineDash([approxLen]);
-          blendCtx.lineDashOffset = approxLen - (animProgress * approxLen);
+          blendCtx.lineDashOffset = approxLen - (((frame - startF) / fadeInDuration) * approxLen);
         }
+        blendCtx.globalAlpha = masterAlpha;
         blendCtx.lineWidth = entity.strokeWidth || 4; blendCtx.strokeStyle = entity.strokeColor || activeColor; blendCtx.stroke(p2d);
       } else {
-        if (entity.dropShadow !== false) {
-          blendCtx.save(); blendCtx.translate(0, 15); blendCtx.shadowColor = 'rgba(0,0,0,0.95)'; blendCtx.shadowBlur = 15; blendCtx.fillStyle = '#000000'; blendCtx.fill(p2d); blendCtx.restore();
+        if (entity.dropShadow !== false && !isMobileEdit) {
+          blendCtx.save(); blendCtx.globalAlpha = masterAlpha; blendCtx.translate(0, 15); blendCtx.shadowColor = 'rgba(0,0,0,0.95)'; blendCtx.shadowBlur = 15; blendCtx.fillStyle = '#000000'; blendCtx.fill(p2d); blendCtx.restore();
         }
-        if (entity.enableGlow !== false) {
-          blendCtx.save(); blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity !== undefined ? entity.glowIntensity : 20; blendCtx.globalAlpha = 0.55; blendCtx.fillStyle = activeColor; blendCtx.fill(p2d); blendCtx.restore();
+        if (entity.enableGlow !== false && !isMobileEdit) {
+          blendCtx.save(); blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity !== undefined ? entity.glowIntensity : 20; blendCtx.globalAlpha = 0.55 * masterAlpha; blendCtx.fillStyle = activeColor; blendCtx.fill(p2d); blendCtx.restore();
         }
-        blendCtx.globalAlpha = 0.9; blendCtx.fillStyle = activeColor; blendCtx.fill(p2d);
+        blendCtx.globalAlpha = 0.9 * masterAlpha; 
+        blendCtx.fillStyle = activeColor; blendCtx.fill(p2d);
         if (entity.strokeWidth) { blendCtx.lineWidth = entity.strokeWidth; blendCtx.strokeStyle = entity.strokeColor || '#fff'; blendCtx.stroke(p2d); }
       }
       
@@ -317,7 +332,7 @@ export const MapAnimation: React.FC<{
          const t = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
          uiCtx.strokeStyle = arrow.color || '#f59e0b';
          uiCtx.lineWidth = arrow.strokeWidth || 4;
-         uiCtx.shadowColor = 'rgba(0,0,0,0.8)'; uiCtx.shadowBlur = 10;
+         if (!isMobileEdit) { uiCtx.shadowColor = 'rgba(0,0,0,0.8)'; uiCtx.shadowBlur = 10; }
          uiCtx.stroke();
          uiCtx.restore();
          return;
@@ -340,7 +355,7 @@ export const MapAnimation: React.FC<{
       const t = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
 
       uiCtx.save();
-      uiCtx.shadowColor = '#000000'; uiCtx.shadowBlur = 12; uiCtx.shadowOffsetY = 10;
+      if (!isMobileEdit) { uiCtx.shadowColor = '#000000'; uiCtx.shadowBlur = 12; uiCtx.shadowOffsetY = 10; }
       const approxLen = dist * 1.2;
       uiCtx.setLineDash([approxLen]);
       uiCtx.lineDashOffset = approxLen - (t * approxLen);
@@ -357,14 +372,25 @@ export const MapAnimation: React.FC<{
     });
 
     labels.forEach((l: any) => {
-      if (frame < (l.startFrame || 0)) return;
-      if (frame > (l.startFrame + (l.duration || 150)) && !l.pinned) return;
+      const lStart = l.startFrame || 0;
+      const lDur = l.duration || 150;
+      const lEnd = lStart + lDur;
+
+      if (frame < lStart) return;
+      if (!l.pinned && frame > lEnd) return;
+
       const p = projectClamped(mapRef.current!, [l.lng, l.lat]);
       if (!p) return;
+
+      let lAlpha = 1;
+      const lFade = 15;
+      if (frame < lStart + lFade) lAlpha = (frame - lStart) / lFade;
+      if (!l.pinned && frame > lEnd - lFade) lAlpha = Math.max(0, (lEnd - frame) / lFade);
       
       uiCtx.save();
+      uiCtx.globalAlpha = lAlpha;
       uiCtx.translate(p.x, p.y - 10);
-      if (l.glow) { uiCtx.shadowColor = '#38bdf8'; uiCtx.shadowBlur = 20; }
+      if (l.glow && !isMobileEdit) { uiCtx.shadowColor = '#38bdf8'; uiCtx.shadowBlur = 20; }
       uiCtx.fillStyle = l.bg || 'rgba(0,0,0,0.7)';
       if (uiCtx.roundRect) {
         uiCtx.beginPath(); uiCtx.roundRect(-60, -20, 120, 36, 8); uiCtx.fill();
@@ -378,7 +404,7 @@ export const MapAnimation: React.FC<{
       uiCtx.restore();
     });
 
-  }, [frame, currentCam, mapLoaded, rawCountries, takeovers, arrows, labels, extraData]);
+  }, [frame, currentCam, mapLoaded, rawCountries, takeovers, arrows, labels, extraData, isLiveEditMode]);
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#040711', overflow: 'hidden' }}>
