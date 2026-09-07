@@ -689,9 +689,8 @@ const WebApp: React.FC = () => {
       {status === 'editor' && dynamicTimeline && (
         <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 10px 70px 10px', boxSizing: 'border-box', overflow: 'hidden' }}>
           
-          {/* TOP CONTROLS / FLOATING BUTTONS FOR MOBILE */}
           {!isDesktop && (
-            <div style={{ display: 'flex', gap: '8px', zIndex: 100, width: '100%', justifyContent: 'center', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', gap: '8px', zIndex: 100, width: '100%', justifyContent: 'center', marginBottom: '4px', flexShrink: 0 }}>
               <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
               <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
             </div>
