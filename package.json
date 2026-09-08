@@ -19,7 +19,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "fix-webm-duration": "^1.0.6",
-    "maplibre-gl": "^6.4.1",
+    "maplibre-gl": "^6.8.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "remotion": "4.0.513",

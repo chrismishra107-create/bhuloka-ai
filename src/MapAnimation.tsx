@@ -1,147 +1,136 @@
-import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
-import { AbsoluteFill, useCurrentFrame, interpolate, Easing, useVideoConfig, delayRender, continueRender, getRemotionEnvironment } from 'remotion';
-import * as maplibregl from 'maplibre-gl';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { AbsoluteFill, Easing, continueRender, delayRender, getRemotionEnvironment, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-
 import worldData from './world.json';
 import indiaData from './india.json';
 
 const GEOJSON_RESOURCES: Record<string, string> = {
   rivers: 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson',
-  states: 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson'
+  states: 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',
 };
 
 const dynamicGeoCache = new Map<string, any>();
+const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const normalizeBearing = (b: number) => ((b % 360) + 360) % 360;
+const shortestBearingDelta = (a: number, b: number) => ((b - a + 540) % 360) - 180;
+const interpolateBearing = (a: number, b: number, t: number) => normalizeBearing(a + shortestBearingDelta(a, b) * t);
+const ease = Easing.bezier(0.25, 0.1, 0.25, 1);
+const revealEase = Easing.bezier(0.22, 1, 0.36, 1);
 
-export const MapAnimation: React.FC<{ 
+export const MapAnimation: React.FC<{
   timeline: any;
   isLiveEditMode?: boolean;
   mapStyle?: string;
   onCameraChange?: (cam: any) => void;
 }> = ({ timeline, isLiveEditMode = false, mapStyle = 'dark-documentary', onCameraChange }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const blendOverlayRef = useRef<HTMLCanvasElement>(null);
-  const uiOverlayRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onCameraChangeRef = useRef(onCameraChange);
-  
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [initialHandle] = useState(() => delayRender('Booting Dual-Canvas Engine...'));
-  
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [initialHandle] = useState(() => delayRender('Booting Cinematic WebGL Engine'));
   const [extraData, setExtraData] = useState<any[]>([]);
+
+  // Physics safeguard to prevent React-MapLibre feedback loops
+  const isUserInteracting = useRef(false);
 
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const { isRendering } = getRemotionEnvironment();
+  const totalFrames = Math.max(1, timeline?.totalFrames || 300);
 
-  const totalFrames = timeline?.totalFrames || 300;
+  const rawCountries = timeline?.highlightCountries || [];
+  const takeovers = timeline?.takeovers || [];
+  const arrows = timeline?.arrows || [];
+  const labels = timeline?.labels || [];
+  const assets = timeline?.assets || [];
+
+  useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
 
   useEffect(() => {
-    onCameraChangeRef.current = onCameraChange;
-  }, [onCameraChange]);
-
-  useEffect(() => {
-    const loadExtra = async () => {
-      const states = await fetchGeographicFeature('states');
-      const rivers = await fetchGeographicFeature('rivers');
-      setExtraData([states, rivers]);
-    };
-    loadExtra();
+    let alive = true;
+    Promise.all([
+      dynamicGeoCache.has('states') ? dynamicGeoCache.get('states') : fetch(GEOJSON_RESOURCES.states).then(r => r.json()),
+      dynamicGeoCache.has('rivers') ? dynamicGeoCache.get('rivers') : fetch(GEOJSON_RESOURCES.rivers).then(r => r.json())
+    ]).then(([states, rivers]) => {
+      dynamicGeoCache.set('states', states);
+      dynamicGeoCache.set('rivers', rivers);
+      if (alive) setExtraData([states, rivers]);
+    }).catch(err => console.error("GeoJSON Load Error:", err));
+    return () => { alive = false; };
   }, []);
 
-  const fetchGeographicFeature = async (type: string) => {
-    if (dynamicGeoCache.has(type)) return dynamicGeoCache.get(type);
-    try {
-      const res = await fetch(GEOJSON_RESOURCES[type]);
-      const data = await res.json();
-      dynamicGeoCache.set(type, data);
-      return data;
-    } catch (err) {
-      return { features: [] };
-    }
-  };
+  const validKeyframes = useMemo(() => (timeline?.cameraKeyframes || [])
+    .filter((k: any) => k && Number.isFinite(Number(k.frame)))
+    .map((k: any) => ({
+      frame: Number(k.frame),
+      lng: Number(k.lng ?? k.longitude ?? 127),
+      lat: Number(k.lat ?? k.latitude ?? 38),
+      zoom: Number(k.zoom ?? 1.2),
+      pitch: clamp(Number(k.pitch ?? 0), 0, 85),
+      bearing: normalizeBearing(Number(k.bearing ?? 0)),
+    }))
+    .sort((a: any, b: any) => a.frame - b.frame), [timeline?.cameraKeyframes]);
 
-  const validKeyframes = (timeline?.cameraKeyframes || []).filter(
-    (k: any) => k && typeof k.frame === 'number' && (typeof k.lng === 'number' || typeof k.longitude === 'number')
-  ).map((k: any) => ({
-    frame: k.frame, lng: k.lng !== undefined ? k.lng : (k.longitude !== undefined ? k.longitude : 127.0), lat: k.lat !== undefined ? k.lat : (k.latitude !== undefined ? k.latitude : 38.0),
-    zoom: k.zoom !== undefined ? k.zoom : 1.2, pitch: Math.min(60, k.pitch !== undefined ? k.pitch : 0), bearing: k.bearing !== undefined ? k.bearing : 0
-  }));
-
-  const fallbackKeyframes: any[] = [
+  const keyframes = validKeyframes.length ? validKeyframes : [
     { frame: 0, lng: 79, lat: 22, zoom: 4.2, pitch: 15, bearing: 0 },
-    { frame: totalFrames, lng: 88, lat: 31, zoom: 5.5, pitch: 40, bearing: 0 }
+    { frame: totalFrames, lng: 88, lat: 31, zoom: 5.5, pitch: 40, bearing: 0 },
   ];
-  
-  const keyframes = validKeyframes.length > 0 ? validKeyframes : fallbackKeyframes;
-  const strictlySortedKeyframes = [...keyframes].sort((a, b) => a.frame - b.frame);
 
-  const getInterpolatedCamera = () => {
-    const kfs = strictlySortedKeyframes;
-    if (kfs.length === 0) return { lng: 0, lat: 0, zoom: 1, pitch: 0, bearing: 0 };
-    if (kfs.length === 1 || frame <= kfs[0].frame) return kfs[0];
-    if (frame >= kfs[kfs.length - 1].frame) return kfs[kfs.length - 1];
-
-    for (let i = 0; i < kfs.length - 1; i++) {
-      if (frame >= kfs[i].frame && frame < kfs[i+1].frame) {
-         const duration = kfs[i+1].frame - kfs[i].frame;
-         const rawProgress = (frame - kfs[i].frame) / duration;
-         
-         const panEase = Easing.bezier(0.33, 1, 0.68, 1)(rawProgress);
-         const zoomEase = Easing.bezier(0.65, 0, 0.35, 1)(rawProgress);
-         
-         return {
-           lng: kfs[i].lng + (kfs[i+1].lng - kfs[i].lng) * panEase,
-           lat: kfs[i].lat + (kfs[i+1].lat - kfs[i].lat) * panEase,
-           zoom: kfs[i].zoom + (kfs[i+1].zoom - kfs[i].zoom) * zoomEase,
-           pitch: kfs[i].pitch + (kfs[i+1].pitch - kfs[i].pitch) * zoomEase,
-           bearing: kfs[i].bearing + (kfs[i+1].bearing - kfs[i].bearing) * panEase
-         };
+  const camera = useMemo(() => {
+    if (keyframes.length === 1 || frame <= keyframes[0].frame) return keyframes[0];
+    if (frame >= keyframes[keyframes.length - 1].frame) return keyframes[keyframes.length - 1];
+    for (let i = 0; i < keyframes.length - 1; i++) {
+      const a = keyframes[i], b = keyframes[i + 1];
+      if (frame >= a.frame && frame <= b.frame) {
+        const p = ease(clamp((frame - a.frame) / Math.max(1, b.frame - a.frame)));
+        return {
+          lng: a.lng + (b.lng - a.lng) * p,
+          lat: a.lat + (b.lat - a.lat) * p,
+          zoom: a.zoom + (b.zoom - a.zoom) * p,
+          pitch: a.pitch + (b.pitch - a.pitch) * p,
+          bearing: interpolateBearing(a.bearing, b.bearing, p),
+        };
       }
     }
-    return kfs[kfs.length - 1];
-  };
-
-  const currentCam = getInterpolatedCamera();
+    return keyframes[keyframes.length - 1];
+  }, [keyframes, frame]);
 
   const getStyleDef = (styleId: string): any => {
-    if (styleId === 'satellite') return { version: 8, sources: { raster_tiles: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles', paint: { 'raster-saturation': -0.2, 'raster-contrast': 0.1 } }] };
-    if (styleId === 'natural-earth') return { version: 8, sources: { raster_tiles: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles' }] };
-    if (styleId === 'light') return { version: 8, sources: { raster_tiles: { type: 'raster', tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles' }] };
-    
-    return {
-      version: 8,
-      sources: { raster_tiles: { type: 'raster', tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
-      layers: [{ id: 'base-layer', type: 'raster', source: 'raster_tiles', paint: { 'raster-contrast': 0.2, 'raster-brightness-max': 0.8 } }]
+    const styles: Record<string, any> = {
+      satellite: { version: 8, sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }] },
+      'natural-earth': { version: 8, sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r' }] },
+      light: { version: 8, sources: { r: { type: 'raster', tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-contrast': 0.05 } }] },
+      'dark-documentary': { version: 8, sources: { r: { type: 'raster', tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-contrast': 0.2, 'raster-brightness-max': 0.82 } }] },
     };
+    return styles[styleId] || styles['dark-documentary'];
   };
 
   useLayoutEffect(() => {
     if (!mapContainer.current) return;
-    const isMobileEdit = isLiveEditMode && typeof window !== 'undefined' && window.innerWidth < 1024;
+    const mobile = typeof window !== 'undefined' && window.innerWidth < 1024;
     
     const map = new maplibregl.Map({
-      container: mapContainer.current, 
-      fadeDuration: 0, 
-      maxTileCacheSize: 20000,
-      preserveDrawingBuffer: true, 
-      renderWorldCopies: false, 
-      pixelRatio: isMobileEdit ? 1 : (isRendering ? 2 : 1), 
-      style: getStyleDef(mapStyle), 
-      center: [currentCam.lng, currentCam.lat], 
-      zoom: currentCam.zoom, 
-      pitch: currentCam.pitch, 
-      bearing: currentCam.bearing, 
-      maxPitch: 60, 
-      interactive: isLiveEditMode, // Native map controls enabled
-      attributionControl: false
-    } as any); 
+      container: mapContainer.current,
+      style: getStyleDef(mapStyle),
+      center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing,
+      interactive: isLiveEditMode, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
+      pixelRatio: mobile ? 1 : (isRendering ? 2 : 1), maxTileCacheSize: 10000, preserveDrawingBuffer: true
+    } as any);
 
     if (isLiveEditMode) {
+      map.on('dragstart', () => { isUserInteracting.current = true; });
+      map.on('zoomstart', () => { isUserInteracting.current = true; });
+      map.on('pitchstart', () => { isUserInteracting.current = true; });
+      map.on('rotatestart', () => { isUserInteracting.current = true; });
+      
+      map.on('dragend', () => { isUserInteracting.current = false; });
+      map.on('zoomend', () => { isUserInteracting.current = false; });
+      map.on('pitchend', () => { isUserInteracting.current = false; });
+      map.on('rotateend', () => { isUserInteracting.current = false; });
+
       map.on('move', () => {
         if (onCameraChangeRef.current) {
-          onCameraChangeRef.current({ lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() });
+          onCameraChangeRef.current({ lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: normalizeBearing(map.getBearing()) });
         }
       });
     }
@@ -152,363 +141,373 @@ export const MapAnimation: React.FC<{
       setMapLoaded(true); 
       continueRender(initialHandle); 
     });
-    return () => {
-      (window as any).__mapInstance = null;
-      map.remove();
+
+    return () => { 
+      if ((window as any).__mapInstance === map) (window as any).__mapInstance = null;
+      map.remove(); 
+      mapRef.current = null; 
     };
   }, [mapStyle, isLiveEditMode]);
 
   useLayoutEffect(() => {
-    if (!mapRef.current || !mapLoaded || isLiveEditMode) return; 
-    let tileLockHandle: number | null = null;
-    if (isRendering) tileLockHandle = delayRender(`Awaiting GPU Paint Frame ${frame}`);
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
     
-    mapRef.current.jumpTo({ center: [currentCam.lng, currentCam.lat], zoom: currentCam.zoom, pitch: currentCam.pitch, bearing: currentCam.bearing });
-
-    if (isRendering && tileLockHandle !== null) {
-      const lock = tileLockHandle;
-      const release = () => setTimeout(() => continueRender(lock), 100); 
-      if (mapRef.current.areTilesLoaded()) release();
-      else mapRef.current.once('idle', release);
+    let lock: number | null = null;
+    if (isRendering) lock = delayRender(`Rendering map frame ${frame}`);
+    
+    // Halt programmatic jumps if the user is physically interacting with MapLibre
+    if (!isUserInteracting.current) {
+      map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing });
     }
-  }, [currentCam, mapLoaded, isRendering, frame, isLiveEditMode]);
+    
+    if (lock !== null) {
+      const release = () => setTimeout(() => continueRender(lock!), 40);
+      if (map.areTilesLoaded()) release(); else map.once('idle', release);
+    }
+  }, [camera, mapLoaded, isRendering, frame]);
 
-  const projectClamped = (map: maplibregl.Map, coord: [number, number]) => {
-    const p = map.project(coord);
-    if (!p || isNaN(p.x) || isNaN(p.y)) return null;
-    if (p.x < -3000 || p.x > width + 3000 || p.y < -3000 || p.y > height + 3000) return null;
-    return p;
+  const project = (coord: [number, number]) => {
+    if (!mapRef.current) return null;
+    try {
+      const p = mapRef.current.project(coord as any);
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
+      if (p.x < -width * 4 || p.x > width * 5 || p.y < -height * 4 || p.y > height * 5) return null;
+      return p;
+    } catch { return null; }
   };
 
-  const getGeometryFromSource = (name: string, dataSources: any[]) => {
-    if (!mapRef.current || !mapLoaded || !name) return { path: '', center: null as [number, number] | null, isLine: false };
-    const norm = name.trim().toLowerCase();
+  const geometryFor = (name: string) => {
+    if (!name || !mapLoaded) return { path: '', center: null as [number, number] | null, isLine: false };
+    const norm = String(name).trim().toLowerCase();
     let geom: any = null;
-
-    if (norm === 'india' || norm === 'ind' || norm === 'bharat') {
-      try { geom = (indiaData as any).features?.[0]?.geometry || indiaData; } catch (e) {}
+    
+    if (['india', 'ind', 'bharat'].includes(norm)) {
+      geom = (indiaData as any).features?.[0]?.geometry || indiaData;
     }
-
+    
     if (!geom) {
-      for (const source of dataSources) {
-        const features = source?.features || [];
-        const matched = features.find((f: any) => {
-          const p = f.properties || {};
-          const candidates = [p.ADMIN, p.admin, p.NAME, p.name, p.name_en].filter(Boolean).map((v) => String(v).toLowerCase());
-          return candidates.includes(norm) || candidates.some(c => c.includes(norm));
+      for (const src of [worldData, ...extraData]) {
+        const match = (src?.features || []).find((f: any) => {
+          const names = [f.properties?.ADMIN, f.properties?.admin, f.properties?.NAME, f.properties?.name, f.properties?.name_en].filter(Boolean).map(x => String(x).toLowerCase());
+          return names.includes(norm) || names.some(x => x.includes(norm) || norm.includes(x));
         });
-        if (matched) { geom = matched.geometry; break; }
+        if (match) { geom = match.geometry; break; }
       }
     }
     if (!geom) return { path: '', center: null, isLine: false };
+
+    const lines: number[][][] = [];
+    const extractCoords = (coords: any) => {
+      if (!Array.isArray(coords)) return;
+      if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        return;
+      }
+      if (typeof coords[0][0] === 'number') {
+        lines.push(coords);
+      } else {
+        coords.forEach(extractCoords);
+      }
+    };
     
-    const rings: [number, number][][] = [];
-    if (geom.type === 'Polygon') geom.coordinates.forEach((r: any) => rings.push(r));
-    else if (geom.type === 'MultiPolygon') geom.coordinates.forEach((poly: any) => poly.forEach((r: any) => rings.push(r)));
-    else if (geom.type === 'LineString') rings.push(geom.coordinates);
-    else if (geom.type === 'MultiLineString') geom.coordinates.forEach((line: any) => rings.push(line));
+    if (geom.coordinates) {
+      extractCoords(geom.coordinates);
+    }
 
-    const map = mapRef.current;
-    let totalX = 0; let totalY = 0; let pointCount = 0;
+    const isLine = geom.type.includes('Line');
+    let path = '';
+    let sumLng = 0, sumLat = 0, pointCount = 0;
 
-    const valid = rings.map((ring) => {
-      const points = ring.map((coord: [number, number]) => {
-        const p = projectClamped(map, coord);
-        if (!p) return null;
-        totalX += coord[0]; totalY += coord[1]; pointCount++;
-        return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-      }).filter(Boolean);
-      
-      if (points.length < 2) return '';
-      return geom.type.includes('Line') ? `M ${points.join(' L ')}` : `M ${points.join(' L ')} Z`;
-    }).filter(Boolean);
-
-    const centroid: [number, number] | null = pointCount > 0 ? [totalX / pointCount, totalY / pointCount] : null;
-    return { path: valid.join(' '), center: centroid, isLine: geom.type.includes('Line') };
+    for (const line of lines) {
+      let first = true;
+      for (const coord of line) {
+        if (!coord || coord.length < 2) continue;
+        sumLng += Number(coord[0]); sumLat += Number(coord[1]); pointCount++;
+        const p = project([Number(coord[0]), Number(coord[1])]);
+        if (!p) { first = true; continue; }
+        path += `${first ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)} `;
+        first = false;
+      }
+      if (!isLine && path) path += 'Z ';
+    }
+    
+    const center = pointCount > 0 ? [sumLng / pointCount, sumLat / pointCount] as [number, number] : null;
+    return { path, center, isLine };
   };
 
-  const rawCountries = timeline.highlightCountries || [];
-  const takeovers = timeline.takeovers || [];
-  const arrows = timeline.arrows || [];
-  const labels = timeline.labels || [];
-
-  useLayoutEffect(() => {
-    if (!blendOverlayRef.current || !uiOverlayRef.current || !mapLoaded) return;
-    
-    const blendCtx = blendOverlayRef.current.getContext('2d');
-    const uiCtx = uiOverlayRef.current.getContext('2d');
-    if (!blendCtx || !uiCtx) return;
-    
-    blendCtx.clearRect(0, 0, width, height);
-    blendCtx.lineJoin = 'round'; blendCtx.lineCap = 'round';
-
-    uiCtx.clearRect(0, 0, width, height);
-    uiCtx.lineJoin = 'round'; uiCtx.lineCap = 'round';
-
-    const isMobileEdit = isLiveEditMode && typeof window !== 'undefined' && window.innerWidth < 1024;
-
-    rawCountries.forEach((entity: any) => {
-      const startF = entity.startFrame || 0;
-      const endF = entity.endFrame || totalFrames + 100;
-      
-      if (frame < startF || frame > endF) return;
-      if (takeovers.some((t: any) => (t.target || '').toLowerCase() === (entity.name || entity.country || '').toLowerCase() && frame >= (t.startFrame || 0))) return;
-
-      const eName = entity.name || entity.country || entity.state;
-      const { path, center, isLine } = getGeometryFromSource(eName, [worldData, ...extraData]);
-      if (!path) return;
-      const p2d = new Path2D(path);
-
-      blendCtx.save();
-      blendCtx.globalCompositeOperation = entity.blendMode || 'source-over';
-      
-      let masterAlpha = 1;
-      const fadeInDuration = 45;
-      const fadeOutDuration = 30;
-
-      if (frame < startF + fadeInDuration) {
-        masterAlpha = (frame - startF) / fadeInDuration;
-      } else if (frame > endF - fadeOutDuration) {
-        masterAlpha = Math.max(0, (endF - frame) / fadeOutDuration);
-      }
-
-      let effectiveAlpha = masterAlpha;
-      if ((entity.revealStyle === 'ink' || entity.revealStyle === 'trim') && frame < startF + fadeInDuration) {
-        effectiveAlpha = 1;
-      }
-
-      if (entity.revealStyle === 'ink') {
-        const cx = center ? mapRef.current!.project(center).x : width/2;
-        const cy = center ? mapRef.current!.project(center).y : height/2;
-        const maxRad = Math.max(width, height) * 1.5;
-        blendCtx.beginPath();
-        blendCtx.arc(cx, cy, maxRad * Easing.bezier(0.25, 1, 0.5, 1)(Math.min(1, (frame - startF) / fadeInDuration)), 0, Math.PI*2);
-        blendCtx.clip();
-      }
-
-      const activeColor = entity.color || '#3b82f6';
-
-      if (isLine) {
-        if (entity.enableGlow !== false && !isMobileEdit) {
-          blendCtx.save(); blendCtx.globalAlpha = effectiveAlpha; blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity || 20; blendCtx.lineWidth = (entity.strokeWidth || 4) + 4; blendCtx.strokeStyle = activeColor; blendCtx.stroke(p2d); blendCtx.restore();
-        }
-        if (entity.revealStyle === 'trim' && frame < startF + fadeInDuration) {
-          const approxLen = 4000; 
-          blendCtx.setLineDash([approxLen]);
-          blendCtx.lineDashOffset = approxLen - (((frame - startF) / fadeInDuration) * approxLen);
-        }
-        blendCtx.globalAlpha = effectiveAlpha;
-        blendCtx.lineWidth = entity.strokeWidth || 4; blendCtx.strokeStyle = entity.strokeColor || activeColor; blendCtx.stroke(p2d);
-      } else {
-        if (entity.dropShadow !== false && !isMobileEdit) {
-          blendCtx.save(); blendCtx.globalAlpha = effectiveAlpha; blendCtx.translate(0, 15); blendCtx.shadowColor = 'rgba(0,0,0,0.95)'; blendCtx.shadowBlur = 15; blendCtx.fillStyle = '#000000'; blendCtx.fill(p2d); blendCtx.restore();
-        }
-        if (entity.enableGlow !== false && !isMobileEdit) {
-          blendCtx.save(); blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity !== undefined ? entity.glowIntensity : 20; blendCtx.globalAlpha = 0.55 * effectiveAlpha; blendCtx.fillStyle = activeColor; blendCtx.fill(p2d); blendCtx.restore();
-        }
-        blendCtx.globalAlpha = 0.9 * effectiveAlpha; 
-        blendCtx.fillStyle = activeColor; blendCtx.fill(p2d);
-        if (entity.strokeWidth) { blendCtx.lineWidth = entity.strokeWidth; blendCtx.strokeStyle = entity.strokeColor || '#fff'; blendCtx.stroke(p2d); }
-      }
-      
-      blendCtx.restore();
-    });
-
-    takeovers.forEach((takeover: any) => {
-      const start = takeover.startFrame || 0;
-      if (frame < start) return;
-
-      const targetGeo = getGeometryFromSource(takeover.target, [worldData]);
-      if (!targetGeo.path) return;
-      const p2d = new Path2D(targetGeo.path);
-
-      const targetData: any = rawCountries.find((c: any) => (c.name || c.country) === takeover.target) || {};
-      blendCtx.save();
-      blendCtx.globalCompositeOperation = targetData.blendMode || 'source-over';
-      blendCtx.fillStyle = targetData.color || '#1e3a8a'; blendCtx.globalAlpha = 0.85; blendCtx.fill(p2d);
-      
-      const duration = Math.max(takeover.duration || 120, 90);
-      const radius = interpolate(frame - start, [0, duration], [0, Math.max(width, height) * 1.5], { extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
-      
-      const invGeo = getGeometryFromSource(takeover.attacker || takeover.invader, [worldData]);
-      let cx = width/2; let cy = height/2;
-      if (invGeo.center) { const p = mapRef.current?.project(invGeo.center); if (p) { cx = p.x; cy = p.y; } }
-
-      blendCtx.beginPath(); blendCtx.arc(cx, cy, radius, 0, Math.PI * 2); blendCtx.clip();
-      blendCtx.fillStyle = takeover.color || '#ef4444'; blendCtx.globalAlpha = 0.9; blendCtx.fill(p2d);
-      blendCtx.restore();
-    });
-
-    arrows.forEach((arrow: any) => {
-      const startF = arrow.startFrame || arrow.frame || 0;
-      if (frame < startF) return;
-
-      let c1 = arrow.origin; let c2 = arrow.target;
-      if (arrow.sourceName) c1 = getGeometryFromSource(arrow.sourceName, [worldData]).center;
-      if (arrow.targetName) c2 = getGeometryFromSource(arrow.targetName, [worldData]).center;
-      if (!c1 || !c2) return;
-      
-      const p1 = projectClamped(mapRef.current!, c1 as [number, number]); 
-      const p2 = projectClamped(mapRef.current!, c2 as [number, number]);
-      if (!p1 || !p2) return;
-
-      const dx = p2.x - p1.x; const dy = p2.y - p1.y; const dist = Math.sqrt(dx*dx + dy*dy);
-      const arcH = dist * 0.35; 
-      const midX = (p1.x + p2.x) / 2 + (-dy / dist) * arcH; 
-      const midY = (p1.y + p2.y) / 2 + (dx / dist) * arcH;
-      
-      const pathD = `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
-      const p2d = new Path2D(pathD);
-      const progress = Math.max(0, Math.min(1, (frame - startF) / (arrow.duration || 60)));
-
-      uiCtx.save();
-      uiCtx.shadowColor = arrow.color || '#38bdf8'; 
-      uiCtx.shadowBlur = 15;
-      uiCtx.strokeStyle = arrow.color || '#38bdf8'; 
-      uiCtx.lineWidth = arrow.strokeWidth || 5;
-      uiCtx.lineCap = 'round';
-      
-      const approxLen = dist * 1.3;
-      uiCtx.setLineDash([approxLen]);
-      uiCtx.lineDashOffset = approxLen - (progress * approxLen);
-      uiCtx.stroke(p2d);
-      
-      if (progress > 0 && progress < 1) {
-        const t = progress;
-        const bx = (1 - t) * (1 - t) * p1.x + 2 * (1 - t) * t * midX + t * t * p2.x;
-        const by = (1 - t) * (1 - t) * p1.y + 2 * (1 - t) * t * midY + t * t * p2.y;
-        
-        uiCtx.save();
-        uiCtx.translate(bx, by);
-        const angle = Math.atan2(2 * (1 - t) * (midY - p1.y) + 2 * t * (p2.y - midY), 2 * (1 - t) * (midX - p1.x) + 2 * t * (p2.x - midX));
-        uiCtx.rotate(angle);
-        
-        if (arrow.type === 'missile') {
-          uiCtx.fillStyle = '#ffffff';
-          uiCtx.beginPath();
-          uiCtx.moveTo(16, 0); uiCtx.lineTo(-10, -8); uiCtx.lineTo(-4, 0); uiCtx.lineTo(-10, 8);
-          uiCtx.closePath();
-          uiCtx.fill();
-        } else {
-          uiCtx.fillStyle = arrow.color || '#38bdf8';
-          uiCtx.beginPath();
-          uiCtx.moveTo(14, 0); uiCtx.lineTo(-8, -6); uiCtx.lineTo(-3, 0); uiCtx.lineTo(-8, 6);
-          uiCtx.closePath();
-          uiCtx.fill();
-        }
-        uiCtx.restore();
-      }
-      uiCtx.restore();
-    });
-
-    labels.forEach((l: any) => {
-      const lStart = l.startFrame || 0;
-      const lDur = l.duration || 150;
-      const lEnd = lStart + lDur;
-
-      if (frame < lStart) return;
-      if (!l.pinned && frame > lEnd) return;
-
-      const p = projectClamped(mapRef.current!, [l.lng, l.lat]);
-      if (!p) return;
-
-      let lAlpha = 1;
-      const lFade = 15;
-      if (frame < lStart + lFade) lAlpha = (frame - lStart) / lFade;
-      if (!l.pinned && frame > lEnd - lFade) lAlpha = Math.max(0, (lEnd - frame) / lFade);
-      
-      uiCtx.save();
-      uiCtx.globalAlpha = lAlpha;
-      uiCtx.translate(p.x, p.y);
-      
-      const themeColor = l.color || '#ffffff';
-      const labelStyle = l.style || 'callout';
-      const txt = (l.text || '').toUpperCase();
-      uiCtx.font = `bold ${l.size !== undefined ? l.size : 20}px "SF Pro Display", sans-serif`;
-
-      if (labelStyle === 'callout') {
-        uiCtx.beginPath();
-        uiCtx.arc(0, 0, 5, 0, Math.PI * 2);
-        uiCtx.fillStyle = themeColor;
-        if (l.glow && !isMobileEdit) { uiCtx.shadowColor = themeColor; uiCtx.shadowBlur = 15; }
-        uiCtx.fill();
-        
-        const lineProgress = Math.min(1, (frame - lStart) / 20);
-        const angleY = -40 * lineProgress;
-        const angleX = 30 * lineProgress;
-        
-        uiCtx.beginPath();
-        uiCtx.moveTo(0, 0); uiCtx.lineTo(angleX, angleY);
-        const tWidth = uiCtx.measureText(txt).width;
-        uiCtx.lineTo(angleX + (tWidth + 20) * lineProgress, angleY);
-        uiCtx.strokeStyle = themeColor;
-        uiCtx.lineWidth = 2;
-        uiCtx.stroke();
-        
-        if (lineProgress > 0.5) {
-          const textAlpha = Math.min(1, (lineProgress - 0.5) * 2);
-          uiCtx.globalAlpha = lAlpha * textAlpha;
-          uiCtx.fillStyle = themeColor;
-          uiCtx.textAlign = 'left';
-          uiCtx.textBaseline = 'bottom';
-          uiCtx.fillText(txt, angleX + 10, angleY - 8);
-        }
-      } else if (labelStyle === 'pill') {
-        const tWidth = uiCtx.measureText(txt).width;
-        uiCtx.translate(-tWidth/2 - 20, -10);
-        if (l.glow && !isMobileEdit) { uiCtx.shadowColor = themeColor; uiCtx.shadowBlur = 20; }
-        uiCtx.fillStyle = l.bg || 'rgba(0,0,0,0.7)';
-        if (uiCtx.roundRect) {
-          uiCtx.beginPath(); uiCtx.roundRect(0, -20, tWidth + 40, l.size + 16, 8); uiCtx.fill();
-        } else {
-          uiCtx.fillRect(0, -20, tWidth + 40, l.size + 16);
-        }
-        uiCtx.fillStyle = themeColor;
-        uiCtx.textAlign = 'left'; uiCtx.textBaseline = 'middle';
-        uiCtx.fillText(txt, 20, -2);
-      } else if (labelStyle === 'minimal') {
-        uiCtx.beginPath();
-        uiCtx.arc(0, 0, 6, 0, Math.PI * 2);
-        uiCtx.fillStyle = themeColor;
-        if (l.glow && !isMobileEdit) { uiCtx.shadowColor = themeColor; uiCtx.shadowBlur = 20; }
-        uiCtx.fill();
-        
-        uiCtx.fillStyle = themeColor;
-        uiCtx.textAlign = 'left';
-        uiCtx.textBaseline = 'middle';
-        uiCtx.fillText(txt, 15, 0);
-      }
-
-      uiCtx.restore();
-    });
-
-  }, [frame, currentCam, mapLoaded, rawCountries, takeovers, arrows, labels, extraData, isLiveEditMode]);
+  const cssBlendModes = ['normal', 'multiply', 'screen', 'overlay', 'color-dodge'];
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#040711', overflow: 'hidden' }}>
-      <div ref={mapContainer} style={{ width: `${width}px`, height: `${height}px`, position: 'absolute', top: 0, left: 0 }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)', pointerEvents: 'none', zIndex: 10 }} />
+    <AbsoluteFill style={{ background: '#040711', overflow: 'hidden' }}>
+      
+      <div ref={mapContainer} style={{ position: 'absolute', inset: 0, width, height, pointerEvents: 'auto' }} />
+      <div style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', background: 'radial-gradient(circle at center, transparent 38%, rgba(4,7,17, 0.9) 100%)' }} />
+      
+      {mapLoaded && (
+        <>
+          {/* SVG DEFINITIONS */}
+          <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+            <defs>
+              <filter id="tactical-shadow" x="-40%" y="-40%" width="180%" height="180%">
+                <feDropShadow dx="0" dy="12" stdDeviation="16" floodColor="#000000" floodOpacity="0.85" />
+              </filter>
+              <filter id="glow-low" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+                <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-mid" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="16" result="coloredBlur"/>
+                <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-high" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="24" result="coloredBlur"/>
+                <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="ink-displacement" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="40" xChannelSelector="R" yChannelSelector="G" />
+              </filter>
+            </defs>
+          </svg>
 
-      <canvas id="vector-blend-overlay" ref={blendOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none' }} />
-      <canvas id="vector-ui-overlay" ref={uiOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 61, pointerEvents: 'none' }} />
+          {/* LAYERED BLEND MODE SVGS (Prevents Stacking Context Deadlock) */}
+          {cssBlendModes.map(blendGroup => (
+            <svg key={`blend-${blendGroup}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 20, pointerEvents: 'none', mixBlendMode: blendGroup as any }}>
+              
+              {/* RENDER SHADOWS FIRST (Only on 'normal' pass to prevent duplicate shadows) */}
+              {blendGroup === 'normal' && rawCountries.map((c: any, i: number) => {
+                const start = Number(c.startFrame ?? 0);
+                if (frame < start || c.dropShadow === false || ['screen', 'multiply'].includes(c.blendMode)) return null;
+                const { path, isLine } = geometryFor(c.name);
+                if (!path || isLine) return null;
+                return <path key={`shadow-${i}`} d={path} fill="#000" opacity={0.6} transform="translate(0, 15)" style={{ filter: 'blur(15px)' }} />;
+              })}
 
-      {!isLiveEditMode && (
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 65 }}>
-          {rawCountries.map((country: any, idx: number) => {
-            if (frame < (country.startFrame || 0)) return null;
-            const cName = country.name || country.country;
-            const { path } = getGeometryFromSource(cName, [worldData, ...extraData]);
-            if (!path) return null;
-            const isSelected = selectedCountry === cName;
-            return (
-              <g key={`hitbox-${idx}`}>
-                {isSelected && <path d={path} fill="none" stroke="#ffffff" strokeWidth="3" strokeDasharray="8 8" />}
-                <path d={path} fill="transparent" stroke="transparent" strokeWidth="20" style={{ cursor: 'crosshair' }} onClick={() => setSelectedCountry(cName)} />
-              </g>
-            );
-          })}
-        </svg>
+              {/* RENDER COUNTRIES BELONGING TO THIS BLEND MODE */}
+              {rawCountries.map((c: any, i: number) => {
+                const start = Number(c.startFrame ?? 0);
+                const end = Number(c.endFrame ?? totalFrames);
+                if (frame < start || frame > end) return null;
+                
+                const mode = ['screen', 'multiply', 'overlay', 'color-dodge'].includes(c.blendMode) ? c.blendMode : 'normal';
+                const assignedBlend = mode === 'color-dodge' ? 'color-dodge' : mode;
+                if (assignedBlend !== blendGroup) return null;
+
+                if (takeovers.some((t: any) => (t.target||'').toLowerCase() === c.name.toLowerCase() && frame >= t.startFrame + (t.duration||90))) return null;
+
+                const { path, isLine } = geometryFor(c.name);
+                if (!path) return null;
+
+                const t = revealEase(clamp((frame - start) / Number(c.fadeInDuration ?? 30)));
+                const alpha = frame > end - 20 ? clamp((end - frame) / 20) : t;
+
+                let glowFilter = 'none';
+                if (c.enableGlow !== false) {
+                  const gi = c.glowIntensity ?? 20;
+                  if (gi <= 10) glowFilter = 'url(#glow-low)';
+                  else if (gi <= 25) glowFilter = 'url(#glow-mid)';
+                  else glowFilter = 'url(#glow-high)';
+                }
+
+                if (isLine || c.noFill) {
+                  const dashLength = Math.max(width, height) * 4;
+                  const trimT = revealEase(clamp((frame - start) / Number(c.trimDuration ?? 45)));
+                  return (
+                    <g key={`entity-line-${i}`} opacity={alpha}>
+                      <path d={path} fill="none" stroke={c.color || '#3b82f6'} strokeWidth={c.strokeWidth || 4} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dashLength} strokeDashoffset={c.revealStyle === 'trim' ? dashLength * (1 - trimT) : 0} style={{ filter: glowFilter }} />
+                    </g>
+                  );
+                }
+
+                return (
+                  <g key={`entity-poly-${i}`} opacity={alpha}>
+                    {c.revealStyle === 'ink' ? (
+  <mask id={`mask-ink-${i}`}>
+    <circle cx={width / 2} cy={height / 2} r={Math.max(width, height) * 1.5 * t} fill="white" style={{ filter: 'url(#ink-displacement)' }} />
+  </mask>
+) : null}
+                    
+                    <g mask={c.revealStyle === 'ink' ? `url(#mask-ink-${i})` : undefined}>
+                      {c.enableGlow !== false && mode !== 'multiply' && (
+                        <path d={path} fill={c.color || '#3b82f6'} opacity={0.5} style={{ filter: `blur(${c.glowIntensity || 20}px)` }} />
+                      )}
+                      <path d={path} fill={c.color || '#3b82f6'} />
+                      {c.strokeWidth > 0 && <path d={path} fill="none" stroke={c.strokeColor || '#fff'} strokeWidth={c.strokeWidth} />}
+                    </g>
+                  </g>
+                );
+              })}
+
+              {/* RENDER TAKEOVERS BELONGING TO THIS BLEND MODE */}
+              {takeovers.map((t: any, i: number) => {
+                const start = Number(t.startFrame ?? 0);
+                if (frame < start) return null;
+                
+                const targetData = rawCountries.find((c: any) => c.name === t.target) || {};
+                const invaderData = rawCountries.find((c: any) => c.name === t.attacker) || {};
+                
+                const tBlend = targetData.blendMode || 'normal';
+                const iBlend = invaderData.blendMode || 'screen';
+
+                const targetGeo = geometryFor(t.target);
+                if (!targetGeo.path) return null;
+                
+                const attackerGeo = geometryFor(t.attacker);
+                const p = attackerGeo.center ? project(attackerGeo.center) : null;
+                const radius = Math.max(width, height) * 1.7 * revealEase(clamp((frame - start) / Math.max(1, Number(t.duration ?? 90))));
+                
+                return (
+                  <g key={`takeover-${i}`}>
+                     {tBlend === blendGroup && (
+                       <path d={targetGeo.path} fill={targetData.color || '#1e3a8a'} opacity={0.85} />
+                     )}
+                     {iBlend === blendGroup && (
+                       <React.Fragment>
+                         <mask id={`takeover-mask-${i}`}>
+                           <circle cx={p?.x ?? width/2} cy={p?.y ?? height/2} r={radius} fill="white" style={{ filter: 'url(#ink-displacement)' }} />
+                         </mask>
+                         <path d={targetGeo.path} fill={invaderData.color || t.color || '#ef4444'} mask={`url(#takeover-mask-${i})`} opacity={0.95} />
+                       </React.Fragment>
+                     )}
+                  </g>
+                );
+              })}
+            </svg>
+          ))}
+
+          {/* VECTORS, LABELS & ASSETS (Rendered on top of Blend Mode Layers) */}
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 30, pointerEvents: 'none', shapeRendering: 'geometricPrecision' }}>
+            {arrows.map((arrow: any, i: number) => {
+              const startF = arrow.startFrame || 0;
+              if (frame < startF) return null;
+              
+              let a = arrow.origin, b = arrow.target;
+              if (arrow.sourceName) a = geometryFor(arrow.sourceName).center;
+              if (arrow.targetName) b = geometryFor(arrow.targetName).center;
+              if (!a || !b) return null;
+              
+              const p1 = project(a as [number, number]), p2 = project(b as [number, number]);
+              if (!p1 || !p2) return null;
+              
+              const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.hypot(dx, dy);
+              if (dist < 1) return null;
+
+              const mx = (p1.x + p2.x) / 2 - (dy / dist) * (dist * 0.38);
+              const my = (p1.y + p2.y) / 2 + (dx / dist) * (dist * 0.38);
+              const d = `M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`;
+              
+              const t = revealEase(clamp((frame - startF) / Number(arrow.duration ?? 45)));
+              
+              if (arrow.type === 'missile') {
+                const hx = Math.pow(1-t,2)*p1.x + 2*(1-t)*t*mx + Math.pow(t,2)*p2.x;
+                const hy = Math.pow(1-t,2)*p1.y + 2*(1-t)*t*my + Math.pow(t,2)*p2.y;
+                return (
+                  <g key={`arr-${i}`}>
+                    <path d={d} fill="none" stroke="#ef4444" strokeWidth="8" opacity={0.3} strokeLinecap="round" strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} style={{ filter: 'blur(6px)' }} />
+                    <path d={d} fill="none" stroke="#ffffff" strokeWidth="3" opacity={0.9} strokeLinecap="round" strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} />
+                    {t < 1 && (
+                      <g transform={`translate(${hx}, ${hy})`}>
+                        <circle cx="0" cy="0" r="14" fill="#ef4444" opacity={0.6} style={{ filter: 'blur(8px)' }} />
+                        <circle cx="0" cy="0" r="5" fill="#ffffff" />
+                      </g>
+                    )}
+                  </g>
+                );
+              }
+              
+              const sourceColor = rawCountries.find((c: any) => c.name === arrow.sourceName)?.color || '#ef4444';
+              return (
+                <g key={`arr-${i}`} filter="url(#tactical-shadow)">
+                  <path d={d} fill="none" stroke={sourceColor} strokeWidth="6" strokeLinecap="round" strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} />
+                  <path d={d} fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} />
+                </g>
+              );
+            })}
+
+            {assets.map((asset: any, i: number) => {
+               const start = Number(asset.startFrame ?? 0);
+               if (frame < start) return null;
+               const p = project([Number(asset.lng), Number(asset.lat)]);
+               if (!p) return null;
+
+               if (asset.type === 'pin') {
+                 const dropY = interpolate(frame - start, [0, 15], [-50, 0], { extrapolateRight: 'clamp', easing: Easing.bounce });
+                 return (
+                   <g key={`asset-${i}`} transform={`translate(${p.x}, ${p.y + dropY})`} filter="url(#tactical-shadow)">
+                     <path d="M0 -28 C -10 -28, -16 -20, -16 -10 C -16 0, 0 14, 0 14 C 0 14, 16 0, 16 -10 C 16 -20, 10 -28, 0 -28 Z" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                     <circle cx="0" cy="-14" r="5" fill="#ffffff" />
+                   </g>
+                 );
+               }
+
+               if (asset.type === 'explosion') {
+                 const ringR = interpolate(frame - start, [0, 20], [0, 90], { extrapolateRight: 'clamp', easing: Easing.out(Easing.exp) });
+                 const opacity = interpolate(frame - start, [0, 25], [1, 0], { extrapolateRight: 'clamp' });
+                 return (
+                   <g key={`asset-${i}`} transform={`translate(${p.x}, ${p.y})`} opacity={opacity}>
+                     <circle cx="0" cy="0" r={ringR} fill="none" stroke="#f59e0b" strokeWidth={15 * opacity} style={{ filter: 'blur(8px)' }} />
+                     <circle cx="0" cy="0" r={ringR * 0.8} fill="none" stroke="#ffffff" strokeWidth={6 * opacity} />
+                     <circle cx="0" cy="0" r={ringR * 0.3} fill="#ef4444" style={{ filter: 'blur(10px)' }} />
+                   </g>
+                 );
+               }
+               return null;
+            })}
+
+            {labels.map((l: any, i: number) => {
+              const start = Number(l.startFrame ?? 0);
+              const duration = Number(l.duration ?? 300);
+              const end = start + duration;
+              if (frame < start || (!l.pinned && frame > end)) return null;
+              const p = project([Number(l.lng), Number(l.lat)]);
+              if (!p) return null;
+
+              const intro = revealEase(clamp((frame - start) / 20));
+              const outro = !l.pinned && frame > end - 15 ? clamp((end - frame) / 15) : 1;
+              const alpha = intro * outro;
+              const scale = 0.72 + 0.28 * intro;
+              const txt = String(l.text || '').toUpperCase();
+              const size = Number(l.size ?? 24);
+              const color = l.color || '#ffffff';
+              const bg = l.bg || '#f472b6';
+              const font = l.font || 'sans-serif';
+
+              return (
+                <g key={`lbl-${i}`} transform={`translate(${p.x}, ${p.y}) scale(${scale})`} opacity={alpha}>
+                  {l.style === 'callout' && (
+                    <>
+                      <circle cx="0" cy="0" r="6" fill={color} style={{ filter: l.glow !== false ? `drop-shadow(0 0 12px ${color})` : 'none' }} />
+                      <path d={`M 0 0 L 30 -40 L ${30 + txt.length * (size*0.6)} -40`} fill="none" stroke={color} strokeWidth="3" strokeDasharray="500" strokeDashoffset={500 * (1 - intro)} />
+                      {intro > 0.5 && <text x="40" y="-48" fill={color} fontSize={size} fontWeight="900" fontFamily={font}>{txt}</text>}
+                    </>
+                  )}
+                  {l.style === 'geo-pin' && (
+                    <g transform={`translate(-${(txt.length * (size*0.6) + 36)/2}, -${size + 28})`}>
+                      <rect width={txt.length * (size*0.6) + 36} height={size + 16} rx="10" fill={bg} style={{ filter: l.glow !== false ? `drop-shadow(0 0 20px ${color})` : 'none' }} />
+                      <path d={`M ${(txt.length * (size*0.6) + 36)/2 - 6} ${size + 16} L ${(txt.length * (size*0.6) + 36)/2} ${size + 24} L ${(txt.length * (size*0.6) + 36)/2 + 6} ${size + 16} Z`} fill={bg} />
+                      <text x={(txt.length * (size*0.6) + 36)/2} y={(size + 16)/2 + 2} fill={color} fontSize={size} fontWeight="900" fontFamily={font} textAnchor="middle" dominantBaseline="middle">{txt}</text>
+                    </g>
+                  )}
+                  {l.style === 'pill' && (
+                    <g transform={`translate(-${(txt.length * (size*0.6) + 40)/2}, -${(size + 16)/2})`}>
+                      <rect width={txt.length * (size*0.6) + 40} height={size + 16} rx="8" fill={bg} style={{ filter: l.glow !== false ? `drop-shadow(0 0 20px ${color})` : 'none' }} />
+                      <text x={(txt.length * (size*0.6) + 40)/2} y={(size + 16)/2 + 2} fill={color} fontSize={size} fontWeight="900" fontFamily={font} textAnchor="middle" dominantBaseline="middle">{txt}</text>
+                    </g>
+                  )}
+                  {l.style === 'minimal' && (
+                    <>
+                      <circle cx="0" cy="0" r="6" fill={color} style={{ filter: l.glow !== false ? `drop-shadow(0 0 12px ${color})` : 'none' }} />
+                      <text x="16" y="2" fill={color} fontSize={size} fontWeight="900" fontFamily={font} dominantBaseline="middle">{txt}</text>
+                    </>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </>
       )}
     </AbsoluteFill>
   );
 };
+
+export default MapAnimation;
