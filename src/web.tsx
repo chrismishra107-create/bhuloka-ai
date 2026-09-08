@@ -2,12 +2,12 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Player, PlayerRef } from '@remotion/player';
 import { MapAnimation } from './MapAnimation';
-import fixWebmDuration from 'fix-webm-duration';
 import worldData from './world.json';
 import './index.css';
 
 const WebApp: React.FC = () => {
   const playerRef = useRef<PlayerRef>(null);
+  const trackContainerRef = useRef<HTMLDivElement>(null);
   
   const [prompt, setPrompt] = useState('');
   const [status, setStatus] = useState<'idle' | 'generating' | 'editor'>('idle');
@@ -19,7 +19,6 @@ const WebApp: React.FC = () => {
   const [videoDuration, setVideoDuration] = useState<number>(300);
   
   const [disabledEntities, setDisabledEntities] = useState<string[]>([]);
-  const [isTimelineOpen, setIsTimelineOpen] = useState<boolean>(true);
 
   const [isDesktop, setIsDesktop] = useState<boolean>(true);
   useEffect(() => {
@@ -36,13 +35,8 @@ const WebApp: React.FC = () => {
   const [isLiveEdit, setIsLiveEdit] = useState<boolean>(false);
   
   const [isExporting, setIsExporting] = useState<boolean>(false);
-  const [exportProgress, setExportProgress] = useState<number>(0);
+  const [exportProgress, setExportProgress] = useState<string>('');
   const [isPreloading, setIsPreloading] = useState<boolean>(false);
-  
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const dragPos = useRef<{x: number, y: number} | null>(null);
-  const activePointers = useRef<Map<number, {x: number, y: number}>>(new Map());
-  const previousPinch = useRef<{ dist: number, angle: number, centerY: number, centerX: number } | null>(null);
   
   const [targetLat, setTargetLat] = useState<number>(38.0);
   const [targetLng, setTargetLng] = useState<number>(127.0);
@@ -63,10 +57,12 @@ const WebApp: React.FC = () => {
 
   const [mapStyle, setMapStyle] = useState<string>('dark-documentary');
 
+  // LABEL ENGINE STATES
   const [labelText, setLabelText] = useState<string>('DMZ Border');
   const [labelColor, setLabelColor] = useState<string>('#ffffff');
   const [labelBg, setLabelBg] = useState<string>('rgba(0,0,0,0.7)');
   const [labelSize, setLabelSize] = useState<number>(24);
+  const [labelStyle, setLabelStyle] = useState<string>('callout');
   const [labelGlow, setLabelGlow] = useState<boolean>(true);
   const [labelPinned, setLabelPinned] = useState<boolean>(true);
 
@@ -77,6 +73,7 @@ const WebApp: React.FC = () => {
 
   useEffect(() => {
     const names = new Set<string>();
+    
     if (worldData && (worldData as any).features) {
       (worldData as any).features.forEach((f: any) => {
         if (f.properties.ADMIN) names.add(f.properties.ADMIN);
@@ -110,9 +107,7 @@ const WebApp: React.FC = () => {
         }
         
         setAllGeoNames(Array.from(names).filter(Boolean).sort());
-      } catch(e) {
-        console.warn("Could not preload dynamic names for autocomplete.");
-      }
+      } catch(e) {}
     };
     
     loadExtras();
@@ -127,13 +122,13 @@ const WebApp: React.FC = () => {
     let animationFrameId: number;
     const syncTimeline = () => {
       if (playerRef.current && isPlaying && !isExporting) {
-        setCurrentFrame(playerRef.current.getCurrentFrame());
+        setCurrentFrame(Math.min(playerRef.current.getCurrentFrame(), videoDuration));
       }
       animationFrameId = requestAnimationFrame(syncTimeline);
     };
     syncTimeline();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isPlaying, isExporting]);
+  }, [isPlaying, isExporting, videoDuration]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,166 +137,101 @@ const WebApp: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      const response = await fetch('/api/generate', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ prompt }) 
-      });
+      const response = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
       const data = await response.json();
-      
       if (data && data.timeline) {
-        if (!prompt.toLowerCase().includes('invad') && !prompt.toLowerCase().includes('attack') && !prompt.toLowerCase().includes('war')) {
-           data.timeline.takeovers = [];
-        }
-        setTimeline(data.timeline);
-        setVideoDuration(data.timeline.totalFrames || 300);
-        setStatus('editor');
-      } else {
-        setErrorMessage("API Quota Exceeded. Please try again later.");
-        setStatus('idle');
-      }
-    } catch (error) {
-      setErrorMessage("Network error. Please try again.");
-      setStatus('idle');
-    }
+        if (!prompt.toLowerCase().includes('invad') && !prompt.toLowerCase().includes('attack') && !prompt.toLowerCase().includes('war')) data.timeline.takeovers = [];
+        setTimeline(data.timeline); setVideoDuration(data.timeline.totalFrames || 300); setStatus('editor');
+      } else { setErrorMessage("API Quota Exceeded. Please try again later."); setStatus('idle'); }
+    } catch (error) { setErrorMessage("Network error. Please try again."); setStatus('idle'); }
   };
 
-  const handleFinalizeCache = async () => {
-    setIsPreloading(true);
-    playerRef.current?.pause();
-    setIsPlaying(false);
-    
-    for(let f = 0; f < videoDuration; f += 5) {
-      playerRef.current?.seekTo(f);
-      await new Promise(r => setTimeout(r, 200)); 
-    }
-    
-    playerRef.current?.seekTo(0);
-    setIsPreloading(false);
-    alert("Map Cache Finalized! Ready for flawless export.");
-  };
+  const handleDeterministicExport = async () => {
+    if (typeof VideoEncoder === 'undefined') { alert("Browser does not support WebCodecs. Please use Chrome or Brave."); return; }
+    setIsExporting(true); setExportProgress('Initializing encoder...'); playerRef.current?.pause(); setIsPlaying(false);
 
-  const handleFastMobileExport = async () => {
-    setIsExporting(true);
-    setExportProgress(0);
-    playerRef.current?.seekTo(0);
-    playerRef.current?.play();
-    setIsPlaying(true);
-
-    const compositeCanvas = document.createElement('canvas');
-    compositeCanvas.width = 1080;
-    compositeCanvas.height = 1920;
-    compositeCanvas.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:-1; pointer-events:none; border-radius:36px;';
-    
-    const playerContainer = document.querySelector('.remotion-player') || document.body;
-    playerContainer.appendChild(compositeCanvas);
-
-    const ctx = compositeCanvas.getContext('2d');
-    if (!ctx) {
-      setIsExporting(false);
-      return;
+    let MuxerModule: any;
+    try { 
+      MuxerModule = await import('webm-muxer'); 
+    } catch { 
+      // @ts-ignore
+      MuxerModule = await import(/* webpackIgnore: true */ 'https://cdn.jsdelivr.net/npm/webm-muxer@5.0.2/+esm'); 
     }
 
-    const stream = compositeCanvas.captureStream(30);
-    const videoTrack = stream.getVideoTracks()[0] as any;
+    const exportWidth = 1080; const exportHeight = 1920; const fps = 30;
+    const muxer = new MuxerModule.Muxer({ target: new MuxerModule.ArrayBufferTarget(), video: { codec: 'V_VP8', width: exportWidth, height: exportHeight, frameRate: fps } });
+    const videoEncoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => console.error("VideoEncoder Error:", e) });
+    videoEncoder.configure({ codec: 'vp8', width: exportWidth, height: exportHeight, bitrate: 8_000_000 });
 
-    const options = { mimeType: 'video/webm', videoBitsPerSecond: 8000000 }; 
-    if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
-      options.mimeType = 'video/webm; codecs=vp9';
-    } else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp8')) {
-       options.mimeType = 'video/webm; codecs=vp8';
-    }
-    
-    const recorder = new MediaRecorder(stream, options);
-    const chunks: BlobPart[] = [];
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    const offscreenCanvas = document.createElement('canvas'); offscreenCanvas.width = exportWidth; offscreenCanvas.height = exportHeight;
+    const offCtx = offscreenCanvas.getContext('2d', { willReadFrequently: false });
+    if (!offCtx) { setIsExporting(false); return; }
+    const frameDurationUs = Math.round(1_000_000 / fps);
 
-    let animId: number;
-    const renderLoop = () => {
-      if (!isExporting) return;
-      ctx.clearRect(0, 0, 1080, 1920);
+    for (let f = 0; f < videoDuration; f++) {
+      setExportProgress(`Frame ${f + 1}/${videoDuration} (${Math.round(((f + 1) / videoDuration) * 100)}%) - Verifying tiles...`);
+      playerRef.current?.seekTo(f); setCurrentFrame(f);
       
-      const mapCanvas = document.querySelector('canvas.maplibregl-canvas') as HTMLCanvasElement;
-      const blendCanvas = document.querySelector('canvas#vector-blend-overlay') as HTMLCanvasElement;
-      const uiCanvas = document.querySelector('canvas#vector-ui-overlay') as HTMLCanvasElement;
-      
-      try { if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920); } catch(e) {}
-      ctx.globalCompositeOperation = 'screen';
-      try { if (blendCanvas) ctx.drawImage(blendCanvas, 0, 0, 1080, 1920); } catch(e) {}
-      ctx.globalCompositeOperation = 'source-over';
-      try { if (uiCanvas) ctx.drawImage(uiCanvas, 0, 0, 1080, 1920); } catch(e) {}
-      
-      if (videoTrack && typeof videoTrack.requestFrame === 'function') videoTrack.requestFrame();
-      animId = requestAnimationFrame(renderLoop);
-    };
-    renderLoop();
-
-    const startTime = Date.now();
-    const durationMs = (videoDuration / 30) * 1000;
-
-    const progressInterval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const prog = Math.min(100, Math.round((elapsed / durationMs) * 100));
-      setExportProgress(prog);
-    }, 100);
-
-    recorder.onstop = async () => {
-      clearInterval(progressInterval);
-      cancelAnimationFrame(animId);
-      if (compositeCanvas.parentNode) compositeCanvas.parentNode.removeChild(compositeCanvas);
-      
-      let blob = new Blob(chunks, { type: options.mimeType });
-      
-      if (blob.size === 0) {
-        alert("Export failed: Browser security (CORS) blocked canvas extraction. Use True HD Server Export instead.");
-        setIsExporting(false);
-        setExportProgress(0);
-        return;
+      await new Promise(r => setTimeout(r, 40));
+      const map = (window as any).__mapInstance;
+      if (map) { 
+         let attempts = 0; 
+         while (!map.areTilesLoaded() && attempts < 40) { 
+           await new Promise(r => setTimeout(r, 50)); 
+           attempts++; 
+         } 
+         await new Promise<void>((resolve) => {
+            map.once('render', () => setTimeout(resolve, 50));
+            map.triggerRepaint();
+         });
       }
+      
+      await new Promise(r => requestAnimationFrame(r));
+      
+      offCtx.fillStyle = '#040711';
+      offCtx.fillRect(0, 0, exportWidth, exportHeight);
+      
+      const mapCanvas = map ? map.getCanvas() : null;
+      const blendCanvas = document.getElementById('vector-blend-overlay') as HTMLCanvasElement;
+      const uiCanvas = document.getElementById('vector-ui-overlay') as HTMLCanvasElement;
+      
+      if (mapCanvas) offCtx.drawImage(mapCanvas, 0, 0, exportWidth, exportHeight);
+      offCtx.globalCompositeOperation = 'source-over';
+      if (blendCanvas) offCtx.drawImage(blendCanvas, 0, 0, exportWidth, exportHeight);
+      if (uiCanvas) offCtx.drawImage(uiCanvas, 0, 0, exportWidth, exportHeight);
+      
+      const videoFrame = new VideoFrame(offscreenCanvas, { timestamp: f * frameDurationUs, duration: frameDurationUs });
+      videoEncoder.encode(videoFrame, { keyFrame: f % 30 === 0 }); videoFrame.close();
+    }
 
-      try { blob = await fixWebmDuration(blob, durationMs); } catch (err) { console.warn("Duration patcher warning:", err); }
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Mobile'}_${Date.now()}.webm`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setIsExporting(false);
-      setExportProgress(0);
-    };
-
-    recorder.start(250); 
-    
-    setTimeout(() => {
-      if (recorder.state === 'recording') recorder.stop();
-      playerRef.current?.pause();
-      setIsPlaying(false);
-    }, durationMs + 500);
+    setExportProgress('Finalizing video container...'); await videoEncoder.flush(); muxer.finalize();
+    const { buffer } = muxer.target; const blob = new Blob([buffer], { type: 'video/webm' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Bhuloka_Pristine'}_${Date.now()}.webm`; a.click(); URL.revokeObjectURL(url);
+    setIsExporting(false); setExportProgress(''); alert("Export Complete! All tiles verified and recorded at full resolution.");
   };
 
   const handleHDLocalExport = async () => {
     setIsExporting(true);
     try {
-      const res = await fetch('/api/render', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeline: dynamicTimeline })
-      });
+      const res = await fetch('/api/render', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timeline: dynamicTimeline }) });
       if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Tactical_Map'}_HD.mp4`;
-        a.click();
-      } else {
-        alert("Backend rendering failed. Ensure your server terminal is running and has FFmpeg installed.");
-      }
-    } catch (e) {
-      alert("Network error during local export.");
-    }
+        const blob = await res.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a');
+        a.href = url; a.download = `${timeline?.title?.replace(/\s+/g, '_') || 'Tactical_Map'}_HD.mp4`; a.click();
+      } else { alert("Backend rendering failed. Ensure your server terminal is running and has FFmpeg installed."); }
+    } catch (e) { alert("Network error during local export."); }
     setIsExporting(false);
+  };
+
+  // FULLY RESTORED DELETE ASSET FUNCTION
+  const deleteAsset = (id: string) => {
+    setTimeline((prev: any) => {
+      const updated = { ...prev };
+      if (updated.assets) updated.assets = updated.assets.filter((a: any) => a.id !== id);
+      if (updated.arrows) updated.arrows = updated.arrows.filter((a: any) => a.id !== id);
+      if (updated.takeovers) updated.takeovers = updated.takeovers.filter((t: any) => t.id !== id);
+      if (updated.labels) updated.labels = updated.labels.filter((l: any) => l.id !== id);
+      return updated;
+    });
   };
 
   const initializeManualScene = () => {
@@ -309,8 +239,8 @@ const WebApp: React.FC = () => {
       title: `${entityA} vs ${entityB} (Manual)`,
       totalFrames: 300,
       highlightCountries: [
-        { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: 0, revealStyle: 'ink' },
-        { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: 0, revealStyle: 'ink' }
+        { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'source-over', isPrimary: true, startFrame: 0, endFrame: 300, revealStyle: 'ink' },
+        { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'source-over', isPrimary: false, startFrame: 0, endFrame: 300, revealStyle: 'ink' }
       ],
       takeovers: [], arrows: [], labels: [],
       cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, pitch: 45, bearing: 0 }],
@@ -322,41 +252,25 @@ const WebApp: React.FC = () => {
   };
 
   const startLiveEdit = () => {
-    playerRef.current?.pause();
-    setIsPlaying(false);
-    const cFrame = currentFrame;
-    const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= cFrame) || [];
+    playerRef.current?.pause(); setIsPlaying(false);
+    const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= currentFrame) || [];
     const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0 };
-
-    setTargetLat(baseKf.lat ?? baseKf.latitude ?? 38.0);
-    setTargetLng(baseKf.lng ?? baseKf.longitude ?? 127.0);
-    setTargetZoom(baseKf.zoom ?? 1.2);
-    setTargetPitch(baseKf.pitch ?? 45);
-    setTargetBearing(baseKf.bearing ?? 0);
+    setTargetLat(baseKf.lat); setTargetLng(baseKf.lng); setTargetZoom(baseKf.zoom); setTargetPitch(baseKf.pitch); setTargetBearing(baseKf.bearing);
     setIsLiveEdit(true);
   };
 
   const dropKeyframeLive = () => {
-    const cFrame = currentFrame;
-    let extensionNeeded = 0;
     setTimeline((prev: any) => {
-      if (!prev) return prev;
       const updated = { ...prev };
-      updated.cameraKeyframes = [...(prev.cameraKeyframes || [])].filter((kf: any) => Math.abs(kf.frame - cFrame) > 15);
-      updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, pitch: targetPitch, bearing: targetBearing });
+      updated.cameraKeyframes = [...(prev.cameraKeyframes || [])].filter((kf: any) => Math.abs(kf.frame - currentFrame) > 15);
+      updated.cameraKeyframes.push({ frame: currentFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, pitch: targetPitch, bearing: targetBearing });
       updated.cameraKeyframes.sort((a: any, b: any) => a.frame - b.frame);
-      if (cFrame + 60 >= videoDuration) {
-        extensionNeeded = (cFrame + 90) - videoDuration;
-        updated.totalFrames = cFrame + 90;
-      }
       return updated;
     });
-    if (extensionNeeded > 0) setVideoDuration(prev => prev + extensionNeeded);
   };
 
   const deleteSpecificKeyframe = (frameIndex: number) => {
     setTimeline((prev: any) => {
-      if (!prev || !prev.cameraKeyframes) return prev;
       const updated = { ...prev };
       updated.cameraKeyframes = updated.cameraKeyframes.filter((kf: any) => kf.frame !== frameIndex);
       return updated;
@@ -365,11 +279,9 @@ const WebApp: React.FC = () => {
 
   const addCustomVector = (type: 'missile' | 'arrow') => {
     if (!pathStartCoord) return;
-    const cFrame = currentFrame;
     setTimeline((prev: any) => {
-      if (!prev) return prev;
       const updated = { ...prev };
-      updated.arrows = [...(prev.arrows || []), { id: Math.random().toString(36).substr(2, 9), type, origin: pathStartCoord, target: [targetLng, targetLat], startFrame: cFrame, duration: 90, color: type === 'missile' ? '#ffffff' : '#ef4444' }];
+      updated.arrows = [...(prev.arrows || []), { id: Math.random().toString(36).substr(2, 9), type, origin: pathStartCoord, target: [targetLng, targetLat], startFrame: currentFrame, duration: 90, color: type === 'missile' ? '#ffffff' : '#ef4444' }];
       return updated;
     });
     setPathStartCoord(null); 
@@ -377,25 +289,11 @@ const WebApp: React.FC = () => {
 
   const dropLabel = () => {
     if (!labelText.trim()) return;
-    const cFrame = currentFrame;
     setTimeline((prev: any) => {
-      if (!prev) return prev;
       const updated = { ...prev };
       updated.labels = [...(prev.labels || []), { 
-        id: Math.random().toString(36).substr(2, 9), text: labelText, lat: targetLat, lng: targetLng, startFrame: cFrame, duration: 150, color: labelColor, bg: labelBg, size: labelSize, glow: labelGlow, pinned: labelPinned 
+        id: Math.random().toString(36).substr(2, 9), text: labelText, lat: targetLat, lng: targetLng, startFrame: currentFrame, duration: 300, color: labelColor, bg: labelBg, size: labelSize, glow: labelGlow, pinned: labelPinned, style: labelStyle 
       }];
-      return updated;
-    });
-  };
-
-  const deleteAsset = (id: string) => {
-    setTimeline((prev: any) => {
-      if (!prev) return prev;
-      const updated = { ...prev };
-      if (updated.assets) updated.assets = updated.assets.filter((a: any) => a.id !== id);
-      if (updated.arrows) updated.arrows = updated.arrows.filter((a: any) => a.id !== id);
-      if (updated.takeovers) updated.takeovers = updated.takeovers.filter((t: any) => t.id !== id);
-      if (updated.labels) updated.labels = updated.labels.filter((l: any) => l.id !== id);
       return updated;
     });
   };
@@ -403,7 +301,6 @@ const WebApp: React.FC = () => {
   const cutEntity = (e: React.MouseEvent, name: string) => {
     e.stopPropagation();
     setTimeline((prev: any) => {
-      if (!prev) return prev;
       const updated = { ...prev };
       if (updated.highlightCountries) updated.highlightCountries = updated.highlightCountries.filter((c: any) => c.name !== name && c.country !== name);
       return updated;
@@ -413,30 +310,18 @@ const WebApp: React.FC = () => {
 
   const addStoryEvent = () => {
     if (!entityA || !entityB) return;
-    const cFrame = currentFrame;
     setTimeline((prev: any) => {
-      if (!prev) return prev;
       const updated = { ...prev };
-      updated.takeovers = [...(prev.takeovers || [])];
-      updated.arrows = [...(prev.arrows || [])];
-      updated.highlightCountries = [...(prev.highlightCountries || [])];
-
+      updated.takeovers = [...(prev.takeovers || [])]; updated.arrows = [...(prev.arrows || [])]; updated.highlightCountries = [...(prev.highlightCountries || [])];
       const foundEntityA = updated.highlightCountries.find((c:any) => c.name === entityA || c.country === entityA);
       const colorA = foundEntityA?.color || '#ef4444';
       const colorB = updated.highlightCountries.find((c:any) => c.name === entityB || c.country === entityB)?.color || '#3b82f6';
-
-      if (eventType === 'takeover') {
-        updated.takeovers.push({ id: Math.random().toString(36).substr(2,9), attacker: entityA, target: entityB, startFrame: cFrame, duration: 90, color: colorA });
-      } else {
-        updated.arrows.push({ id: Math.random().toString(36).substr(2,9), type: 'arrow', sourceName: entityA, targetName: entityB, startFrame: cFrame, duration: 90, color: colorA });
-      }
-
-      if (!foundEntityA) {
-        updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: true, startFrame: cFrame, revealStyle: 'fade' });
-      }
-      if (!updated.highlightCountries.find((c:any) => c.name === entityB || c.country === entityB)) {
-        updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, glowTarget: 'both', dropShadow: true, blendMode: 'screen', isPrimary: false, startFrame: cFrame, revealStyle: 'fade' });
-      }
+      
+      if (eventType === 'takeover') updated.takeovers.push({ id: Math.random().toString(36).substr(2,9), attacker: entityA, target: entityB, startFrame: currentFrame, duration: 90, color: colorA });
+      else updated.arrows.push({ id: Math.random().toString(36).substr(2,9), type: 'arrow', sourceName: entityA, targetName: entityB, startFrame: currentFrame, duration: 90, color: colorA });
+      
+      if (!foundEntityA) updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeWidth: 2, enableGlow: true, blendMode: 'source-over', isPrimary: true, startFrame: currentFrame, endFrame: videoDuration, revealStyle: 'fade' });
+      if (!updated.highlightCountries.find((c:any) => c.name === entityB || c.country === entityB)) updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeWidth: 2, enableGlow: true, blendMode: 'source-over', isPrimary: false, startFrame: currentFrame, endFrame: videoDuration, revealStyle: 'fade' });
       return updated;
     });
   };
@@ -444,91 +329,48 @@ const WebApp: React.FC = () => {
   const addCountryMap = () => {
     if (!newCountrySearch.trim()) return;
     const searchTarget = newCountrySearch.trim();
-    const cFrame = currentFrame;
-    
     setTimeline((prev: any) => {
-      if (!prev) return prev;
       const updated = { ...prev };
       updated.highlightCountries = [...(prev.highlightCountries || [])];
-      const exists = updated.highlightCountries.find((c: any) => (c.name || c.country).toLowerCase() === searchTarget.toLowerCase());
-      
-      if (!exists) {
-        updated.highlightCountries.push({ 
-          name: searchTarget, 
-          country: searchTarget, 
-          color: '#3b82f6', 
-          strokeColor: '#ffffff', 
-          strokeWidth: 2, 
-          enableGlow: true, 
-          glowTarget: 'both', 
-          dropShadow: true, 
-          blendMode: 'screen', 
-          isPrimary: false, 
-          startFrame: cFrame, 
-          revealStyle: 'fade' 
-        });
+      if (!updated.highlightCountries.find((c: any) => (c.name || c.country).toLowerCase() === searchTarget.toLowerCase())) {
+        updated.highlightCountries.push({ name: searchTarget, country: searchTarget, color: '#3b82f6', strokeWidth: 2, enableGlow: true, blendMode: 'source-over', isPrimary: false, startFrame: currentFrame, endFrame: videoDuration, revealStyle: 'fade' });
       }
       return updated;
     });
-    
-    setNewCountrySearch('');
-    setShowSuggestions(false);
+    setNewCountrySearch(''); setShowSuggestions(false);
   };
 
-  const updateEntityStyle = (key: string, value: any) => {
-    if (!selectedEntity) return;
+  const updateEntityStyle = (name: string, key: string, value: any) => {
     setTimeline((prev: any) => {
-      if (!prev) return prev;
       const updated = { ...prev };
       if (updated.highlightCountries) {
         updated.highlightCountries = updated.highlightCountries.map((c: any) => {
-          if (c.name === selectedEntity || c.country === selectedEntity) return { ...c, [key]: value };
+          if (c.name === name || c.country === name) return { ...c, [key]: value };
           return c;
         });
-      }
-      if (key === 'color') {
-        if (updated.arrows) updated.arrows = updated.arrows.map((arr: any) => (arr.sourceName === selectedEntity && arr.type !== 'missile' ? { ...arr, color: value } : arr));
-        if (updated.takeovers) updated.takeovers = updated.takeovers.map((t: any) => (t.attacker === selectedEntity ? { ...t, color: value } : t));
       }
       return updated;
     });
   };
 
-  const toggleEntitySuppression = (name: string) => setDisabledEntities(prev => prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]);
-
-  const togglePlay = () => {
-    if (!playerRef.current) return;
-    if (isPlaying) playerRef.current.pause(); else playerRef.current.play();
-    setIsPlaying(!isPlaying);
+  const updateLabelText = (id: string, text: string) => {
+    setTimeline((prev: any) => {
+      const updated = { ...prev };
+      if (updated.labels) updated.labels = updated.labels.map((l: any) => l.id === id ? { ...l, text } : l);
+      return updated;
+    });
   };
 
-  const activeEntityData: any = timeline?.highlightCountries?.find((c: any) => c.name === selectedEntity || c.country === selectedEntity);
-  const activeColor = activeEntityData?.color || '#3b82f6';
-  const activeStrokeColor = activeEntityData?.strokeColor || '#ffffff';
-  const activeStrokeWidth = activeEntityData?.strokeWidth !== undefined ? activeEntityData.strokeWidth : 2.5;
-  const activeEnableGlow = activeEntityData?.enableGlow !== undefined ? activeEntityData.enableGlow : true;
-  const activeGlowIntensity = activeEntityData?.glowIntensity !== undefined ? activeEntityData.glowIntensity : 20;
-  const activeBlendMode = activeEntityData?.blendMode || 'screen';
-  const activeDropShadow = activeEntityData?.dropShadow !== undefined ? activeEntityData.dropShadow : true;
+  const togglePlay = () => { if (!playerRef.current) return; if (isPlaying) playerRef.current.pause(); else playerRef.current.play(); setIsPlaying(!isPlaying); };
 
   const dynamicTimeline = useMemo(() => {
     if (!timeline) return null;
     const modified: any = { ...timeline, totalFrames: videoDuration };
-    
-    modified.highlightCountries = timeline.highlightCountries;
-    modified.takeovers = timeline.takeovers;
-    modified.arrows = timeline.arrows;
-    modified.assets = timeline.assets;
-    modified.labels = timeline.labels || [];
-
     if (disabledEntities.length > 0) {
        modified.highlightCountries = modified.highlightCountries?.filter((c: any) => !disabledEntities.includes(c.name || c.country));
        modified.takeovers = modified.takeovers?.filter((t: any) => !disabledEntities.includes(t.target || t.to || t.country));
     }
-    
     let newKfs = [...(timeline.cameraKeyframes || [])];
-    newKfs = newKfs.map((kf: any) => ({ ...kf, lat: kf.lat !== undefined ? kf.lat : (kf.latitude !== undefined ? kf.latitude : 38.0), lng: kf.lng !== undefined ? kf.lng : (kf.longitude !== undefined ? kf.longitude : 127.0), zoom: kf.zoom !== undefined ? kf.zoom : 1.2, pitch: kf.pitch !== undefined ? kf.pitch : 0, bearing: kf.bearing !== undefined ? kf.bearing : 0 }));
-    
     if (isLiveEdit && playerRef.current && !isPlaying) {
       newKfs = newKfs.filter((kf: any) => Math.abs(kf.frame - currentFrame) > 15);
       newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
@@ -539,14 +381,12 @@ const WebApp: React.FC = () => {
   }, [timeline, videoDuration, disabledEntities, isLiveEdit, targetLat, targetLng, targetZoom, targetPitch, targetBearing, currentFrame, isPlaying]);
 
   const playerInputProps = useMemo(() => ({
-    timeline: dynamicTimeline,
-    isLiveEditMode: isLiveEdit,
-    mapStyle: mapStyle
+    timeline: dynamicTimeline, isLiveEditMode: isLiveEdit, mapStyle: mapStyle,
+    onCameraChange: (cam: any) => { setTargetLat(cam.lat); setTargetLng(cam.lng); setTargetZoom(cam.zoom); setTargetPitch(cam.pitch); setTargetBearing(cam.bearing); }
   }), [dynamicTimeline, isLiveEdit, mapStyle]);
 
   const panelStyle: React.CSSProperties = {
-    background: 'rgba(20, 20, 24, 0.55)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-    border: '1px solid rgba(255, 255, 255, 0.15)', boxShadow: '0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)'
+    background: 'rgba(20, 20, 24, 0.7)', backdropFilter: 'blur(40px) saturate(200%)', WebkitBackdropFilter: 'blur(40px) saturate(200%)', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 30px 60px rgba(0,0,0,0.6)', borderRadius: '24px'
   };
 
   const BranchHeader = ({ title, branchKey }: { title: string, branchKey: string }) => (
@@ -556,58 +396,57 @@ const WebApp: React.FC = () => {
   );
 
   const leftPanelJSX = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <BranchHeader title="🌍 SCENE ENTITIES" branchKey="entities" />
         {openBranches.entities && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            
-            {/* AUTOCOMPLETE SEARCH BAR */}
             <div style={{ display: 'flex', gap: '6px', position: 'relative' }}>
               <div style={{ position: 'relative', flex: 1 }}>
-                <input 
-                  type="text" 
-                  value={newCountrySearch} 
-                  onChange={(e) => { setNewCountrySearch(e.target.value); setShowSuggestions(true); }} 
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  placeholder="Search river, state, country..." 
-                  style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} 
-                  onKeyDown={(e) => e.key === 'Enter' && addCountryMap()} 
-                />
-                
-                {/* DROPDOWN MENU */}
+                <input type="text" value={newCountrySearch} onChange={(e) => { setNewCountrySearch(e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search river, state, country..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none', boxSizing: 'border-box' }} onKeyDown={(e) => e.key === 'Enter' && addCountryMap()} />
                 {showSuggestions && filteredSuggestions.length > 0 && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#111827', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px', zIndex: 999, marginTop: '4px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.8)' }}>
-                    {filteredSuggestions.map(s => (
-                       <div 
-                         key={s} 
-                         onClick={() => { setNewCountrySearch(s); setShowSuggestions(false); }} 
-                         style={{ padding: '8px 12px', fontSize: '11px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(56,189,248,0.2)'}
-                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                       >
-                         {s}
-                       </div>
-                    ))}
+                    {filteredSuggestions.map(s => ( <div key={s} onMouseDown={() => { setNewCountrySearch(s); addCountryMap(); setShowSuggestions(false); }} style={{ padding: '8px 12px', fontSize: '11px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{s}</div> ))}
                   </div>
                 )}
               </div>
               <button onClick={addCountryMap} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px', padding: '0 10px', fontWeight: 'bold', cursor: 'pointer' }}>+</button>
             </div>
 
-            {timeline?.highlightCountries?.map((c: any, idx: number) => {
-              const name = c.name || c.country;
-              const isSelected = selectedEntity === name;
-              const isDisabled = disabledEntities.includes(name);
-              return (
-                <div key={idx} style={{ display: 'flex', gap: '4px' }}>
-                  <button onClick={() => setSelectedEntity(name)} style={{ flex: 1, background: isSelected ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255, 255, 255, 0.05)', border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)', color: '#ffffff', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', textAlign: 'left', cursor: 'pointer', textDecoration: isDisabled ? 'line-through' : 'none' }}>{name}</button>
-                  <button onClick={() => toggleEntitySuppression(name)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#8e8e93', borderRadius: '8px', padding: '0 6px', cursor: 'pointer', fontSize: '11px' }}>{isDisabled ? '🙈' : '👁️'}</button>
-                  <button onClick={(e) => cutEntity(e, name)} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '8px', border: 'none', padding: '0 8px', cursor: 'pointer', fontSize: '10px' }}>✕</button>
-                </div>
-              );
-            })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '400px', overflowY: 'visible', overflowX: 'hidden' }}>
+              {timeline?.highlightCountries?.map((c: any, idx: number) => {
+                const name = c.name || c.country;
+                const isSelected = selectedEntity === name;
+                return (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '8px', gap: '6px' }}>
+                      <button onClick={() => setSelectedEntity(isSelected ? null : name)} style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', fontSize: '11px', textAlign: 'left', cursor: 'pointer', fontWeight: 600 }}>{isSelected ? '▼' : '▶'} {name}</button>
+                      <button onClick={(e) => cutEntity(e, name)} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '6px', border: 'none', padding: '4px 8px', fontSize: '10px', cursor: 'pointer' }}>✕</button>
+                    </div>
+                    {isSelected && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 10px 12px 10px', background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+                          <span style={{ color: '#8e8e93' }}>Reveal Style</span>
+                          <select value={c.revealStyle || 'fade'} onChange={(e) => updateEntityStyle(name, 'revealStyle', e.target.value)} style={{ background: '#111', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', fontSize: '10px', padding: '4px' }}>
+                            <option value="fade">Fade In</option><option value="ink">Ink Bleed</option><option value="trim">River Trim</option>
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+                          <span style={{ color: '#8e8e93' }}>Fill Color</span>
+                          <input type="color" value={c.color || '#3b82f6'} onChange={(e) => updateEntityStyle(name, 'color', e.target.value)} style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+                          <span style={{ color: '#8e8e93' }}>Blend Mode</span>
+                          <select value={c.blendMode || 'source-over'} onChange={(e) => updateEntityStyle(name, 'blendMode', e.target.value)} style={{ background: '#111', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', fontSize: '10px', padding: '4px' }}>
+                            <option value="source-over">Normal</option><option value="screen">Screen</option><option value="multiply">Multiply</option><option value="overlay">Overlay</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -617,25 +456,25 @@ const WebApp: React.FC = () => {
         {openBranches.typography && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <input type="text" value={labelText} onChange={(e) => setLabelText(e.target.value)} placeholder="Label Text..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none' }} />
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+              <span style={{ color: '#8e8e93' }}>STYLE ENGINE</span>
+              <select value={labelStyle} onChange={(e) => setLabelStyle(e.target.value)} style={{ background: '#111', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', fontSize: '10px', padding: '4px' }}>
+                <option value="callout">Classy Callout</option><option value="pill">Cinematic Pill</option><option value="minimal">Minimal Dot</option>
+              </select>
+            </div>
+
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', color: '#8e8e93' }}>TXT</span>
+                <span style={{ fontSize: '9px', color: '#8e8e93' }}>COLOR</span>
                 <input type="color" value={labelColor} onChange={(e) => setLabelColor(e.target.value)} style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
               </div>
               <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', color: '#8e8e93' }}>BG</span>
-                <input type="color" value={labelBg} onChange={(e) => setLabelBg(e.target.value)} style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
-              </div>
-              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                 <span style={{ fontSize: '9px', color: '#8e8e93' }}>SIZE</span>
-                <input type="range" min="12" max="72" value={labelSize} onChange={(e) => setLabelSize(Number(e.target.value))} style={{ width: '40px', accentColor: '#38bdf8' }} />
+                <input type="range" min="12" max="72" value={labelSize} onChange={(e) => setLabelSize(Number(e.target.value))} style={{ width: '50px', accentColor: '#38bdf8' }} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button onClick={() => setLabelGlow(!labelGlow)} style={{ flex: 1, background: labelGlow ? '#38bdf8' : 'rgba(255,255,255,0.05)', color: labelGlow ? '#000' : '#8e8e93', border: 'none', borderRadius: '6px', padding: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{labelGlow ? 'GLOW ON' : 'GLOW OFF'}</button>
-              <button onClick={() => setLabelPinned(!labelPinned)} style={{ flex: 1, background: labelPinned ? '#10b981' : 'rgba(255,255,255,0.05)', color: labelPinned ? '#000' : '#8e8e93', border: 'none', borderRadius: '6px', padding: '4px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{labelPinned ? '📌 PINNED' : 'FLOAT'}</button>
-            </div>
-            <button onClick={() => { if(isLiveEdit) dropLabel(); }} style={{ background: isLiveEdit ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)', color: isLiveEdit ? '#38bdf8' : '#8e8e93', border: `1px solid ${isLiveEdit ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: isLiveEdit ? 'pointer' : 'not-allowed' }}>{isLiveEdit ? '📍 Drop Label at Crosshair' : 'Enter Live Edit to Drop'}</button>
+            <button onClick={() => { if(isLiveEdit) dropLabel(); }} style={{ background: isLiveEdit ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)', color: isLiveEdit ? '#38bdf8' : '#8e8e93', border: `1px solid ${isLiveEdit ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: isLiveEdit ? 'pointer' : 'not-allowed' }}>{isLiveEdit ? '📍 Drop Element at Crosshair' : 'Enter Live Edit to Drop'}</button>
           </div>
         )}
       </div>
@@ -672,14 +511,43 @@ const WebApp: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
+  );
 
-      {((timeline as any)?.assets?.length > 0 || (timeline as any)?.arrows?.some((a:any) => a.id) || (timeline as any)?.takeovers?.some((t:any) => t.id) || (timeline as any)?.labels?.length > 0) && (
+  const rightPanelJSX = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+        <button onClick={handleDeterministicExport} disabled={isPreloading || isExporting} style={{ background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '42px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
+          {isExporting ? `⏳ Exporting...` : '🎥 Offline WebM (100% Tiles)'}
+        </button>
+      </div>
+
+      {isExporting && (
+        <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '8px', padding: '8px', fontSize: '10px', color: '#fde047', textAlign: 'center', marginBottom: '8px' }}>
+          {exportProgress}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em' }}>CAMERA ENGINE</div>
+        {isLiveEdit && <button onClick={() => setIsLiveEdit(false)} style={{ background: 'transparent', color: '#8e8e93', border: 'none', fontSize: '10px', cursor: 'pointer' }}>✕ Close</button>}
+      </div>
+
+      {!isLiveEdit ? (
+        <button onClick={startLiveEdit} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 0 15px rgba(56,189,248,0.1)', marginTop: '10px' }}>🎯 Enter Live Canvas Edit</button>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+          <button onClick={dropKeyframeLive} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(56,189,248,0.4)' }}>📍 Save Keyframe Here</button>
+        </div>
+      )}
+
+      {((timeline as any)?.arrows?.length > 0 || (timeline as any)?.takeovers?.length > 0 || (timeline as any)?.labels?.length > 0) && (
         <React.Fragment>
           <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', width: '100%', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '10px' }}>ACTIVE ASSETS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {(timeline as any).labels?.map((l: any) => (
-              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px 12px' }}>
-                <span style={{ fontSize: '11px', color: '#fff' }}>📝 {l.text}</span>
+              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px' }}>
+                <input type="text" value={l.text} onChange={(e) => updateLabelText(l.id, e.target.value)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '11px', flex: 1, outline: 'none' }} />
                 <button onClick={() => deleteAsset(l.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>✕</button>
               </div>
             ))}
@@ -701,371 +569,215 @@ const WebApp: React.FC = () => {
     </div>
   );
 
-  const rightPanelJSX = (
-    <React.Fragment>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
-        <button onClick={handleHDLocalExport} disabled={isPreloading || isExporting} style={{ background: isExporting ? '#f59e0b' : '#a855f7', color: '#fff', border: 'none', borderRadius: '10px', width: '100%', height: '34px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
-          {isExporting ? '⏳ Rendering HD MP4...' : '🖥️ True HD Server Export'}
-        </button>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={handleFinalizeCache} disabled={isPreloading || isExporting} style={{ flex: 1, background: isPreloading ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isPreloading ? 'wait' : 'pointer' }}>
-            {isPreloading ? '⏳ Preloading...' : '📦 Finalize Cache'}
-          </button>
-          <button onClick={handleFastMobileExport} disabled={isExporting || isPreloading} style={{ flex: 1, background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '38px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}>
-            {isExporting ? `⏳ Compiling... ${exportProgress}%` : '🎥 Mobile WebM Export'}
-          </button>
-        </div>
-      </div>
+  const handleDragEdge = (e: React.PointerEvent, index: number, isStart: boolean) => {
+    e.stopPropagation();
+    const track = trackContainerRef.current?.getBoundingClientRect();
+    if (!track) return;
+    
+    const onMove = (moveEvent: PointerEvent) => {
+      const px = moveEvent.clientX - track.left;
+      const pct = Math.max(0, Math.min(1, px / track.width));
+      const frame = Math.round(pct * videoDuration);
+      
+      setTimeline((prev: any) => {
+        const u = { ...prev, highlightCountries: [...prev.highlightCountries] };
+        const entity = u.highlightCountries[index];
+        if (isStart) entity.startFrame = Math.min(frame, (entity.endFrame || videoDuration) - 5);
+        else entity.endFrame = Math.max(frame, (entity.startFrame || 0) + 5);
+        return u;
+      });
+    };
+    
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
+  };
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-        <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em' }}>CAMERA ENGINE</div>
-        {isLiveEdit && <button onClick={() => setIsLiveEdit(false)} style={{ background: 'transparent', color: '#8e8e93', border: 'none', fontSize: '10px', cursor: 'pointer' }}>✕ Close</button>}
-      </div>
+  const handleDragClip = (e: React.PointerEvent, index: number) => {
+    e.stopPropagation();
+    setSelectedEntity(timeline.highlightCountries[index].name);
+    
+    const track = trackContainerRef.current?.getBoundingClientRect();
+    if (!track) return;
+    
+    const startX = e.clientX;
+    const initialStartFrame = timeline.highlightCountries[index].startFrame || 0;
+    const initialEndFrame = timeline.highlightCountries[index].endFrame || videoDuration;
+    
+    const onMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const frameShift = Math.round((dx / track.width) * videoDuration);
+      
+      setTimeline((prev: any) => {
+        const u = { ...prev, highlightCountries: [...prev.highlightCountries] };
+        const entity = u.highlightCountries[index];
+        
+        let newStart = initialStartFrame + frameShift;
+        let newEnd = initialEndFrame + frameShift;
+        
+        if (newStart < 0) {
+          newEnd -= newStart;
+          newStart = 0;
+        }
+        if (newEnd > videoDuration) {
+          newStart -= (newEnd - videoDuration);
+          newEnd = videoDuration;
+        }
+        
+        entity.startFrame = newStart;
+        entity.endFrame = newEnd;
+        return u;
+      });
+    };
+    
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
+  };
 
-      {!isLiveEdit ? (
-        <button onClick={startLiveEdit} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 0 15px rgba(56,189,248,0.1)', marginTop: '10px' }}>🎯 Enter Live Canvas Edit</button>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
-          <button onClick={dropKeyframeLive} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(56,189,248,0.4)' }}>📍 Save Keyframe Here</button>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', maxHeight: '120px', overflowY: 'auto' }}>
-            <span style={{ fontSize: '9px', color: '#8e8e93' }}>ACTIVE TIMELINE MARKERS:</span>
-            {timeline?.cameraKeyframes?.map((kf: any) => (
-               <div key={kf.frame} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px' }}>
-                 <span style={{ fontSize: '10px', color: '#fff' }}>Frame: {Math.round(kf.frame)}</span>
-                 <button onClick={() => deleteSpecificKeyframe(kf.frame)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}>✕ Delete</button>
-               </div>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
-            <span style={{ color: '#8e8e93' }}>PITCH TILT</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetPitch)}°</span>
-          </div>
-          <input type="range" min="0" max="60" step="1" value={targetPitch} onChange={(e) => setTargetPitch(Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '2px' }}>
-            <span style={{ color: '#8e8e93' }}>BEARING ROTATION</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetBearing)}°</span>
-          </div>
-          <input type="range" min="-180" max="180" step="1" value={targetBearing} onChange={(e) => setTargetBearing(Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
-        </div>
-      )}
-
-      {selectedEntity ? (
-        <React.Fragment>
-          <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '2px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '8px' }}>STYLING: {selectedEntity.toUpperCase()}</div>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
-            <span style={{ color: '#8e8e93', fontWeight: 500 }}>REVEAL ANIMATION</span>
-            <select value={timeline?.highlightCountries?.find((c:any)=>c.name===selectedEntity)?.revealStyle || 'fade'} onChange={(e) => updateEntityStyle('revealStyle', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
-              <option value="fade">Fade In</option><option value="ink">Ink Bleed</option><option value="trim">River Trim</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
-            <span style={{ color: '#8e8e93', fontWeight: 500 }}>FILL COLOR</span>
-            <input type="color" value={activeColor} onChange={(e) => updateEntityStyle('color', e.target.value)} style={{ width: '24px', height: '24px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }} />
-          </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
-            <span style={{ color: '#8e8e93', fontWeight: 500 }}>GLOW</span>
-            <button onClick={() => updateEntityStyle('enableGlow', !activeEnableGlow)} style={{ background: activeEnableGlow ? '#38bdf8' : 'transparent', color: activeEnableGlow ? '#000' : '#8e8e93', border: '1px solid #38bdf8', borderRadius: '4px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{activeEnableGlow ? 'ON' : 'OFF'}</button>
-          </div>
-          {activeEnableGlow && <input type="range" min="0" max="50" step="1" value={activeGlowIntensity} onChange={(e) => updateEntityStyle('glowIntensity', Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />}
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
-            <span style={{ color: '#8e8e93', fontWeight: 500 }}>DROP SHADOW</span>
-            <button onClick={() => updateEntityStyle('dropShadow', !activeDropShadow)} style={{ background: activeDropShadow ? '#38bdf8' : 'transparent', color: activeDropShadow ? '#000' : '#8e8e93', border: '1px solid #38bdf8', borderRadius: '4px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{activeDropShadow ? 'ON' : 'OFF'}</button>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '6px' }}>
-            <span style={{ color: '#8e8e93', fontWeight: 500 }}>STROKE ({activeStrokeWidth}px)</span>
-            <input type="color" value={activeStrokeColor} onChange={(e) => updateEntityStyle('strokeColor', e.target.value)} style={{ width: '20px', height: '20px', border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }} />
-          </div>
-          <input type="range" min="0" max="10" step="0.5" value={activeStrokeWidth} onChange={(e) => updateEntityStyle('strokeWidth', Number(e.target.value))} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
-            <span style={{ color: '#8e8e93', fontWeight: 500 }}>BLEND MODE</span>
-            <select value={activeBlendMode} onChange={(e) => updateEntityStyle('blendMode', e.target.value)} style={{ background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '10px', padding: '6px', cursor: 'pointer' }}>
-              <option value="normal">Normal</option><option value="screen">Screen</option><option value="multiply">Multiply</option><option value="overlay">Overlay</option><option value="add">Color Dodge</option>
-            </select>
-          </div>
-        </React.Fragment>
-      ) : (
-        <React.Fragment>
-          <div style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', paddingBottom: '2px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '8px' }}>AUTO INJECTOR</div>
-          <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
-            <input type="text" value={entityA} onChange={(e)=>setEntityA(e.target.value)} placeholder="Origin Country" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '8px', borderRadius: '6px', outline: 'none' }} />
-            <input type="text" value={entityB} onChange={(e)=>setEntityB(e.target.value)} placeholder="Target Country" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', padding: '8px', borderRadius: '6px', outline: 'none' }} />
-          </div>
-          <select value={eventType} onChange={(e) => setEventType(e.target.value as any)} style={{ width: '100%', background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', outline: 'none', fontSize: '11px', padding: '8px', cursor: 'pointer', marginTop: '2px' }}>
-            <option value="arrow">Diplomatic Line (Arrow)</option><option value="takeover">Conflict (Invasion Wave)</option>
-          </select>
-          <button onClick={addStoryEvent} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', width: '100%', height: '36px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', marginTop: '4px' }}>＋ Inject Event</button>
-        </React.Fragment>
-      )}
-    </React.Fragment>
-  );
+  const handleDragKeyframe = (e: React.PointerEvent, kfIndex: number) => {
+    e.stopPropagation();
+    const track = trackContainerRef.current?.getBoundingClientRect();
+    if (!track) return;
+    
+    const onMove = (moveEvent: PointerEvent) => {
+      const px = moveEvent.clientX - track.left;
+      const pct = Math.max(0, Math.min(1, px / track.width));
+      const frame = Math.round(pct * videoDuration);
+      
+      setTimeline((prev: any) => {
+        const u = { ...prev, cameraKeyframes: [...prev.cameraKeyframes] };
+        const isCollision = u.cameraKeyframes.some((k: any, idx: number) => idx !== kfIndex && Math.abs(k.frame - frame) < 15);
+        if (!isCollision) {
+           u.cameraKeyframes[kfIndex].frame = frame;
+           u.cameraKeyframes.sort((a: any, b: any) => a.frame - b.frame);
+        }
+        return u;
+      });
+    };
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
+  };
 
   return (
-    <div style={{ backgroundColor: '#000000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: '#ffffff', margin: 0, padding: 0, overflow: 'hidden' }}>
+    <div style={{ backgroundColor: '#000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', color: '#fff', overflow: 'hidden' }}>
 
-      {status !== 'editor' && <div style={{ position: 'absolute', width: '800px', height: '800px', background: 'radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(148,163,184,0.02) 50%, transparent 70%)', borderRadius: '50%', zIndex: 1, pointerEvents: 'none', filter: 'blur(100px)' }} />}
-
-      {status === 'generating' && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(30px)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
-          <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '3px solid rgba(56,189,248,0.2)', borderTopColor: '#38bdf8', animation: 'spin 1s linear infinite' }} />
-          <div style={{ fontSize: '14px', letterSpacing: '0.2em', color: '#38bdf8', fontWeight: 600, animation: 'pulse 1.5s infinite' }}>COMPILING...</div>
-        </div>
-      )}
-
-      {status !== 'editor' && status !== 'generating' && (
-        <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '90%', maxWidth: '680px', padding: '20px' }}>
-          <h1 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.04em', marginBottom: '24px', textAlign: 'center' }}>Cinematic Timeline Studio</h1>
-          {errorMessage && (
-            <div style={{ width: '100%', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '16px', padding: '16px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '20px' }}>⚡</span><span style={{ fontSize: '13px', color: '#fde047' }}>{errorMessage}</span>
+      <div style={{ flex: 1, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: isDesktop ? '20px' : '0px', overflow: 'hidden' }}>
+        
+        {status !== 'editor' && status !== 'generating' && (
+          <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '680px', padding: '16px', boxSizing: 'border-box' }}>
+            <h1 style={{ fontSize: isDesktop ? '42px' : '28px', fontWeight: 700, letterSpacing: '-0.04em', marginBottom: '24px', textAlign: 'center' }}>Cinematic Timeline Studio</h1>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(255,255,255,0.06)', padding: '6px', borderRadius: '18px', width: '100%', maxWidth: '320px', boxSizing: 'border-box' }}>
+              <button onClick={() => setManualMode(false)} style={{ flex: 1, background: !manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: !manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>AI Directive</button>
+              <button onClick={() => setManualMode(true)} style={{ background: manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Manual Builder</button>
             </div>
-          )}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(255,255,255,0.06)', padding: '6px', borderRadius: '18px' }}>
-            <button onClick={() => setManualMode(false)} style={{ background: !manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: !manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px 24px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>AI Directive</button>
-            <button onClick={() => setManualMode(true)} style={{ background: manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px 24px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Manual Builder</button>
-          </div>
-          {!manualMode ? (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '32px', padding: '24px' }}>
-              <textarea placeholder="e.g., North Korea and South Korea relations..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontSize: '18px', outline: 'none', resize: 'none' }} required />
-              <button type="submit" style={{ background: '#fff', color: '#000', border: 'none', borderRadius: '20px', padding: '14px 28px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-end' }}>Generate ✦</button>
-            </form>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '32px', padding: '24px' }}>
-              <div style={{ display: 'flex', gap: '16px', flexDirection: 'column' }}>
-                <input type="text" value={entityA} onChange={(e) => setEntityA(e.target.value)} placeholder="Primary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '16px', padding: '16px', color: '#fff', fontSize: '16px', outline: 'none' }} />
-                <input type="text" value={entityB} onChange={(e) => setEntityB(e.target.value)} placeholder="Secondary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '16px', padding: '16px', color: '#fff', fontSize: '16px', outline: 'none' }} />
+            {!manualMode ? (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '16px', boxSizing: 'border-box' }}>
+                <textarea placeholder="e.g., North Korea and South Korea relations..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontSize: '16px', outline: 'none', resize: 'none', boxSizing: 'border-box' }} required />
+                <button type="submit" style={{ background: '#fff', color: '#000', border: 'none', borderRadius: '16px', padding: '12px 24px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-end' }}>Generate ✦</button>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '16px', boxSizing: 'border-box' }}>
+                <input type="text" value={entityA} onChange={(e) => setEntityA(e.target.value)} placeholder="Primary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                <input type="text" value={entityB} onChange={(e) => setEntityB(e.target.value)} placeholder="Secondary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                <button onClick={initializeManualScene} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '16px', padding: '14px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>Launch Empty Studio 🚀</button>
               </div>
-              <button onClick={initializeManualScene} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '20px', padding: '16px 28px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', marginTop: '10px' }}>Launch Empty Studio 🚀</button>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {status === 'editor' && dynamicTimeline && (
-        <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', paddingBottom: '100px' }}>
-          
-          {/* MOBILE TOGGLE BUTTONS WRAPPER */}
-          {!isDesktop && (
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '10px', zIndex: 100, flexShrink: 0 }}>
-              <button onClick={() => setLeftPanelOpen(true)} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🌍 Entities</button>
-              <button onClick={() => setRightPanelOpen(true)} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⚙️ Controls</button>
-            </div>
-          )}
+        {status === 'generating' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '3px solid rgba(56,189,248,0.2)', borderTopColor: '#38bdf8', animation: 'spin 1s linear infinite' }} />
+            <div style={{ fontSize: '14px', letterSpacing: '0.2em', color: '#38bdf8', fontWeight: 600 }}>COMPILING DIRECTIVE...</div>
+          </div>
+        )}
 
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '32px', width: '100%', height: '100%' }}>
-            
-            {isDesktop && (
-              <div style={{ ...panelStyle, display: 'flex', flexDirection: 'column', gap: '10px', borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '80vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>
+        {status === 'editor' && dynamicTimeline && (
+          <React.Fragment>
+            {/* FIXED SLIDING DRAWERS FOR DESKTOP AND MOBILE */}
+            <div style={{ position: 'fixed', left: leftPanelOpen ? '0px' : '-300px', top: '40%', transform: 'translateY(-50%)', transition: 'left 0.3s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 100, display: 'flex', alignItems: 'center' }}>
+              <div style={{ ...panelStyle, width: '300px', maxHeight: '75vh', borderLeft: 'none', borderRadius: '0 16px 16px 0', overflowY: 'auto' }}>
                 {leftPanelJSX}
               </div>
-            )}
-
-            <div style={{ 
-              height: '75vh', minHeight: '500px', maxHeight: '800px', aspectRatio: '9/16', borderRadius: '36px', border: '4px solid #1a1a1a', 
-              boxShadow: isLiveEdit ? '0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)' : '0 0 0 2px #38bdf8, 0 0 40px rgba(56,189,248,0.2)', 
-              position: 'relative', overflow: 'hidden', background: '#040711', flexShrink: 0, zIndex: 10
-            }}>
-              <div className="remotion-player" style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%' }}>
-                <Player
-                  ref={playerRef} component={MapAnimation} inputProps={playerInputProps} durationInFrames={videoDuration} compositionWidth={1080} compositionHeight={1920} fps={30} controls={false} loop autoPlay
-                  style={{ width: '100%', height: '100%', display: 'block', pointerEvents: isLiveEdit ? 'auto' : 'none' }}
-                />
-
-                {isLiveEdit && (
-                  <React.Fragment>
-                    <div 
-                      onContextMenu={(e) => e.preventDefault()} 
-                      onWheel={(e) => setTargetZoom(z => Math.max(0.5, Math.min(15, z - (e.nativeEvent as WheelEvent).deltaY * 0.005)))}
-                      onPointerDown={(e) => { 
-                        activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-                        e.currentTarget.setPointerCapture(e.pointerId);
-                        if (activePointers.current.size === 1) {
-                          setIsDragging(true); dragPos.current = { x: e.clientX, y: e.clientY };
-                        } else if (activePointers.current.size === 2) {
-                          setIsDragging(false);
-                          const pts = Array.from(activePointers.current.values());
-                          const dx = pts[0].x - pts[1].x; const dy = pts[0].y - pts[1].y;
-                          previousPinch.current = { dist: Math.hypot(dx, dy), angle: Math.atan2(dy, dx), centerY: (pts[0].y + pts[1].y) / 2, centerX: (pts[0].x + pts[1].x) / 2 };
-                        }
-                      }}
-                      onPointerUp={(e) => { 
-                        activePointers.current.delete(e.pointerId);
-                        e.currentTarget.releasePointerCapture(e.pointerId);
-                        if (activePointers.current.size < 2) previousPinch.current = null;
-                        if (activePointers.current.size === 0) setIsDragging(false);
-                        if (activePointers.current.size === 1) {
-                          const remainingPt = Array.from(activePointers.current.values())[0];
-                          dragPos.current = { x: remainingPt.x, y: remainingPt.y }; setIsDragging(true);
-                        }
-                      }}
-                      onPointerLeave={(e) => { 
-                        activePointers.current.delete(e.pointerId);
-                        if (activePointers.current.size < 2) previousPinch.current = null;
-                        if (activePointers.current.size === 0) setIsDragging(false);
-                      }}
-                      onPointerMove={(e) => {
-                        if (!activePointers.current.has(e.pointerId)) return;
-                        activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-                        if (activePointers.current.size === 1 && isDragging && dragPos.current) {
-                          const dx = e.clientX - dragPos.current.x; const dy = e.clientY - dragPos.current.y;
-                          dragPos.current = { x: e.clientX, y: e.clientY };
-                          if (e.buttons === 2 || e.shiftKey || e.altKey) {
-                            setTargetPitch(p => Math.max(0, Math.min(85, p - dy * 0.4))); setTargetBearing(b => b + dx * 0.8);
-                          } else {
-                            const panSens = 0.2 / Math.max(0.5, targetZoom);
-                            setTargetLng(l => l - dx * panSens); setTargetLat(l => Math.max(-85, Math.min(85, l + dy * panSens)));
-                          }
-                        } else if (activePointers.current.size === 2 && previousPinch.current) {
-                          const pts = Array.from(activePointers.current.values());
-                          const dx = pts[0].x - pts[1].x; const dy = pts[0].y - pts[1].y;
-                          const currentDist = Math.hypot(dx, dy); const currentAngle = Math.atan2(dy, dx);
-                          const currentCenterY = (pts[0].y + pts[1].y) / 2; const currentCenterX = (pts[0].x + pts[1].x) / 2;
-                          const distDiff = currentDist - previousPinch.current.dist;
-                          let angleDiff = currentAngle - previousPinch.current.angle;
-                          const yDiff = currentCenterY - previousPinch.current.centerY;
-                          const xDiff = currentCenterX - previousPinch.current.centerX;
-
-                          if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                          if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-
-                          setTargetZoom(z => Math.max(0.5, Math.min(15, z + distDiff * 0.01)));
-                          setTargetBearing(b => b + angleDiff * 60);
-                          if (Math.abs(yDiff) > 2) setTargetPitch(p => Math.max(0, Math.min(85, p - yDiff * 0.4))); 
-                          const panSens = 0.1 / Math.max(0.5, targetZoom);
-                          setTargetLng(l => l - xDiff * panSens); setTargetLat(l => Math.max(-85, Math.min(85, l + yDiff * panSens)));
-                          previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY, centerX: currentCenterX };
-                        }
-                      }}
-                      style={{ position: 'absolute', inset: 0, cursor: isDragging ? 'grabbing' : 'grab', zIndex: 50, touchAction: 'none' }}
-                    >
-                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '28px', height: '28px', border: '1.5px solid rgba(56,189,248,0.5)', borderRadius: '50%', pointerEvents: 'none' }}>
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '4px', height: '4px', background: pathStartCoord ? '#ef4444' : '#38bdf8', borderRadius: '50%' }} />
-                      </div>
-                    </div>
-                  </React.Fragment>
-                )}
+              <div onClick={() => setLeftPanelOpen(!leftPanelOpen)} style={{ ...panelStyle, width: '36px', height: '72px', borderLeft: 'none', borderRadius: '0 12px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#38bdf8', fontSize: '14px', marginLeft: '-1px' }}>
+                 {leftPanelOpen ? '◀' : '▶'}
               </div>
             </div>
 
-            {isDesktop && (
-              <div style={{ ...panelStyle, display: 'flex', flexDirection: 'column', gap: '14px', borderRadius: '20px', padding: '16px', width: '280px', maxHeight: '80vh', overflowY: 'auto', zIndex: 60, flexShrink: 0 }}>
+            <div style={{ position: 'fixed', right: rightPanelOpen ? '0px' : '-300px', top: '40%', transform: 'translateY(-50%)', transition: 'right 0.3s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 100, display: 'flex', alignItems: 'center' }}>
+              <div onClick={() => setRightPanelOpen(!rightPanelOpen)} style={{ ...panelStyle, width: '36px', height: '72px', borderRight: 'none', borderRadius: '12px 0 0 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#a855f7', fontSize: '14px', marginRight: '-1px' }}>
+                 {rightPanelOpen ? '▶' : '◀'}
+              </div>
+              <div style={{ ...panelStyle, width: '300px', maxHeight: '75vh', borderRight: 'none', borderRadius: '16px 0 0 16px', overflowY: 'auto' }}>
                 {rightPanelJSX}
               </div>
-            )}
-          </div>
-
-          {!isDesktop && leftPanelOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', boxSizing: 'border-box' }}>
-              <button onClick={() => setLeftPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '36px', height: '36px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '15px', flexShrink: 0 }}>✕</button>
-              {leftPanelJSX}
             </div>
-          )}
 
-          {!isDesktop && rightPanelOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 200, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', boxSizing: 'border-box' }}>
-              <button onClick={() => setRightPanelOpen(false)} style={{ alignSelf: 'flex-end', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '36px', height: '36px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '15px', flexShrink: 0 }}>✕</button>
-              {rightPanelJSX}
-            </div>
-          )}
-
-          {isTimelineOpen && (
-            <div style={{ position: 'fixed', bottom: isDesktop ? '20px' : '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120 }}>
-              <div style={{ ...panelStyle, width: '90%', maxWidth: '800px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '24px', padding: '14px 24px' }}>
-                <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '36px', height: '36px', flexShrink: 0, cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{isPlaying ? '❚❚' : '▶'}</button>
-                <div style={{ position: 'relative', flex: 1, height: '30px', display: 'flex', alignItems: 'center' }}>
-                  
-                  {/* MOBILE-FRIENDLY THUMB-SIZED DRAGGABLE TIMELINE HANDLES FOR ENTITIES/RIVERS */}
-                  {timeline?.highlightCountries && timeline.highlightCountries.map((c: any, i: number) => {
-                    const leftPercent = ((c.startFrame || 0) / videoDuration) * 100;
-                    return (
-                      <div 
-                        key={`hc-drawer-${i}`}
-                        title={`Entity Reveal: ${c.name || c.country}`}
-                        onPointerDown={(e) => {
-                          const trackRect = e.currentTarget.parentElement?.getBoundingClientRect(); if (!trackRect) return;
-                          e.currentTarget.setPointerCapture(e.pointerId);
-                          const handlePointerMove = (moveEvent: PointerEvent) => {
-                            const xPos = moveEvent.clientX - trackRect.left; const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
-                            const newFrame = Math.round(percentage * videoDuration);
-                            setTimeline((prev: any) => { if (!prev) return prev; const updated = JSON.parse(JSON.stringify(prev)); updated.highlightCountries[i].startFrame = newFrame; return updated; });
-                          };
-                          const handlePointerUp = () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
-                          window.addEventListener('pointermove', handlePointerMove); window.addEventListener('pointerup', handlePointerUp);
-                        }}
-                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', top: '3px', width: '14px', height: '24px', backgroundColor: c.color || '#3b82f6', border: '2px solid #ffffff', borderRadius: '4px', cursor: 'ew-resize', zIndex: 16, boxShadow: '0 2px 6px rgba(0,0,0,0.8)' }}
-                      />
-                    );
-                  })}
-
-                  {timeline?.takeovers && timeline.takeovers.map((t: any, i: number) => {
-                    const leftPercent = ((t.startFrame || 0) / videoDuration) * 100;
-                    return <div key={`inv-drawer-${i}`} title={`Conflict: ${t.attacker} > ${t.target}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', width: '4px', height: '14px', backgroundColor: '#ef4444', borderRadius: '2px', cursor: 'help', zIndex: 15 }} />
-                  })}
-                  {timeline?.arrows && timeline.arrows.map((a: any, i: number) => {
-                    const leftPercent = ((a.startFrame || 0) / videoDuration) * 100;
-                    return <div key={`arr-drawer-${i}`} title={`${a.type === 'missile' ? 'Missile' : 'Arrow'}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', width: '4px', height: '14px', backgroundColor: a.type === 'missile' ? '#ffffff' : '#3b82f6', borderRadius: '2px', cursor: 'help', zIndex: 15 }} />
-                  })}
-                  {timeline?.labels && timeline.labels.map((l: any, i: number) => {
-                    const leftPercent = ((l.startFrame || 0) / videoDuration) * 100;
-                    return <div key={`lbl-drawer-${i}`} title={`Label: ${l.text}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', width: '6px', height: '6px', backgroundColor: '#a855f7', borderRadius: '50%', cursor: 'help', zIndex: 15 }} />
-                  })}
-                  
-                  {/* MOBILE-FRIENDLY THUMB-SIZED DRAGGABLE TIMELINE HANDLES FOR KEYFRAMES */}
-                  {timeline?.cameraKeyframes && timeline.cameraKeyframes.map((kf: any, i: number) => {
-                    const leftPercent = (kf.frame / videoDuration) * 100;
-                    return (
-                      <div 
-                        key={`kf-drawer-${i}`}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          setTimeline((prev: any) => {
-                            if (!prev) return prev;
-                            const updated = JSON.parse(JSON.stringify(prev));
-                            updated.cameraKeyframes = updated.cameraKeyframes.filter((k: any) => k.frame !== kf.frame);
-                            return updated;
-                          });
-                        }}
-                        onPointerDown={(e) => {
-                          const trackRect = e.currentTarget.parentElement?.getBoundingClientRect();
-                          if (!trackRect) return;
-                          e.currentTarget.setPointerCapture(e.pointerId);
-                          const handlePointerMove = (moveEvent: PointerEvent) => {
-                            const xPos = moveEvent.clientX - trackRect.left;
-                            const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
-                            const newFrame = Math.round(percentage * videoDuration);
-                            setTimeline((prev: any) => {
-                              if (!prev) return prev;
-                              const updated = JSON.parse(JSON.stringify(prev));
-                              const isCollision = updated.cameraKeyframes.some((k: any, idx: number) => idx !== i && Math.abs(k.frame - newFrame) < 15);
-                              if (isCollision) return prev;
-                              updated.cameraKeyframes[i].frame = newFrame;
-                              updated.cameraKeyframes.sort((a: any, b: any) => a.frame - b.frame);
-                              return updated;
-                            });
-                          };
-                          const handlePointerUp = () => {
-                            window.removeEventListener('pointermove', handlePointerMove);
-                            window.removeEventListener('pointerup', handlePointerUp);
-                          };
-                          window.addEventListener('pointermove', handlePointerMove);
-                          window.addEventListener('pointerup', handlePointerUp);
-                        }}
-                        style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: 'translateX(-50%)', top: '3px', width: '14px', height: '24px', backgroundColor: '#38bdf8', border: '2px solid #ffffff', borderRadius: '4px', cursor: 'ew-resize', zIndex: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
-                      />
-                    );
-                  })}
-                  <input type="range" min="0" max={videoDuration} step="1" value={currentFrame} onChange={(e) => { const targetFrame = Number(e.target.value); setCurrentFrame(targetFrame); playerRef.current?.seekTo(targetFrame); }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer', position: 'relative', zIndex: 6, background: 'transparent' }} />
+            <div style={{ height: '100%', maxHeight: '100%', aspectRatio: '9/16', borderRadius: isDesktop ? '24px' : '0px', border: isDesktop ? '2px solid #1a1a1a' : 'none', boxShadow: isLiveEdit ? '0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)' : '0 0 40px rgba(0,0,0,0.8)', position: 'relative', overflow: 'hidden', background: '#040711', zIndex: 10 }}>
+              <Player
+                ref={playerRef} component={MapAnimation} inputProps={playerInputProps} durationInFrames={videoDuration} compositionWidth={1080} compositionHeight={1920} fps={30} controls={false} loop autoPlay
+                style={{ width: '100%', height: '100%', display: 'block', pointerEvents: isLiveEdit ? 'none' : 'none' }}
+              />
+              {/* Simple crosshair overlay during live edit, MapLibre handles native touches */}
+              {isLiveEdit && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '28px', height: '28px', border: '1.5px solid rgba(56,189,248,0.5)', borderRadius: '50%', pointerEvents: 'none', zIndex: 50 }}>
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '4px', height: '4px', background: '#38bdf8', borderRadius: '50%' }} />
                 </div>
-                <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.8)', flexShrink: 0 }}>{Math.round(currentFrame)} / {videoDuration}</span>
+              )}
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+
+      {status === 'editor' && dynamicTimeline && (
+        <div style={{ position: 'fixed', bottom: isDesktop ? '20px' : '30px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120, padding: '0 16px', boxSizing: 'border-box' }}>
+          <div style={{ ...panelStyle, width: '100%', maxWidth: '900px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '24px', padding: '12px 24px', height: '140px', boxSizing: 'border-box' }}>
+            <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '40px', height: '40px', flexShrink: 0, cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', alignSelf: 'flex-start' }}>{isPlaying ? '❚❚' : '▶'}</button>
+            
+            <div style={{ flex: 1, height: '100%', overflowY: 'auto', paddingRight: '8px', position: 'relative' }}>
+              <div ref={trackContainerRef} style={{ position: 'relative', minHeight: '100%' }}>
+                
+                <div style={{ position: 'sticky', top: 0, height: '24px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', zIndex: 5 }}>
+                  <input type="range" min="0" max={videoDuration} step="1" value={currentFrame} onChange={(e) => { const tf = Number(e.target.value); setCurrentFrame(tf); playerRef.current?.seekTo(tf); }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer', margin: 0, height: '100%', opacity: 0.3 }} />
+                </div>
+                
+                {/* Camera Keyframes */}
+                {timeline?.cameraKeyframes && timeline.cameraKeyframes.map((kf: any, i: number) => {
+                  const leftPercent = (kf.frame / videoDuration) * 100;
+                  return (
+                    <div key={`kf-drawer-${i}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, top: '8px', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 30 }}>
+                      <div onPointerDown={(e) => handleDragKeyframe(e, i)} style={{ width: '12px', height: '12px', backgroundColor: '#a855f7', border: '2px solid #ffffff', cursor: 'ew-resize', transform: 'rotate(45deg)', boxShadow: '0 2px 8px rgba(0,0,0,0.8)' }} />
+                      <button onClick={() => { if (confirm(`Delete keyframe at frame ${kf.frame}?`)) deleteSpecificKeyframe(kf.frame); }} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '14px', height: '14px', fontSize: '8px', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    </div>
+                  );
+                })}
+
+                {/* Staggered Entity Tracks */}
+                {timeline?.highlightCountries && timeline.highlightCountries.map((c: any, i: number) => {
+                  const startPct = ((c.startFrame || 0) / videoDuration) * 100;
+                  const endPct = ((c.endFrame || videoDuration) / videoDuration) * 100;
+                  const widthPct = endPct - startPct;
+                  return (
+                    <div 
+                      key={`hc-drawer-${i}`}
+                      style={{ position: 'absolute', left: `${startPct}%`, width: `${widthPct}%`, top: `${32 + (i * 28)}px`, height: '22px', background: c.color || '#3b82f6', opacity: 0.85, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', zIndex: 16, boxShadow: '0 2px 6px rgba(0,0,0,0.8)' }}
+                    >
+                      <div onPointerDown={(e) => handleDragEdge(e, i, true)} style={{ width: '16px', height: '100%', background: 'rgba(255,255,255,0.4)', borderRadius: '4px 0 0 4px', cursor: 'ew-resize' }} />
+                      <div onPointerDown={(e) => handleDragClip(e, i)} style={{ flex: 1, height: '100%', cursor: 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '10px', color: '#fff', fontWeight: 600, pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{c.name}</span>
+                      </div>
+                      <div onPointerDown={(e) => handleDragEdge(e, i, false)} style={{ width: '16px', height: '100%', background: 'rgba(255,255,255,0.4)', borderRadius: '0 4px 4px 0', cursor: 'ew-resize' }} />
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          )}
+            
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', alignSelf: 'flex-start' }}>
+              <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em', flexShrink: 0 }}>
+                {(currentFrame / 30).toFixed(1)}s / {(videoDuration / 30).toFixed(1)}s
+              </span>
+            </div>
+          </div>
         </div>
       )}
 

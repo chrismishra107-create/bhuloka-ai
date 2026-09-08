@@ -6,12 +6,30 @@
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __commonJS = (cb2, mod) => function __require() {
+  var __require = /* @__PURE__ */ ((x2) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x2, {
+    get: (a4, b4) => (typeof require !== "undefined" ? require : a4)[b4]
+  }) : x2)(function(x2) {
+    if (typeof require !== "undefined") return require.apply(this, arguments);
+    throw Error('Dynamic require of "' + x2 + '" is not supported');
+  });
+  var __esm = (fn2, res, err) => function __init() {
+    if (err) throw err[0];
+    try {
+      return fn2 && (res = (0, fn2[__getOwnPropNames(fn2)[0]])(fn2 = 0)), res;
+    } catch (e63) {
+      throw err = [e63], e63;
+    }
+  };
+  var __commonJS = (cb2, mod) => function __require2() {
     try {
       return mod || (0, cb2[__getOwnPropNames(cb2)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
     } catch (e63) {
       throw mod = 0, e63;
     }
+  };
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
   };
   var __copyProps = (to3, from, except, desc) => {
     if (from && typeof from === "object" || typeof from === "function") {
@@ -21723,490 +21741,1441 @@
     }
   });
 
-  // node_modules/fix-webm-duration/fix-webm-duration.js
-  var require_fix_webm_duration = __commonJS({
-    "node_modules/fix-webm-duration/fix-webm-duration.js"(exports, module) {
-      (function(name, definition) {
-        if (typeof define === "function" && define.amd) {
-          define(definition);
-        } else if (typeof module !== "undefined" && module.exports) {
-          module.exports = definition();
+  // node_modules/webm-muxer/build/webm-muxer.mjs
+  var webm_muxer_exports = {};
+  __export(webm_muxer_exports, {
+    ArrayBufferTarget: () => ArrayBufferTarget,
+    FileSystemWritableFileStreamTarget: () => FileSystemWritableFileStreamTarget,
+    Muxer: () => Muxer,
+    StreamTarget: () => StreamTarget,
+    SubtitleEncoder: () => SubtitleEncoder
+  });
+  var __accessCheck, __privateGet, __privateAdd, __privateSet, __privateMethod, EBMLFloat32, EBMLFloat64, measureUnsignedInt, measureEBMLVarInt, readBits, writeBits, Target, ArrayBufferTarget, StreamTarget, FileSystemWritableFileStreamTarget, _helper, _helperView, _writeByte, writeByte_fn, _writeFloat32, writeFloat32_fn, _writeFloat64, writeFloat64_fn, _writeUnsignedInt, writeUnsignedInt_fn, _writeString, writeString_fn, Writer, _target, _buffer, _bytes, _ensureSize, ensureSize_fn, ArrayBufferTargetWriter, _trackingWrites, _trackedWrites, _trackedStart, _trackedEnd, BaseStreamTargetWriter, DEFAULT_CHUNK_SIZE, MAX_CHUNKS_AT_ONCE, _sections, _lastFlushEnd, _ensureMonotonicity, _chunked, _chunkSize, _chunks, _writeDataIntoChunks, writeDataIntoChunks_fn, _insertSectionIntoChunk, insertSectionIntoChunk_fn, _createChunk, createChunk_fn, _flushChunks, flushChunks_fn, StreamTargetWriter, FileSystemWritableFileStreamTargetWriter, VIDEO_TRACK_NUMBER, AUDIO_TRACK_NUMBER, SUBTITLE_TRACK_NUMBER, VIDEO_TRACK_TYPE, AUDIO_TRACK_TYPE, SUBTITLE_TRACK_TYPE, MAX_CHUNK_LENGTH_MS, CODEC_PRIVATE_MAX_SIZE, APP_NAME, SEGMENT_SIZE_BYTES, CLUSTER_SIZE_BYTES, FIRST_TIMESTAMP_BEHAVIORS, _options, _writer, _segment, _segmentInfo, _seekHead, _tracksElement, _segmentDuration, _colourElement, _videoCodecPrivate, _audioCodecPrivate, _subtitleCodecPrivate, _cues, _currentCluster, _currentClusterTimestamp, _duration, _videoChunkQueue, _audioChunkQueue, _subtitleChunkQueue, _firstVideoTimestamp, _firstAudioTimestamp, _lastVideoTimestamp, _lastAudioTimestamp, _lastSubtitleTimestamp, _colorSpace, _finalized, _validateOptions, validateOptions_fn, _createFileHeader, createFileHeader_fn, _writeEBMLHeader, writeEBMLHeader_fn, _createCodecPrivatePlaceholders, createCodecPrivatePlaceholders_fn, _createColourElement, createColourElement_fn, _createSeekHead, createSeekHead_fn, _createSegmentInfo, createSegmentInfo_fn, _createTracks, createTracks_fn, _createSegment, createSegment_fn, _createCues, createCues_fn, _maybeFlushStreamingTargetWriter, maybeFlushStreamingTargetWriter_fn, _segmentDataOffset, segmentDataOffset_get, _writeVideoDecoderConfig, writeVideoDecoderConfig_fn, _fixVP9ColorSpace, fixVP9ColorSpace_fn, _writeSubtitleChunks, writeSubtitleChunks_fn, _createInternalChunk, createInternalChunk_fn, _validateTimestamp, validateTimestamp_fn, _writeBlock, writeBlock_fn, _createCodecPrivateElement, createCodecPrivateElement_fn, _writeCodecPrivate, writeCodecPrivate_fn, _createNewCluster, createNewCluster_fn, _finalizeCurrentCluster, finalizeCurrentCluster_fn, _ensureNotFinalized, ensureNotFinalized_fn, Muxer, cueBlockHeaderRegex, preambleStartRegex, timestampRegex, inlineTimestampRegex, textEncoder, _options2, _config, _preambleSeen, _preambleBytes, _preambleEmitted, _parseTimestamp, parseTimestamp_fn, _formatTimestamp, formatTimestamp_fn, SubtitleEncoder;
+  var init_webm_muxer = __esm({
+    "node_modules/webm-muxer/build/webm-muxer.mjs"() {
+      __accessCheck = (obj, member, msg) => {
+        if (!member.has(obj))
+          throw TypeError("Cannot " + msg);
+      };
+      __privateGet = (obj, member, getter) => {
+        __accessCheck(obj, member, "read from private field");
+        return getter ? getter.call(obj) : member.get(obj);
+      };
+      __privateAdd = (obj, member, value) => {
+        if (member.has(obj))
+          throw TypeError("Cannot add the same private member more than once");
+        member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+      };
+      __privateSet = (obj, member, value, setter) => {
+        __accessCheck(obj, member, "write to private field");
+        setter ? setter.call(obj, value) : member.set(obj, value);
+        return value;
+      };
+      __privateMethod = (obj, member, method) => {
+        __accessCheck(obj, member, "access private method");
+        return method;
+      };
+      EBMLFloat32 = class {
+        constructor(value) {
+          this.value = value;
+        }
+      };
+      EBMLFloat64 = class {
+        constructor(value) {
+          this.value = value;
+        }
+      };
+      measureUnsignedInt = (value) => {
+        if (value < 1 << 8) {
+          return 1;
+        } else if (value < 1 << 16) {
+          return 2;
+        } else if (value < 1 << 24) {
+          return 3;
+        } else if (value < 2 ** 32) {
+          return 4;
+        } else if (value < 2 ** 40) {
+          return 5;
         } else {
-          window.ysFixWebmDuration = definition();
+          return 6;
         }
-      })("fix-webm-duration", function() {
-        var sections = {
-          172351395: { name: "EBML", type: "Container" },
-          646: { name: "EBMLVersion", type: "Uint" },
-          759: { name: "EBMLReadVersion", type: "Uint" },
-          754: { name: "EBMLMaxIDLength", type: "Uint" },
-          755: { name: "EBMLMaxSizeLength", type: "Uint" },
-          642: { name: "DocType", type: "String" },
-          647: { name: "DocTypeVersion", type: "Uint" },
-          645: { name: "DocTypeReadVersion", type: "Uint" },
-          108: { name: "Void", type: "Binary" },
-          63: { name: "CRC-32", type: "Binary" },
-          190023271: { name: "SignatureSlot", type: "Container" },
-          16010: { name: "SignatureAlgo", type: "Uint" },
-          16026: { name: "SignatureHash", type: "Uint" },
-          16037: { name: "SignaturePublicKey", type: "Binary" },
-          16053: { name: "Signature", type: "Binary" },
-          15963: { name: "SignatureElements", type: "Container" },
-          15995: { name: "SignatureElementList", type: "Container" },
-          9522: { name: "SignedElement", type: "Binary" },
-          139690087: { name: "Segment", type: "Container" },
-          21863284: { name: "SeekHead", type: "Container" },
-          3515: { name: "Seek", type: "Container" },
-          5035: { name: "SeekID", type: "Binary" },
-          5036: { name: "SeekPosition", type: "Uint" },
-          88713574: { name: "Info", type: "Container" },
-          13220: { name: "SegmentUID", type: "Binary" },
-          13188: { name: "SegmentFilename", type: "String" },
-          1882403: { name: "PrevUID", type: "Binary" },
-          1868715: { name: "PrevFilename", type: "String" },
-          2013475: { name: "NextUID", type: "Binary" },
-          1999803: { name: "NextFilename", type: "String" },
-          1092: { name: "SegmentFamily", type: "Binary" },
-          10532: { name: "ChapterTranslate", type: "Container" },
-          10748: { name: "ChapterTranslateEditionUID", type: "Uint" },
-          10687: { name: "ChapterTranslateCodec", type: "Uint" },
-          10661: { name: "ChapterTranslateID", type: "Binary" },
-          710577: { name: "TimecodeScale", type: "Uint" },
-          1161: { name: "Duration", type: "Float" },
-          1121: { name: "DateUTC", type: "Date" },
-          15273: { name: "Title", type: "String" },
-          3456: { name: "MuxingApp", type: "String" },
-          5953: { name: "WritingApp", type: "String" },
-          // 0xf43b675: { name: 'Cluster', type: 'Container' },
-          103: { name: "Timecode", type: "Uint" },
-          6228: { name: "SilentTracks", type: "Container" },
-          6359: { name: "SilentTrackNumber", type: "Uint" },
-          39: { name: "Position", type: "Uint" },
-          43: { name: "PrevSize", type: "Uint" },
-          35: { name: "SimpleBlock", type: "Binary" },
-          32: { name: "BlockGroup", type: "Container" },
-          33: { name: "Block", type: "Binary" },
-          34: { name: "BlockVirtual", type: "Binary" },
-          13729: { name: "BlockAdditions", type: "Container" },
-          38: { name: "BlockMore", type: "Container" },
-          110: { name: "BlockAddID", type: "Uint" },
-          37: { name: "BlockAdditional", type: "Binary" },
-          27: { name: "BlockDuration", type: "Uint" },
-          122: { name: "ReferencePriority", type: "Uint" },
-          123: { name: "ReferenceBlock", type: "Int" },
-          125: { name: "ReferenceVirtual", type: "Int" },
-          36: { name: "CodecState", type: "Binary" },
-          13730: { name: "DiscardPadding", type: "Int" },
-          14: { name: "Slices", type: "Container" },
-          104: { name: "TimeSlice", type: "Container" },
-          76: { name: "LaceNumber", type: "Uint" },
-          77: { name: "FrameNumber", type: "Uint" },
-          75: { name: "BlockAdditionID", type: "Uint" },
-          78: { name: "Delay", type: "Uint" },
-          79: { name: "SliceDuration", type: "Uint" },
-          72: { name: "ReferenceFrame", type: "Container" },
-          73: { name: "ReferenceOffset", type: "Uint" },
-          74: { name: "ReferenceTimeCode", type: "Uint" },
-          47: { name: "EncryptedBlock", type: "Binary" },
-          106212971: { name: "Tracks", type: "Container" },
-          46: { name: "TrackEntry", type: "Container" },
-          87: { name: "TrackNumber", type: "Uint" },
-          13253: { name: "TrackUID", type: "Uint" },
-          3: { name: "TrackType", type: "Uint" },
-          57: { name: "FlagEnabled", type: "Uint" },
-          8: { name: "FlagDefault", type: "Uint" },
-          5546: { name: "FlagForced", type: "Uint" },
-          28: { name: "FlagLacing", type: "Uint" },
-          11751: { name: "MinCache", type: "Uint" },
-          11768: { name: "MaxCache", type: "Uint" },
-          254851: { name: "DefaultDuration", type: "Uint" },
-          216698: { name: "DefaultDecodedFieldDuration", type: "Uint" },
-          209231: { name: "TrackTimecodeScale", type: "Float" },
-          4991: { name: "TrackOffset", type: "Int" },
-          5614: { name: "MaxBlockAdditionID", type: "Uint" },
-          4974: { name: "Name", type: "String" },
-          177564: { name: "Language", type: "String" },
-          6: { name: "CodecID", type: "String" },
-          9122: { name: "CodecPrivate", type: "Binary" },
-          362120: { name: "CodecName", type: "String" },
-          13382: { name: "AttachmentLink", type: "Uint" },
-          1742487: { name: "CodecSettings", type: "String" },
-          1785920: { name: "CodecInfoURL", type: "String" },
-          438848: { name: "CodecDownloadURL", type: "String" },
-          42: { name: "CodecDecodeAll", type: "Uint" },
-          12203: { name: "TrackOverlay", type: "Uint" },
-          5802: { name: "CodecDelay", type: "Uint" },
-          5819: { name: "SeekPreRoll", type: "Uint" },
-          9764: { name: "TrackTranslate", type: "Container" },
-          9980: { name: "TrackTranslateEditionUID", type: "Uint" },
-          9919: { name: "TrackTranslateCodec", type: "Uint" },
-          9893: { name: "TrackTranslateTrackID", type: "Binary" },
-          96: { name: "Video", type: "Container" },
-          26: { name: "FlagInterlaced", type: "Uint" },
-          5048: { name: "StereoMode", type: "Uint" },
-          5056: { name: "AlphaMode", type: "Uint" },
-          5049: { name: "OldStereoMode", type: "Uint" },
-          48: { name: "PixelWidth", type: "Uint" },
-          58: { name: "PixelHeight", type: "Uint" },
-          5290: { name: "PixelCropBottom", type: "Uint" },
-          5307: { name: "PixelCropTop", type: "Uint" },
-          5324: { name: "PixelCropLeft", type: "Uint" },
-          5341: { name: "PixelCropRight", type: "Uint" },
-          5296: { name: "DisplayWidth", type: "Uint" },
-          5306: { name: "DisplayHeight", type: "Uint" },
-          5298: { name: "DisplayUnit", type: "Uint" },
-          5299: { name: "AspectRatioType", type: "Uint" },
-          963876: { name: "ColourSpace", type: "Binary" },
-          1029411: { name: "GammaValue", type: "Float" },
-          230371: { name: "FrameRate", type: "Float" },
-          97: { name: "Audio", type: "Container" },
-          53: { name: "SamplingFrequency", type: "Float" },
-          14517: { name: "OutputSamplingFrequency", type: "Float" },
-          31: { name: "Channels", type: "Uint" },
-          15739: { name: "ChannelPositions", type: "Binary" },
-          8804: { name: "BitDepth", type: "Uint" },
-          98: { name: "TrackOperation", type: "Container" },
-          99: { name: "TrackCombinePlanes", type: "Container" },
-          100: { name: "TrackPlane", type: "Container" },
-          101: { name: "TrackPlaneUID", type: "Uint" },
-          102: { name: "TrackPlaneType", type: "Uint" },
-          105: { name: "TrackJoinBlocks", type: "Container" },
-          109: { name: "TrackJoinUID", type: "Uint" },
-          64: { name: "TrickTrackUID", type: "Uint" },
-          65: { name: "TrickTrackSegmentUID", type: "Binary" },
-          70: { name: "TrickTrackFlag", type: "Uint" },
-          71: { name: "TrickMasterTrackUID", type: "Uint" },
-          68: { name: "TrickMasterTrackSegmentUID", type: "Binary" },
-          11648: { name: "ContentEncodings", type: "Container" },
-          8768: { name: "ContentEncoding", type: "Container" },
-          4145: { name: "ContentEncodingOrder", type: "Uint" },
-          4146: { name: "ContentEncodingScope", type: "Uint" },
-          4147: { name: "ContentEncodingType", type: "Uint" },
-          4148: { name: "ContentCompression", type: "Container" },
-          596: { name: "ContentCompAlgo", type: "Uint" },
-          597: { name: "ContentCompSettings", type: "Binary" },
-          4149: { name: "ContentEncryption", type: "Container" },
-          2017: { name: "ContentEncAlgo", type: "Uint" },
-          2018: { name: "ContentEncKeyID", type: "Binary" },
-          2019: { name: "ContentSignature", type: "Binary" },
-          2020: { name: "ContentSigKeyID", type: "Binary" },
-          2021: { name: "ContentSigAlgo", type: "Uint" },
-          2022: { name: "ContentSigHashAlgo", type: "Uint" },
-          206814059: { name: "Cues", type: "Container" },
-          59: { name: "CuePoint", type: "Container" },
-          51: { name: "CueTime", type: "Uint" },
-          55: { name: "CueTrackPositions", type: "Container" },
-          119: { name: "CueTrack", type: "Uint" },
-          113: { name: "CueClusterPosition", type: "Uint" },
-          112: { name: "CueRelativePosition", type: "Uint" },
-          50: { name: "CueDuration", type: "Uint" },
-          4984: { name: "CueBlockNumber", type: "Uint" },
-          106: { name: "CueCodecState", type: "Uint" },
-          91: { name: "CueReference", type: "Container" },
-          22: { name: "CueRefTime", type: "Uint" },
-          23: { name: "CueRefCluster", type: "Uint" },
-          4959: { name: "CueRefNumber", type: "Uint" },
-          107: { name: "CueRefCodecState", type: "Uint" },
-          155296873: { name: "Attachments", type: "Container" },
-          8615: { name: "AttachedFile", type: "Container" },
-          1662: { name: "FileDescription", type: "String" },
-          1646: { name: "FileName", type: "String" },
-          1632: { name: "FileMimeType", type: "String" },
-          1628: { name: "FileData", type: "Binary" },
-          1710: { name: "FileUID", type: "Uint" },
-          1653: { name: "FileReferral", type: "Binary" },
-          1633: { name: "FileUsedStartTime", type: "Uint" },
-          1634: { name: "FileUsedEndTime", type: "Uint" },
-          4433776: { name: "Chapters", type: "Container" },
-          1465: { name: "EditionEntry", type: "Container" },
-          1468: { name: "EditionUID", type: "Uint" },
-          1469: { name: "EditionFlagHidden", type: "Uint" },
-          1499: { name: "EditionFlagDefault", type: "Uint" },
-          1501: { name: "EditionFlagOrdered", type: "Uint" },
-          54: { name: "ChapterAtom", type: "Container" },
-          13252: { name: "ChapterUID", type: "Uint" },
-          5716: { name: "ChapterStringUID", type: "String" },
-          17: { name: "ChapterTimeStart", type: "Uint" },
-          18: { name: "ChapterTimeEnd", type: "Uint" },
-          24: { name: "ChapterFlagHidden", type: "Uint" },
-          1432: { name: "ChapterFlagEnabled", type: "Uint" },
-          11879: { name: "ChapterSegmentUID", type: "Binary" },
-          11964: { name: "ChapterSegmentEditionUID", type: "Uint" },
-          9155: { name: "ChapterPhysicalEquiv", type: "Uint" },
-          15: { name: "ChapterTrack", type: "Container" },
-          9: { name: "ChapterTrackNumber", type: "Uint" },
-          0: { name: "ChapterDisplay", type: "Container" },
-          5: { name: "ChapString", type: "String" },
-          892: { name: "ChapLanguage", type: "String" },
-          894: { name: "ChapCountry", type: "String" },
-          10564: { name: "ChapProcess", type: "Container" },
-          10581: { name: "ChapProcessCodecID", type: "Uint" },
-          1293: { name: "ChapProcessPrivate", type: "Binary" },
-          10513: { name: "ChapProcessCommand", type: "Container" },
-          10530: { name: "ChapProcessTime", type: "Uint" },
-          10547: { name: "ChapProcessData", type: "Binary" },
-          39109479: { name: "Tags", type: "Container" },
-          13171: { name: "Tag", type: "Container" },
-          9152: { name: "Targets", type: "Container" },
-          10442: { name: "TargetTypeValue", type: "Uint" },
-          9162: { name: "TargetType", type: "String" },
-          9157: { name: "TagTrackUID", type: "Uint" },
-          9161: { name: "TagEditionUID", type: "Uint" },
-          9156: { name: "TagChapterUID", type: "Uint" },
-          9158: { name: "TagAttachmentUID", type: "Uint" },
-          10184: { name: "SimpleTag", type: "Container" },
-          1443: { name: "TagName", type: "String" },
-          1146: { name: "TagLanguage", type: "String" },
-          1156: { name: "TagDefault", type: "Uint" },
-          1159: { name: "TagString", type: "String" },
-          1157: { name: "TagBinary", type: "Binary" }
-        };
-        function doInherit(newClass, baseClass) {
-          newClass.prototype = Object.create(baseClass.prototype);
-          newClass.prototype.constructor = newClass;
+      };
+      measureEBMLVarInt = (value) => {
+        if (value < (1 << 7) - 1) {
+          return 1;
+        } else if (value < (1 << 14) - 1) {
+          return 2;
+        } else if (value < (1 << 21) - 1) {
+          return 3;
+        } else if (value < (1 << 28) - 1) {
+          return 4;
+        } else if (value < 2 ** 35 - 1) {
+          return 5;
+        } else if (value < 2 ** 42 - 1) {
+          return 6;
+        } else {
+          throw new Error("EBML VINT size not supported " + value);
         }
-        function WebmBase(name, type) {
-          this.name = name || "Unknown";
-          this.type = type || "Unknown";
+      };
+      readBits = (bytes, start, end) => {
+        let result = 0;
+        for (let i2 = start; i2 < end; i2++) {
+          let byteIndex = Math.floor(i2 / 8);
+          let byte = bytes[byteIndex];
+          let bitIndex = 7 - (i2 & 7);
+          let bit = (byte & 1 << bitIndex) >> bitIndex;
+          result <<= 1;
+          result |= bit;
         }
-        WebmBase.prototype.updateBySource = function() {
-        };
-        WebmBase.prototype.setSource = function(source) {
-          this.source = source;
-          this.updateBySource();
-        };
-        WebmBase.prototype.updateByData = function() {
-        };
-        WebmBase.prototype.setData = function(data) {
-          this.data = data;
-          this.updateByData();
-        };
-        function WebmUint(name, type) {
-          WebmBase.call(this, name, type || "Uint");
+        return result;
+      };
+      writeBits = (bytes, start, end, value) => {
+        for (let i2 = start; i2 < end; i2++) {
+          let byteIndex = Math.floor(i2 / 8);
+          let byte = bytes[byteIndex];
+          let bitIndex = 7 - (i2 & 7);
+          byte &= ~(1 << bitIndex);
+          byte |= (value & 1 << end - i2 - 1) >> end - i2 - 1 << bitIndex;
+          bytes[byteIndex] = byte;
         }
-        doInherit(WebmUint, WebmBase);
-        function padHex(hex) {
-          return hex.length % 2 === 1 ? "0" + hex : hex;
+      };
+      Target = class {
+      };
+      ArrayBufferTarget = class extends Target {
+        constructor() {
+          super(...arguments);
+          this.buffer = null;
         }
-        WebmUint.prototype.updateBySource = function() {
-          this.data = "";
-          for (var i2 = 0; i2 < this.source.length; i2++) {
-            var hex = this.source[i2].toString(16);
-            this.data += padHex(hex);
+      };
+      StreamTarget = class extends Target {
+        constructor(options) {
+          super();
+          this.options = options;
+          if (typeof options !== "object") {
+            throw new TypeError("StreamTarget requires an options object to be passed to its constructor.");
           }
-        };
-        WebmUint.prototype.updateByData = function() {
-          var length = this.data.length / 2;
-          this.source = new Uint8Array(length);
-          for (var i2 = 0; i2 < length; i2++) {
-            var hex = this.data.substr(i2 * 2, 2);
-            this.source[i2] = parseInt(hex, 16);
-          }
-        };
-        WebmUint.prototype.getValue = function() {
-          return parseInt(this.data, 16);
-        };
-        WebmUint.prototype.setValue = function(value) {
-          this.setData(padHex(value.toString(16)));
-        };
-        function WebmFloat(name, type) {
-          WebmBase.call(this, name, type || "Float");
-        }
-        doInherit(WebmFloat, WebmBase);
-        WebmFloat.prototype.getFloatArrayType = function() {
-          return this.source && this.source.length === 4 ? Float32Array : Float64Array;
-        };
-        WebmFloat.prototype.updateBySource = function() {
-          var byteArray = this.source.reverse();
-          var floatArrayType = this.getFloatArrayType();
-          var floatArray = new floatArrayType(byteArray.buffer);
-          this.data = floatArray[0];
-        };
-        WebmFloat.prototype.updateByData = function() {
-          var floatArrayType = this.getFloatArrayType();
-          var floatArray = new floatArrayType([this.data]);
-          var byteArray = new Uint8Array(floatArray.buffer);
-          this.source = byteArray.reverse();
-        };
-        WebmFloat.prototype.getValue = function() {
-          return this.data;
-        };
-        WebmFloat.prototype.setValue = function(value) {
-          this.setData(value);
-        };
-        function WebmContainer(name, type) {
-          WebmBase.call(this, name, type || "Container");
-        }
-        doInherit(WebmContainer, WebmBase);
-        WebmContainer.prototype.readByte = function() {
-          return this.source[this.offset++];
-        };
-        WebmContainer.prototype.readUint = function() {
-          var firstByte = this.readByte();
-          var bytes = 8 - firstByte.toString(2).length;
-          var value = firstByte - (1 << 7 - bytes);
-          for (var i2 = 0; i2 < bytes; i2++) {
-            value *= 256;
-            value += this.readByte();
-          }
-          return value;
-        };
-        WebmContainer.prototype.updateBySource = function() {
-          this.data = [];
-          for (this.offset = 0; this.offset < this.source.length; this.offset = end) {
-            var id3 = this.readUint();
-            var len = this.readUint();
-            var end = Math.min(this.offset + len, this.source.length);
-            var data = this.source.slice(this.offset, end);
-            var info2 = sections[id3] || { name: "Unknown", type: "Unknown" };
-            var ctr = WebmBase;
-            switch (info2.type) {
-              case "Container":
-                ctr = WebmContainer;
-                break;
-              case "Uint":
-                ctr = WebmUint;
-                break;
-              case "Float":
-                ctr = WebmFloat;
-                break;
+          if (options.onData) {
+            if (typeof options.onData !== "function") {
+              throw new TypeError("options.onData, when provided, must be a function.");
             }
-            var section = new ctr(info2.name, info2.type);
-            section.setSource(data);
-            this.data.push({
-              id: id3,
-              idHex: id3.toString(16),
-              data: section
-            });
-          }
-        };
-        WebmContainer.prototype.writeUint = function(x2, draft) {
-          for (var bytes = 1, flag = 128; x2 >= flag && bytes < 8; bytes++, flag *= 128) {
-          }
-          if (!draft) {
-            var value = flag + x2;
-            for (var i2 = bytes - 1; i2 >= 0; i2--) {
-              var c4 = value % 256;
-              this.source[this.offset + i2] = c4;
-              value = (value - c4) / 256;
+            if (options.onData.length < 2) {
+              throw new TypeError(
+                "options.onData, when provided, must be a function that takes in at least two arguments (data and position). Ignoring the position argument, which specifies the byte offset at which the data is to be written, can lead to broken outputs."
+              );
             }
           }
-          this.offset += bytes;
-        };
-        WebmContainer.prototype.writeSections = function(draft) {
-          this.offset = 0;
-          for (var i2 = 0; i2 < this.data.length; i2++) {
-            var section = this.data[i2], content = section.data.source, contentLength = content.length;
-            this.writeUint(section.id, draft);
-            this.writeUint(contentLength, draft);
-            if (!draft) {
-              this.source.set(content, this.offset);
-            }
-            this.offset += contentLength;
+          if (options.onHeader && typeof options.onHeader !== "function") {
+            throw new TypeError("options.onHeader, when provided, must be a function.");
           }
-          return this.offset;
-        };
-        WebmContainer.prototype.updateByData = function() {
-          var length = this.writeSections("draft");
-          this.source = new Uint8Array(length);
-          this.writeSections();
-        };
-        WebmContainer.prototype.getSectionById = function(id3) {
-          for (var i2 = 0; i2 < this.data.length; i2++) {
-            var section = this.data[i2];
-            if (section.id === id3) {
-              return section.data;
-            }
+          if (options.onCluster && typeof options.onCluster !== "function") {
+            throw new TypeError("options.onCluster, when provided, must be a function.");
           }
-          return null;
-        };
-        function WebmFile(source) {
-          WebmContainer.call(this, "File", "File");
-          this.setSource(source);
+          if (options.chunked !== void 0 && typeof options.chunked !== "boolean") {
+            throw new TypeError("options.chunked, when provided, must be a boolean.");
+          }
+          if (options.chunkSize !== void 0 && (!Number.isInteger(options.chunkSize) || options.chunkSize < 1024)) {
+            throw new TypeError("options.chunkSize, when provided, must be an integer and not smaller than 1024.");
+          }
         }
-        doInherit(WebmFile, WebmContainer);
-        WebmFile.prototype.fixDuration = function(duration, options) {
-          var logger = options && options.logger;
-          if (logger === void 0) {
-            logger = function(message) {
-              console.log(message);
-            };
-          } else if (!logger) {
-            logger = function() {
-            };
+      };
+      FileSystemWritableFileStreamTarget = class extends Target {
+        constructor(stream, options) {
+          super();
+          this.stream = stream;
+          this.options = options;
+          if (!(stream instanceof FileSystemWritableFileStream)) {
+            throw new TypeError("FileSystemWritableFileStreamTarget requires a FileSystemWritableFileStream instance.");
           }
-          var segmentSection = this.getSectionById(139690087);
-          if (!segmentSection) {
-            logger("[fix-webm-duration] Segment section is missing");
-            return false;
+          if (options !== void 0 && typeof options !== "object") {
+            throw new TypeError("FileSystemWritableFileStreamTarget's options, when provided, must be an object.");
           }
-          var infoSection = segmentSection.getSectionById(88713574);
-          if (!infoSection) {
-            logger("[fix-webm-duration] Info section is missing");
-            return false;
+          if (options) {
+            if (options.chunkSize !== void 0 && (!Number.isInteger(options.chunkSize) || options.chunkSize <= 0)) {
+              throw new TypeError("options.chunkSize, when provided, must be a positive integer");
+            }
           }
-          var timeScaleSection = infoSection.getSectionById(710577);
-          if (!timeScaleSection) {
-            logger("[fix-webm-duration] TimecodeScale section is missing");
-            return false;
+        }
+      };
+      Writer = class {
+        constructor() {
+          __privateAdd(this, _writeByte);
+          __privateAdd(this, _writeFloat32);
+          __privateAdd(this, _writeFloat64);
+          __privateAdd(this, _writeUnsignedInt);
+          __privateAdd(this, _writeString);
+          this.pos = 0;
+          __privateAdd(this, _helper, new Uint8Array(8));
+          __privateAdd(this, _helperView, new DataView(__privateGet(this, _helper).buffer));
+          this.offsets = /* @__PURE__ */ new WeakMap();
+          this.dataOffsets = /* @__PURE__ */ new WeakMap();
+        }
+        seek(newPos) {
+          this.pos = newPos;
+        }
+        writeEBMLVarInt(value, width = measureEBMLVarInt(value)) {
+          let pos = 0;
+          switch (width) {
+            case 1:
+              __privateGet(this, _helperView).setUint8(pos++, 1 << 7 | value);
+              break;
+            case 2:
+              __privateGet(this, _helperView).setUint8(pos++, 1 << 6 | value >> 8);
+              __privateGet(this, _helperView).setUint8(pos++, value);
+              break;
+            case 3:
+              __privateGet(this, _helperView).setUint8(pos++, 1 << 5 | value >> 16);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 8);
+              __privateGet(this, _helperView).setUint8(pos++, value);
+              break;
+            case 4:
+              __privateGet(this, _helperView).setUint8(pos++, 1 << 4 | value >> 24);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 16);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 8);
+              __privateGet(this, _helperView).setUint8(pos++, value);
+              break;
+            case 5:
+              __privateGet(this, _helperView).setUint8(pos++, 1 << 3 | value / 2 ** 32 & 7);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 24);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 16);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 8);
+              __privateGet(this, _helperView).setUint8(pos++, value);
+              break;
+            case 6:
+              __privateGet(this, _helperView).setUint8(pos++, 1 << 2 | value / 2 ** 40 & 3);
+              __privateGet(this, _helperView).setUint8(pos++, value / 2 ** 32 | 0);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 24);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 16);
+              __privateGet(this, _helperView).setUint8(pos++, value >> 8);
+              __privateGet(this, _helperView).setUint8(pos++, value);
+              break;
+            default:
+              throw new Error("Bad EBML VINT size " + width);
           }
-          var durationSection = infoSection.getSectionById(1161);
-          if (durationSection) {
-            if (durationSection.getValue() <= 0) {
-              logger(`[fix-webm-duration] Duration section is present, but the value is ${durationSection.getValue()}`);
-              durationSection.setValue(duration);
-            } else {
-              logger(`[fix-webm-duration] Duration section is present, and the value is ${durationSection.getValue()}`);
-              return false;
+          this.write(__privateGet(this, _helper).subarray(0, pos));
+        }
+        writeEBML(data) {
+          if (data === null)
+            return;
+          if (data instanceof Uint8Array) {
+            this.write(data);
+          } else if (Array.isArray(data)) {
+            for (let elem of data) {
+              this.writeEBML(elem);
             }
           } else {
-            logger("[fix-webm-duration] Duration section is missing");
-            durationSection = new WebmFloat("Duration", "Float");
-            durationSection.setValue(duration);
-            infoSection.data.push({
-              id: 1161,
-              data: durationSection
-            });
-          }
-          timeScaleSection.setValue(1e6);
-          infoSection.updateByData();
-          segmentSection.updateByData();
-          this.updateByData();
-          return true;
-        };
-        WebmFile.prototype.toBlob = function(mimeType) {
-          return new Blob([this.source.buffer], { type: mimeType || "video/webm" });
-        };
-        function fixWebmDuration2(blob, duration, callback, options) {
-          if (typeof callback === "object") {
-            options = callback;
-            callback = void 0;
-          }
-          if (!callback) {
-            return new Promise(function(resolve) {
-              fixWebmDuration2(blob, duration, resolve, options);
-            });
-          }
-          try {
-            var reader = new FileReader();
-            reader.onloadend = function() {
-              try {
-                var file = new WebmFile(new Uint8Array(reader.result));
-                if (file.fixDuration(duration, options)) {
-                  blob = file.toBlob(blob.type);
-                }
-              } catch (ex2) {
+            this.offsets.set(data, this.pos);
+            __privateMethod(this, _writeUnsignedInt, writeUnsignedInt_fn).call(this, data.id);
+            if (Array.isArray(data.data)) {
+              let sizePos = this.pos;
+              let sizeSize = data.size === -1 ? 1 : data.size ?? 4;
+              if (data.size === -1) {
+                __privateMethod(this, _writeByte, writeByte_fn).call(this, 255);
+              } else {
+                this.seek(this.pos + sizeSize);
               }
-              callback(blob);
-            };
-            reader.readAsArrayBuffer(blob);
-          } catch (ex2) {
-            callback(blob);
+              let startPos = this.pos;
+              this.dataOffsets.set(data, startPos);
+              this.writeEBML(data.data);
+              if (data.size !== -1) {
+                let size = this.pos - startPos;
+                let endPos = this.pos;
+                this.seek(sizePos);
+                this.writeEBMLVarInt(size, sizeSize);
+                this.seek(endPos);
+              }
+            } else if (typeof data.data === "number") {
+              let size = data.size ?? measureUnsignedInt(data.data);
+              this.writeEBMLVarInt(size);
+              __privateMethod(this, _writeUnsignedInt, writeUnsignedInt_fn).call(this, data.data, size);
+            } else if (typeof data.data === "string") {
+              this.writeEBMLVarInt(data.data.length);
+              __privateMethod(this, _writeString, writeString_fn).call(this, data.data);
+            } else if (data.data instanceof Uint8Array) {
+              this.writeEBMLVarInt(data.data.byteLength, data.size);
+              this.write(data.data);
+            } else if (data.data instanceof EBMLFloat32) {
+              this.writeEBMLVarInt(4);
+              __privateMethod(this, _writeFloat32, writeFloat32_fn).call(this, data.data.value);
+            } else if (data.data instanceof EBMLFloat64) {
+              this.writeEBMLVarInt(8);
+              __privateMethod(this, _writeFloat64, writeFloat64_fn).call(this, data.data.value);
+            }
           }
         }
-        fixWebmDuration2.default = fixWebmDuration2;
-        return fixWebmDuration2;
-      });
+      };
+      _helper = /* @__PURE__ */ new WeakMap();
+      _helperView = /* @__PURE__ */ new WeakMap();
+      _writeByte = /* @__PURE__ */ new WeakSet();
+      writeByte_fn = function(value) {
+        __privateGet(this, _helperView).setUint8(0, value);
+        this.write(__privateGet(this, _helper).subarray(0, 1));
+      };
+      _writeFloat32 = /* @__PURE__ */ new WeakSet();
+      writeFloat32_fn = function(value) {
+        __privateGet(this, _helperView).setFloat32(0, value, false);
+        this.write(__privateGet(this, _helper).subarray(0, 4));
+      };
+      _writeFloat64 = /* @__PURE__ */ new WeakSet();
+      writeFloat64_fn = function(value) {
+        __privateGet(this, _helperView).setFloat64(0, value, false);
+        this.write(__privateGet(this, _helper));
+      };
+      _writeUnsignedInt = /* @__PURE__ */ new WeakSet();
+      writeUnsignedInt_fn = function(value, width = measureUnsignedInt(value)) {
+        let pos = 0;
+        switch (width) {
+          case 6:
+            __privateGet(this, _helperView).setUint8(pos++, value / 2 ** 40 | 0);
+          case 5:
+            __privateGet(this, _helperView).setUint8(pos++, value / 2 ** 32 | 0);
+          case 4:
+            __privateGet(this, _helperView).setUint8(pos++, value >> 24);
+          case 3:
+            __privateGet(this, _helperView).setUint8(pos++, value >> 16);
+          case 2:
+            __privateGet(this, _helperView).setUint8(pos++, value >> 8);
+          case 1:
+            __privateGet(this, _helperView).setUint8(pos++, value);
+            break;
+          default:
+            throw new Error("Bad UINT size " + width);
+        }
+        this.write(__privateGet(this, _helper).subarray(0, pos));
+      };
+      _writeString = /* @__PURE__ */ new WeakSet();
+      writeString_fn = function(str) {
+        this.write(new Uint8Array(str.split("").map((x2) => x2.charCodeAt(0))));
+      };
+      ArrayBufferTargetWriter = class extends Writer {
+        constructor(target) {
+          super();
+          __privateAdd(this, _ensureSize);
+          __privateAdd(this, _target, void 0);
+          __privateAdd(this, _buffer, new ArrayBuffer(2 ** 16));
+          __privateAdd(this, _bytes, new Uint8Array(__privateGet(this, _buffer)));
+          __privateSet(this, _target, target);
+        }
+        write(data) {
+          __privateMethod(this, _ensureSize, ensureSize_fn).call(this, this.pos + data.byteLength);
+          __privateGet(this, _bytes).set(data, this.pos);
+          this.pos += data.byteLength;
+        }
+        finalize() {
+          __privateMethod(this, _ensureSize, ensureSize_fn).call(this, this.pos);
+          __privateGet(this, _target).buffer = __privateGet(this, _buffer).slice(0, this.pos);
+        }
+      };
+      _target = /* @__PURE__ */ new WeakMap();
+      _buffer = /* @__PURE__ */ new WeakMap();
+      _bytes = /* @__PURE__ */ new WeakMap();
+      _ensureSize = /* @__PURE__ */ new WeakSet();
+      ensureSize_fn = function(size) {
+        let newLength = __privateGet(this, _buffer).byteLength;
+        while (newLength < size)
+          newLength *= 2;
+        if (newLength === __privateGet(this, _buffer).byteLength)
+          return;
+        let newBuffer = new ArrayBuffer(newLength);
+        let newBytes = new Uint8Array(newBuffer);
+        newBytes.set(__privateGet(this, _bytes), 0);
+        __privateSet(this, _buffer, newBuffer);
+        __privateSet(this, _bytes, newBytes);
+      };
+      BaseStreamTargetWriter = class extends Writer {
+        constructor(target) {
+          super();
+          this.target = target;
+          __privateAdd(this, _trackingWrites, false);
+          __privateAdd(this, _trackedWrites, void 0);
+          __privateAdd(this, _trackedStart, void 0);
+          __privateAdd(this, _trackedEnd, void 0);
+        }
+        write(data) {
+          if (!__privateGet(this, _trackingWrites))
+            return;
+          let pos = this.pos;
+          if (pos < __privateGet(this, _trackedStart)) {
+            if (pos + data.byteLength <= __privateGet(this, _trackedStart))
+              return;
+            data = data.subarray(__privateGet(this, _trackedStart) - pos);
+            pos = 0;
+          }
+          let neededSize = pos + data.byteLength - __privateGet(this, _trackedStart);
+          let newLength = __privateGet(this, _trackedWrites).byteLength;
+          while (newLength < neededSize)
+            newLength *= 2;
+          if (newLength !== __privateGet(this, _trackedWrites).byteLength) {
+            let copy = new Uint8Array(newLength);
+            copy.set(__privateGet(this, _trackedWrites), 0);
+            __privateSet(this, _trackedWrites, copy);
+          }
+          __privateGet(this, _trackedWrites).set(data, pos - __privateGet(this, _trackedStart));
+          __privateSet(this, _trackedEnd, Math.max(__privateGet(this, _trackedEnd), pos + data.byteLength));
+        }
+        startTrackingWrites() {
+          __privateSet(this, _trackingWrites, true);
+          __privateSet(this, _trackedWrites, new Uint8Array(2 ** 10));
+          __privateSet(this, _trackedStart, this.pos);
+          __privateSet(this, _trackedEnd, this.pos);
+        }
+        getTrackedWrites() {
+          if (!__privateGet(this, _trackingWrites)) {
+            throw new Error("Can't get tracked writes since nothing was tracked.");
+          }
+          let slice = __privateGet(this, _trackedWrites).subarray(0, __privateGet(this, _trackedEnd) - __privateGet(this, _trackedStart));
+          let result = {
+            data: slice,
+            start: __privateGet(this, _trackedStart),
+            end: __privateGet(this, _trackedEnd)
+          };
+          __privateSet(this, _trackedWrites, void 0);
+          __privateSet(this, _trackingWrites, false);
+          return result;
+        }
+      };
+      _trackingWrites = /* @__PURE__ */ new WeakMap();
+      _trackedWrites = /* @__PURE__ */ new WeakMap();
+      _trackedStart = /* @__PURE__ */ new WeakMap();
+      _trackedEnd = /* @__PURE__ */ new WeakMap();
+      DEFAULT_CHUNK_SIZE = 2 ** 24;
+      MAX_CHUNKS_AT_ONCE = 2;
+      StreamTargetWriter = class extends BaseStreamTargetWriter {
+        constructor(target, ensureMonotonicity) {
+          super(target);
+          __privateAdd(this, _writeDataIntoChunks);
+          __privateAdd(this, _insertSectionIntoChunk);
+          __privateAdd(this, _createChunk);
+          __privateAdd(this, _flushChunks);
+          __privateAdd(this, _sections, []);
+          __privateAdd(this, _lastFlushEnd, 0);
+          __privateAdd(this, _ensureMonotonicity, void 0);
+          __privateAdd(this, _chunked, void 0);
+          __privateAdd(this, _chunkSize, void 0);
+          __privateAdd(this, _chunks, []);
+          __privateSet(this, _ensureMonotonicity, ensureMonotonicity);
+          __privateSet(this, _chunked, target.options?.chunked ?? false);
+          __privateSet(this, _chunkSize, target.options?.chunkSize ?? DEFAULT_CHUNK_SIZE);
+        }
+        write(data) {
+          super.write(data);
+          __privateGet(this, _sections).push({
+            data: data.slice(),
+            start: this.pos
+          });
+          this.pos += data.byteLength;
+        }
+        flush() {
+          if (__privateGet(this, _sections).length === 0)
+            return;
+          let chunks = [];
+          let sorted = [...__privateGet(this, _sections)].sort((a4, b4) => a4.start - b4.start);
+          chunks.push({
+            start: sorted[0].start,
+            size: sorted[0].data.byteLength
+          });
+          for (let i2 = 1; i2 < sorted.length; i2++) {
+            let lastChunk = chunks[chunks.length - 1];
+            let section = sorted[i2];
+            if (section.start <= lastChunk.start + lastChunk.size) {
+              lastChunk.size = Math.max(lastChunk.size, section.start + section.data.byteLength - lastChunk.start);
+            } else {
+              chunks.push({
+                start: section.start,
+                size: section.data.byteLength
+              });
+            }
+          }
+          for (let chunk of chunks) {
+            chunk.data = new Uint8Array(chunk.size);
+            for (let section of __privateGet(this, _sections)) {
+              if (chunk.start <= section.start && section.start < chunk.start + chunk.size) {
+                chunk.data.set(section.data, section.start - chunk.start);
+              }
+            }
+            if (__privateGet(this, _chunked)) {
+              __privateMethod(this, _writeDataIntoChunks, writeDataIntoChunks_fn).call(this, chunk.data, chunk.start);
+              __privateMethod(this, _flushChunks, flushChunks_fn).call(this);
+            } else {
+              if (__privateGet(this, _ensureMonotonicity) && chunk.start < __privateGet(this, _lastFlushEnd)) {
+                throw new Error("Internal error: Monotonicity violation.");
+              }
+              this.target.options.onData?.(chunk.data, chunk.start);
+              __privateSet(this, _lastFlushEnd, chunk.start + chunk.data.byteLength);
+            }
+          }
+          __privateGet(this, _sections).length = 0;
+        }
+        finalize() {
+          if (__privateGet(this, _chunked)) {
+            __privateMethod(this, _flushChunks, flushChunks_fn).call(this, true);
+          }
+        }
+      };
+      _sections = /* @__PURE__ */ new WeakMap();
+      _lastFlushEnd = /* @__PURE__ */ new WeakMap();
+      _ensureMonotonicity = /* @__PURE__ */ new WeakMap();
+      _chunked = /* @__PURE__ */ new WeakMap();
+      _chunkSize = /* @__PURE__ */ new WeakMap();
+      _chunks = /* @__PURE__ */ new WeakMap();
+      _writeDataIntoChunks = /* @__PURE__ */ new WeakSet();
+      writeDataIntoChunks_fn = function(data, position) {
+        let chunkIndex = __privateGet(this, _chunks).findIndex((x2) => x2.start <= position && position < x2.start + __privateGet(this, _chunkSize));
+        if (chunkIndex === -1)
+          chunkIndex = __privateMethod(this, _createChunk, createChunk_fn).call(this, position);
+        let chunk = __privateGet(this, _chunks)[chunkIndex];
+        let relativePosition = position - chunk.start;
+        let toWrite = data.subarray(0, Math.min(__privateGet(this, _chunkSize) - relativePosition, data.byteLength));
+        chunk.data.set(toWrite, relativePosition);
+        let section = {
+          start: relativePosition,
+          end: relativePosition + toWrite.byteLength
+        };
+        __privateMethod(this, _insertSectionIntoChunk, insertSectionIntoChunk_fn).call(this, chunk, section);
+        if (chunk.written[0].start === 0 && chunk.written[0].end === __privateGet(this, _chunkSize)) {
+          chunk.shouldFlush = true;
+        }
+        if (__privateGet(this, _chunks).length > MAX_CHUNKS_AT_ONCE) {
+          for (let i2 = 0; i2 < __privateGet(this, _chunks).length - 1; i2++) {
+            __privateGet(this, _chunks)[i2].shouldFlush = true;
+          }
+          __privateMethod(this, _flushChunks, flushChunks_fn).call(this);
+        }
+        if (toWrite.byteLength < data.byteLength) {
+          __privateMethod(this, _writeDataIntoChunks, writeDataIntoChunks_fn).call(this, data.subarray(toWrite.byteLength), position + toWrite.byteLength);
+        }
+      };
+      _insertSectionIntoChunk = /* @__PURE__ */ new WeakSet();
+      insertSectionIntoChunk_fn = function(chunk, section) {
+        let low = 0;
+        let high = chunk.written.length - 1;
+        let index = -1;
+        while (low <= high) {
+          let mid = Math.floor(low + (high - low + 1) / 2);
+          if (chunk.written[mid].start <= section.start) {
+            low = mid + 1;
+            index = mid;
+          } else {
+            high = mid - 1;
+          }
+        }
+        chunk.written.splice(index + 1, 0, section);
+        if (index === -1 || chunk.written[index].end < section.start)
+          index++;
+        while (index < chunk.written.length - 1 && chunk.written[index].end >= chunk.written[index + 1].start) {
+          chunk.written[index].end = Math.max(chunk.written[index].end, chunk.written[index + 1].end);
+          chunk.written.splice(index + 1, 1);
+        }
+      };
+      _createChunk = /* @__PURE__ */ new WeakSet();
+      createChunk_fn = function(includesPosition) {
+        let start = Math.floor(includesPosition / __privateGet(this, _chunkSize)) * __privateGet(this, _chunkSize);
+        let chunk = {
+          start,
+          data: new Uint8Array(__privateGet(this, _chunkSize)),
+          written: [],
+          shouldFlush: false
+        };
+        __privateGet(this, _chunks).push(chunk);
+        __privateGet(this, _chunks).sort((a4, b4) => a4.start - b4.start);
+        return __privateGet(this, _chunks).indexOf(chunk);
+      };
+      _flushChunks = /* @__PURE__ */ new WeakSet();
+      flushChunks_fn = function(force = false) {
+        for (let i2 = 0; i2 < __privateGet(this, _chunks).length; i2++) {
+          let chunk = __privateGet(this, _chunks)[i2];
+          if (!chunk.shouldFlush && !force)
+            continue;
+          for (let section of chunk.written) {
+            if (__privateGet(this, _ensureMonotonicity) && chunk.start + section.start < __privateGet(this, _lastFlushEnd)) {
+              throw new Error("Internal error: Monotonicity violation.");
+            }
+            this.target.options.onData?.(
+              chunk.data.subarray(section.start, section.end),
+              chunk.start + section.start
+            );
+            __privateSet(this, _lastFlushEnd, chunk.start + section.end);
+          }
+          __privateGet(this, _chunks).splice(i2--, 1);
+        }
+      };
+      FileSystemWritableFileStreamTargetWriter = class extends StreamTargetWriter {
+        constructor(target, ensureMonotonicity) {
+          super(new StreamTarget({
+            onData: (data, position) => target.stream.write({
+              type: "write",
+              data,
+              position
+            }),
+            chunked: true,
+            chunkSize: target.options?.chunkSize
+          }), ensureMonotonicity);
+        }
+      };
+      VIDEO_TRACK_NUMBER = 1;
+      AUDIO_TRACK_NUMBER = 2;
+      SUBTITLE_TRACK_NUMBER = 3;
+      VIDEO_TRACK_TYPE = 1;
+      AUDIO_TRACK_TYPE = 2;
+      SUBTITLE_TRACK_TYPE = 17;
+      MAX_CHUNK_LENGTH_MS = 2 ** 15;
+      CODEC_PRIVATE_MAX_SIZE = 2 ** 13;
+      APP_NAME = "https://github.com/Vanilagy/webm-muxer";
+      SEGMENT_SIZE_BYTES = 6;
+      CLUSTER_SIZE_BYTES = 5;
+      FIRST_TIMESTAMP_BEHAVIORS = ["strict", "offset", "permissive"];
+      Muxer = class {
+        constructor(options) {
+          __privateAdd(this, _validateOptions);
+          __privateAdd(this, _createFileHeader);
+          __privateAdd(this, _writeEBMLHeader);
+          __privateAdd(this, _createCodecPrivatePlaceholders);
+          __privateAdd(this, _createColourElement);
+          __privateAdd(this, _createSeekHead);
+          __privateAdd(this, _createSegmentInfo);
+          __privateAdd(this, _createTracks);
+          __privateAdd(this, _createSegment);
+          __privateAdd(this, _createCues);
+          __privateAdd(this, _maybeFlushStreamingTargetWriter);
+          __privateAdd(this, _segmentDataOffset);
+          __privateAdd(this, _writeVideoDecoderConfig);
+          __privateAdd(this, _fixVP9ColorSpace);
+          __privateAdd(this, _writeSubtitleChunks);
+          __privateAdd(this, _createInternalChunk);
+          __privateAdd(this, _validateTimestamp);
+          __privateAdd(this, _writeBlock);
+          __privateAdd(this, _createCodecPrivateElement);
+          __privateAdd(this, _writeCodecPrivate);
+          __privateAdd(this, _createNewCluster);
+          __privateAdd(this, _finalizeCurrentCluster);
+          __privateAdd(this, _ensureNotFinalized);
+          __privateAdd(this, _options, void 0);
+          __privateAdd(this, _writer, void 0);
+          __privateAdd(this, _segment, void 0);
+          __privateAdd(this, _segmentInfo, void 0);
+          __privateAdd(this, _seekHead, void 0);
+          __privateAdd(this, _tracksElement, void 0);
+          __privateAdd(this, _segmentDuration, void 0);
+          __privateAdd(this, _colourElement, void 0);
+          __privateAdd(this, _videoCodecPrivate, void 0);
+          __privateAdd(this, _audioCodecPrivate, void 0);
+          __privateAdd(this, _subtitleCodecPrivate, void 0);
+          __privateAdd(this, _cues, void 0);
+          __privateAdd(this, _currentCluster, void 0);
+          __privateAdd(this, _currentClusterTimestamp, void 0);
+          __privateAdd(this, _duration, 0);
+          __privateAdd(this, _videoChunkQueue, []);
+          __privateAdd(this, _audioChunkQueue, []);
+          __privateAdd(this, _subtitleChunkQueue, []);
+          __privateAdd(this, _firstVideoTimestamp, void 0);
+          __privateAdd(this, _firstAudioTimestamp, void 0);
+          __privateAdd(this, _lastVideoTimestamp, -1);
+          __privateAdd(this, _lastAudioTimestamp, -1);
+          __privateAdd(this, _lastSubtitleTimestamp, -1);
+          __privateAdd(this, _colorSpace, void 0);
+          __privateAdd(this, _finalized, false);
+          __privateMethod(this, _validateOptions, validateOptions_fn).call(this, options);
+          __privateSet(this, _options, {
+            type: "webm",
+            firstTimestampBehavior: "strict",
+            ...options
+          });
+          this.target = options.target;
+          let ensureMonotonicity = !!__privateGet(this, _options).streaming;
+          if (options.target instanceof ArrayBufferTarget) {
+            __privateSet(this, _writer, new ArrayBufferTargetWriter(options.target));
+          } else if (options.target instanceof StreamTarget) {
+            __privateSet(this, _writer, new StreamTargetWriter(options.target, ensureMonotonicity));
+          } else if (options.target instanceof FileSystemWritableFileStreamTarget) {
+            __privateSet(this, _writer, new FileSystemWritableFileStreamTargetWriter(options.target, ensureMonotonicity));
+          } else {
+            throw new Error(`Invalid target: ${options.target}`);
+          }
+          __privateMethod(this, _createFileHeader, createFileHeader_fn).call(this);
+        }
+        addVideoChunk(chunk, meta, timestamp) {
+          if (!(chunk instanceof EncodedVideoChunk)) {
+            throw new TypeError("addVideoChunk's first argument (chunk) must be of type EncodedVideoChunk.");
+          }
+          if (meta && typeof meta !== "object") {
+            throw new TypeError("addVideoChunk's second argument (meta), when provided, must be an object.");
+          }
+          if (timestamp !== void 0 && (!Number.isFinite(timestamp) || timestamp < 0)) {
+            throw new TypeError(
+              "addVideoChunk's third argument (timestamp), when provided, must be a non-negative real number."
+            );
+          }
+          let data = new Uint8Array(chunk.byteLength);
+          chunk.copyTo(data);
+          this.addVideoChunkRaw(data, chunk.type, timestamp ?? chunk.timestamp, meta);
+        }
+        addVideoChunkRaw(data, type, timestamp, meta) {
+          if (!(data instanceof Uint8Array)) {
+            throw new TypeError("addVideoChunkRaw's first argument (data) must be an instance of Uint8Array.");
+          }
+          if (type !== "key" && type !== "delta") {
+            throw new TypeError("addVideoChunkRaw's second argument (type) must be either 'key' or 'delta'.");
+          }
+          if (!Number.isFinite(timestamp) || timestamp < 0) {
+            throw new TypeError("addVideoChunkRaw's third argument (timestamp) must be a non-negative real number.");
+          }
+          if (meta && typeof meta !== "object") {
+            throw new TypeError("addVideoChunkRaw's fourth argument (meta), when provided, must be an object.");
+          }
+          __privateMethod(this, _ensureNotFinalized, ensureNotFinalized_fn).call(this);
+          if (!__privateGet(this, _options).video)
+            throw new Error("No video track declared.");
+          if (__privateGet(this, _firstVideoTimestamp) === void 0)
+            __privateSet(this, _firstVideoTimestamp, timestamp);
+          if (meta)
+            __privateMethod(this, _writeVideoDecoderConfig, writeVideoDecoderConfig_fn).call(this, meta);
+          let videoChunk = __privateMethod(this, _createInternalChunk, createInternalChunk_fn).call(this, data, type, timestamp, VIDEO_TRACK_NUMBER);
+          if (__privateGet(this, _options).video.codec === "V_VP9")
+            __privateMethod(this, _fixVP9ColorSpace, fixVP9ColorSpace_fn).call(this, videoChunk);
+          __privateSet(this, _lastVideoTimestamp, videoChunk.timestamp);
+          while (__privateGet(this, _audioChunkQueue).length > 0 && __privateGet(this, _audioChunkQueue)[0].timestamp <= videoChunk.timestamp) {
+            let audioChunk = __privateGet(this, _audioChunkQueue).shift();
+            __privateMethod(this, _writeBlock, writeBlock_fn).call(this, audioChunk, false);
+          }
+          if (!__privateGet(this, _options).audio || videoChunk.timestamp <= __privateGet(this, _lastAudioTimestamp)) {
+            __privateMethod(this, _writeBlock, writeBlock_fn).call(this, videoChunk, true);
+          } else {
+            __privateGet(this, _videoChunkQueue).push(videoChunk);
+          }
+          __privateMethod(this, _writeSubtitleChunks, writeSubtitleChunks_fn).call(this);
+          __privateMethod(this, _maybeFlushStreamingTargetWriter, maybeFlushStreamingTargetWriter_fn).call(this);
+        }
+        addAudioChunk(chunk, meta, timestamp) {
+          if (!(chunk instanceof EncodedAudioChunk)) {
+            throw new TypeError("addAudioChunk's first argument (chunk) must be of type EncodedAudioChunk.");
+          }
+          if (meta && typeof meta !== "object") {
+            throw new TypeError("addAudioChunk's second argument (meta), when provided, must be an object.");
+          }
+          if (timestamp !== void 0 && (!Number.isFinite(timestamp) || timestamp < 0)) {
+            throw new TypeError(
+              "addAudioChunk's third argument (timestamp), when provided, must be a non-negative real number."
+            );
+          }
+          let data = new Uint8Array(chunk.byteLength);
+          chunk.copyTo(data);
+          this.addAudioChunkRaw(data, chunk.type, timestamp ?? chunk.timestamp, meta);
+        }
+        addAudioChunkRaw(data, type, timestamp, meta) {
+          if (!(data instanceof Uint8Array)) {
+            throw new TypeError("addAudioChunkRaw's first argument (data) must be an instance of Uint8Array.");
+          }
+          if (type !== "key" && type !== "delta") {
+            throw new TypeError("addAudioChunkRaw's second argument (type) must be either 'key' or 'delta'.");
+          }
+          if (!Number.isFinite(timestamp) || timestamp < 0) {
+            throw new TypeError("addAudioChunkRaw's third argument (timestamp) must be a non-negative real number.");
+          }
+          if (meta && typeof meta !== "object") {
+            throw new TypeError("addAudioChunkRaw's fourth argument (meta), when provided, must be an object.");
+          }
+          __privateMethod(this, _ensureNotFinalized, ensureNotFinalized_fn).call(this);
+          if (!__privateGet(this, _options).audio)
+            throw new Error("No audio track declared.");
+          if (__privateGet(this, _firstAudioTimestamp) === void 0)
+            __privateSet(this, _firstAudioTimestamp, timestamp);
+          if (meta?.decoderConfig) {
+            if (__privateGet(this, _options).streaming) {
+              __privateSet(this, _audioCodecPrivate, __privateMethod(this, _createCodecPrivateElement, createCodecPrivateElement_fn).call(this, meta.decoderConfig.description));
+            } else {
+              __privateMethod(this, _writeCodecPrivate, writeCodecPrivate_fn).call(this, __privateGet(this, _audioCodecPrivate), meta.decoderConfig.description);
+            }
+          }
+          let audioChunk = __privateMethod(this, _createInternalChunk, createInternalChunk_fn).call(this, data, type, timestamp, AUDIO_TRACK_NUMBER);
+          __privateSet(this, _lastAudioTimestamp, audioChunk.timestamp);
+          while (__privateGet(this, _videoChunkQueue).length > 0 && __privateGet(this, _videoChunkQueue)[0].timestamp <= audioChunk.timestamp) {
+            let videoChunk = __privateGet(this, _videoChunkQueue).shift();
+            __privateMethod(this, _writeBlock, writeBlock_fn).call(this, videoChunk, true);
+          }
+          if (!__privateGet(this, _options).video || audioChunk.timestamp <= __privateGet(this, _lastVideoTimestamp)) {
+            __privateMethod(this, _writeBlock, writeBlock_fn).call(this, audioChunk, !__privateGet(this, _options).video);
+          } else {
+            __privateGet(this, _audioChunkQueue).push(audioChunk);
+          }
+          __privateMethod(this, _writeSubtitleChunks, writeSubtitleChunks_fn).call(this);
+          __privateMethod(this, _maybeFlushStreamingTargetWriter, maybeFlushStreamingTargetWriter_fn).call(this);
+        }
+        addSubtitleChunk(chunk, meta, timestamp) {
+          if (typeof chunk !== "object" || !chunk) {
+            throw new TypeError("addSubtitleChunk's first argument (chunk) must be an object.");
+          } else {
+            if (!(chunk.body instanceof Uint8Array)) {
+              throw new TypeError("body must be an instance of Uint8Array.");
+            }
+            if (!Number.isFinite(chunk.timestamp) || chunk.timestamp < 0) {
+              throw new TypeError("timestamp must be a non-negative real number.");
+            }
+            if (!Number.isFinite(chunk.duration) || chunk.duration < 0) {
+              throw new TypeError("duration must be a non-negative real number.");
+            }
+            if (chunk.additions && !(chunk.additions instanceof Uint8Array)) {
+              throw new TypeError("additions, when present, must be an instance of Uint8Array.");
+            }
+          }
+          if (typeof meta !== "object") {
+            throw new TypeError("addSubtitleChunk's second argument (meta) must be an object.");
+          }
+          __privateMethod(this, _ensureNotFinalized, ensureNotFinalized_fn).call(this);
+          if (!__privateGet(this, _options).subtitles)
+            throw new Error("No subtitle track declared.");
+          if (meta?.decoderConfig) {
+            if (__privateGet(this, _options).streaming) {
+              __privateSet(this, _subtitleCodecPrivate, __privateMethod(this, _createCodecPrivateElement, createCodecPrivateElement_fn).call(this, meta.decoderConfig.description));
+            } else {
+              __privateMethod(this, _writeCodecPrivate, writeCodecPrivate_fn).call(this, __privateGet(this, _subtitleCodecPrivate), meta.decoderConfig.description);
+            }
+          }
+          let subtitleChunk = __privateMethod(this, _createInternalChunk, createInternalChunk_fn).call(this, chunk.body, "key", timestamp ?? chunk.timestamp, SUBTITLE_TRACK_NUMBER, chunk.duration, chunk.additions);
+          __privateSet(this, _lastSubtitleTimestamp, subtitleChunk.timestamp);
+          __privateGet(this, _subtitleChunkQueue).push(subtitleChunk);
+          __privateMethod(this, _writeSubtitleChunks, writeSubtitleChunks_fn).call(this);
+          __privateMethod(this, _maybeFlushStreamingTargetWriter, maybeFlushStreamingTargetWriter_fn).call(this);
+        }
+        finalize() {
+          if (__privateGet(this, _finalized)) {
+            throw new Error("Cannot finalize a muxer more than once.");
+          }
+          while (__privateGet(this, _videoChunkQueue).length > 0)
+            __privateMethod(this, _writeBlock, writeBlock_fn).call(this, __privateGet(this, _videoChunkQueue).shift(), true);
+          while (__privateGet(this, _audioChunkQueue).length > 0)
+            __privateMethod(this, _writeBlock, writeBlock_fn).call(this, __privateGet(this, _audioChunkQueue).shift(), true);
+          while (__privateGet(this, _subtitleChunkQueue).length > 0 && __privateGet(this, _subtitleChunkQueue)[0].timestamp <= __privateGet(this, _duration)) {
+            __privateMethod(this, _writeBlock, writeBlock_fn).call(this, __privateGet(this, _subtitleChunkQueue).shift(), false);
+          }
+          if (__privateGet(this, _currentCluster)) {
+            __privateMethod(this, _finalizeCurrentCluster, finalizeCurrentCluster_fn).call(this);
+          }
+          __privateGet(this, _writer).writeEBML(__privateGet(this, _cues));
+          if (!__privateGet(this, _options).streaming) {
+            let endPos = __privateGet(this, _writer).pos;
+            let segmentSize = __privateGet(this, _writer).pos - __privateGet(this, _segmentDataOffset, segmentDataOffset_get);
+            __privateGet(this, _writer).seek(__privateGet(this, _writer).offsets.get(__privateGet(this, _segment)) + 4);
+            __privateGet(this, _writer).writeEBMLVarInt(segmentSize, SEGMENT_SIZE_BYTES);
+            __privateGet(this, _segmentDuration).data = new EBMLFloat64(__privateGet(this, _duration));
+            __privateGet(this, _writer).seek(__privateGet(this, _writer).offsets.get(__privateGet(this, _segmentDuration)));
+            __privateGet(this, _writer).writeEBML(__privateGet(this, _segmentDuration));
+            __privateGet(this, _seekHead).data[0].data[1].data = __privateGet(this, _writer).offsets.get(__privateGet(this, _cues)) - __privateGet(this, _segmentDataOffset, segmentDataOffset_get);
+            __privateGet(this, _seekHead).data[1].data[1].data = __privateGet(this, _writer).offsets.get(__privateGet(this, _segmentInfo)) - __privateGet(this, _segmentDataOffset, segmentDataOffset_get);
+            __privateGet(this, _seekHead).data[2].data[1].data = __privateGet(this, _writer).offsets.get(__privateGet(this, _tracksElement)) - __privateGet(this, _segmentDataOffset, segmentDataOffset_get);
+            __privateGet(this, _writer).seek(__privateGet(this, _writer).offsets.get(__privateGet(this, _seekHead)));
+            __privateGet(this, _writer).writeEBML(__privateGet(this, _seekHead));
+            __privateGet(this, _writer).seek(endPos);
+          }
+          __privateMethod(this, _maybeFlushStreamingTargetWriter, maybeFlushStreamingTargetWriter_fn).call(this);
+          __privateGet(this, _writer).finalize();
+          __privateSet(this, _finalized, true);
+        }
+      };
+      _options = /* @__PURE__ */ new WeakMap();
+      _writer = /* @__PURE__ */ new WeakMap();
+      _segment = /* @__PURE__ */ new WeakMap();
+      _segmentInfo = /* @__PURE__ */ new WeakMap();
+      _seekHead = /* @__PURE__ */ new WeakMap();
+      _tracksElement = /* @__PURE__ */ new WeakMap();
+      _segmentDuration = /* @__PURE__ */ new WeakMap();
+      _colourElement = /* @__PURE__ */ new WeakMap();
+      _videoCodecPrivate = /* @__PURE__ */ new WeakMap();
+      _audioCodecPrivate = /* @__PURE__ */ new WeakMap();
+      _subtitleCodecPrivate = /* @__PURE__ */ new WeakMap();
+      _cues = /* @__PURE__ */ new WeakMap();
+      _currentCluster = /* @__PURE__ */ new WeakMap();
+      _currentClusterTimestamp = /* @__PURE__ */ new WeakMap();
+      _duration = /* @__PURE__ */ new WeakMap();
+      _videoChunkQueue = /* @__PURE__ */ new WeakMap();
+      _audioChunkQueue = /* @__PURE__ */ new WeakMap();
+      _subtitleChunkQueue = /* @__PURE__ */ new WeakMap();
+      _firstVideoTimestamp = /* @__PURE__ */ new WeakMap();
+      _firstAudioTimestamp = /* @__PURE__ */ new WeakMap();
+      _lastVideoTimestamp = /* @__PURE__ */ new WeakMap();
+      _lastAudioTimestamp = /* @__PURE__ */ new WeakMap();
+      _lastSubtitleTimestamp = /* @__PURE__ */ new WeakMap();
+      _colorSpace = /* @__PURE__ */ new WeakMap();
+      _finalized = /* @__PURE__ */ new WeakMap();
+      _validateOptions = /* @__PURE__ */ new WeakSet();
+      validateOptions_fn = function(options) {
+        if (typeof options !== "object") {
+          throw new TypeError("The muxer requires an options object to be passed to its constructor.");
+        }
+        if (!(options.target instanceof Target)) {
+          throw new TypeError("The target must be provided and an instance of Target.");
+        }
+        if (options.video) {
+          if (typeof options.video.codec !== "string") {
+            throw new TypeError(`Invalid video codec: ${options.video.codec}. Must be a string.`);
+          }
+          if (!Number.isInteger(options.video.width) || options.video.width <= 0) {
+            throw new TypeError(`Invalid video width: ${options.video.width}. Must be a positive integer.`);
+          }
+          if (!Number.isInteger(options.video.height) || options.video.height <= 0) {
+            throw new TypeError(`Invalid video height: ${options.video.height}. Must be a positive integer.`);
+          }
+          if (options.video.frameRate !== void 0) {
+            if (!Number.isFinite(options.video.frameRate) || options.video.frameRate <= 0) {
+              throw new TypeError(
+                `Invalid video frame rate: ${options.video.frameRate}. Must be a positive number.`
+              );
+            }
+          }
+          if (options.video.alpha !== void 0 && typeof options.video.alpha !== "boolean") {
+            throw new TypeError(`Invalid video alpha: ${options.video.alpha}. Must be a boolean.`);
+          }
+        }
+        if (options.audio) {
+          if (typeof options.audio.codec !== "string") {
+            throw new TypeError(`Invalid audio codec: ${options.audio.codec}. Must be a string.`);
+          }
+          if (!Number.isInteger(options.audio.numberOfChannels) || options.audio.numberOfChannels <= 0) {
+            throw new TypeError(
+              `Invalid number of audio channels: ${options.audio.numberOfChannels}. Must be a positive integer.`
+            );
+          }
+          if (!Number.isInteger(options.audio.sampleRate) || options.audio.sampleRate <= 0) {
+            throw new TypeError(
+              `Invalid audio sample rate: ${options.audio.sampleRate}. Must be a positive integer.`
+            );
+          }
+          if (options.audio.bitDepth !== void 0) {
+            if (!Number.isInteger(options.audio.bitDepth) || options.audio.bitDepth <= 0) {
+              throw new TypeError(
+                `Invalid audio bit depth: ${options.audio.bitDepth}. Must be a positive integer.`
+              );
+            }
+          }
+        }
+        if (options.subtitles) {
+          if (typeof options.subtitles.codec !== "string") {
+            throw new TypeError(`Invalid subtitles codec: ${options.subtitles.codec}. Must be a string.`);
+          }
+        }
+        if (options.type !== void 0 && !["webm", "matroska"].includes(options.type)) {
+          throw new TypeError(`Invalid type: ${options.type}. Must be 'webm' or 'matroska'.`);
+        }
+        if (options.firstTimestampBehavior && !FIRST_TIMESTAMP_BEHAVIORS.includes(options.firstTimestampBehavior)) {
+          throw new TypeError(`Invalid first timestamp behavior: ${options.firstTimestampBehavior}`);
+        }
+        if (options.streaming !== void 0 && typeof options.streaming !== "boolean") {
+          throw new TypeError(`Invalid streaming option: ${options.streaming}. Must be a boolean.`);
+        }
+      };
+      _createFileHeader = /* @__PURE__ */ new WeakSet();
+      createFileHeader_fn = function() {
+        if (__privateGet(this, _writer) instanceof BaseStreamTargetWriter && __privateGet(this, _writer).target.options.onHeader) {
+          __privateGet(this, _writer).startTrackingWrites();
+        }
+        __privateMethod(this, _writeEBMLHeader, writeEBMLHeader_fn).call(this);
+        if (!__privateGet(this, _options).streaming) {
+          __privateMethod(this, _createSeekHead, createSeekHead_fn).call(this);
+        }
+        __privateMethod(this, _createSegmentInfo, createSegmentInfo_fn).call(this);
+        __privateMethod(this, _createCodecPrivatePlaceholders, createCodecPrivatePlaceholders_fn).call(this);
+        __privateMethod(this, _createColourElement, createColourElement_fn).call(this);
+        if (!__privateGet(this, _options).streaming) {
+          __privateMethod(this, _createTracks, createTracks_fn).call(this);
+          __privateMethod(this, _createSegment, createSegment_fn).call(this);
+        } else {
+        }
+        __privateMethod(this, _createCues, createCues_fn).call(this);
+        __privateMethod(this, _maybeFlushStreamingTargetWriter, maybeFlushStreamingTargetWriter_fn).call(this);
+      };
+      _writeEBMLHeader = /* @__PURE__ */ new WeakSet();
+      writeEBMLHeader_fn = function() {
+        let ebmlHeader = { id: 440786851, data: [
+          { id: 17030, data: 1 },
+          { id: 17143, data: 1 },
+          { id: 17138, data: 4 },
+          { id: 17139, data: 8 },
+          { id: 17026, data: __privateGet(this, _options).type ?? "webm" },
+          { id: 17031, data: 2 },
+          { id: 17029, data: 2 }
+        ] };
+        __privateGet(this, _writer).writeEBML(ebmlHeader);
+      };
+      _createCodecPrivatePlaceholders = /* @__PURE__ */ new WeakSet();
+      createCodecPrivatePlaceholders_fn = function() {
+        __privateSet(this, _videoCodecPrivate, { id: 236, size: 4, data: new Uint8Array(CODEC_PRIVATE_MAX_SIZE) });
+        __privateSet(this, _audioCodecPrivate, { id: 236, size: 4, data: new Uint8Array(CODEC_PRIVATE_MAX_SIZE) });
+        __privateSet(this, _subtitleCodecPrivate, { id: 236, size: 4, data: new Uint8Array(CODEC_PRIVATE_MAX_SIZE) });
+      };
+      _createColourElement = /* @__PURE__ */ new WeakSet();
+      createColourElement_fn = function() {
+        __privateSet(this, _colourElement, { id: 21936, data: [
+          { id: 21937, data: 2 },
+          { id: 21946, data: 2 },
+          { id: 21947, data: 2 },
+          { id: 21945, data: 0 }
+        ] });
+      };
+      _createSeekHead = /* @__PURE__ */ new WeakSet();
+      createSeekHead_fn = function() {
+        const kaxCues = new Uint8Array([28, 83, 187, 107]);
+        const kaxInfo = new Uint8Array([21, 73, 169, 102]);
+        const kaxTracks = new Uint8Array([22, 84, 174, 107]);
+        let seekHead = { id: 290298740, data: [
+          { id: 19899, data: [
+            { id: 21419, data: kaxCues },
+            { id: 21420, size: 5, data: 0 }
+          ] },
+          { id: 19899, data: [
+            { id: 21419, data: kaxInfo },
+            { id: 21420, size: 5, data: 0 }
+          ] },
+          { id: 19899, data: [
+            { id: 21419, data: kaxTracks },
+            { id: 21420, size: 5, data: 0 }
+          ] }
+        ] };
+        __privateSet(this, _seekHead, seekHead);
+      };
+      _createSegmentInfo = /* @__PURE__ */ new WeakSet();
+      createSegmentInfo_fn = function() {
+        let segmentDuration = { id: 17545, data: new EBMLFloat64(0) };
+        __privateSet(this, _segmentDuration, segmentDuration);
+        let segmentInfo = { id: 357149030, data: [
+          { id: 2807729, data: 1e6 },
+          { id: 19840, data: APP_NAME },
+          { id: 22337, data: APP_NAME },
+          !__privateGet(this, _options).streaming ? segmentDuration : null
+        ] };
+        __privateSet(this, _segmentInfo, segmentInfo);
+      };
+      _createTracks = /* @__PURE__ */ new WeakSet();
+      createTracks_fn = function() {
+        let tracksElement = { id: 374648427, data: [] };
+        __privateSet(this, _tracksElement, tracksElement);
+        if (__privateGet(this, _options).video) {
+          tracksElement.data.push({ id: 174, data: [
+            { id: 215, data: VIDEO_TRACK_NUMBER },
+            { id: 29637, data: VIDEO_TRACK_NUMBER },
+            { id: 131, data: VIDEO_TRACK_TYPE },
+            { id: 134, data: __privateGet(this, _options).video.codec },
+            __privateGet(this, _videoCodecPrivate),
+            __privateGet(this, _options).video.frameRate ? { id: 2352003, data: 1e9 / __privateGet(this, _options).video.frameRate } : null,
+            { id: 224, data: [
+              { id: 176, data: __privateGet(this, _options).video.width },
+              { id: 186, data: __privateGet(this, _options).video.height },
+              __privateGet(this, _options).video.alpha ? { id: 21440, data: 1 } : null,
+              __privateGet(this, _colourElement)
+            ] }
+          ] });
+        }
+        if (__privateGet(this, _options).audio) {
+          __privateSet(this, _audioCodecPrivate, __privateGet(this, _options).streaming ? __privateGet(this, _audioCodecPrivate) || null : { id: 236, size: 4, data: new Uint8Array(CODEC_PRIVATE_MAX_SIZE) });
+          tracksElement.data.push({ id: 174, data: [
+            { id: 215, data: AUDIO_TRACK_NUMBER },
+            { id: 29637, data: AUDIO_TRACK_NUMBER },
+            { id: 131, data: AUDIO_TRACK_TYPE },
+            { id: 134, data: __privateGet(this, _options).audio.codec },
+            __privateGet(this, _audioCodecPrivate),
+            { id: 225, data: [
+              { id: 181, data: new EBMLFloat32(__privateGet(this, _options).audio.sampleRate) },
+              { id: 159, data: __privateGet(this, _options).audio.numberOfChannels },
+              __privateGet(this, _options).audio.bitDepth ? { id: 25188, data: __privateGet(this, _options).audio.bitDepth } : null
+            ] }
+          ] });
+        }
+        if (__privateGet(this, _options).subtitles) {
+          tracksElement.data.push({ id: 174, data: [
+            { id: 215, data: SUBTITLE_TRACK_NUMBER },
+            { id: 29637, data: SUBTITLE_TRACK_NUMBER },
+            { id: 131, data: SUBTITLE_TRACK_TYPE },
+            { id: 134, data: __privateGet(this, _options).subtitles.codec },
+            __privateGet(this, _subtitleCodecPrivate)
+          ] });
+        }
+      };
+      _createSegment = /* @__PURE__ */ new WeakSet();
+      createSegment_fn = function() {
+        let segment = {
+          id: 408125543,
+          size: __privateGet(this, _options).streaming ? -1 : SEGMENT_SIZE_BYTES,
+          data: [
+            !__privateGet(this, _options).streaming ? __privateGet(this, _seekHead) : null,
+            __privateGet(this, _segmentInfo),
+            __privateGet(this, _tracksElement)
+          ]
+        };
+        __privateSet(this, _segment, segment);
+        __privateGet(this, _writer).writeEBML(segment);
+        if (__privateGet(this, _writer) instanceof BaseStreamTargetWriter && __privateGet(this, _writer).target.options.onHeader) {
+          let { data, start } = __privateGet(this, _writer).getTrackedWrites();
+          __privateGet(this, _writer).target.options.onHeader(data, start);
+        }
+      };
+      _createCues = /* @__PURE__ */ new WeakSet();
+      createCues_fn = function() {
+        __privateSet(this, _cues, { id: 475249515, data: [] });
+      };
+      _maybeFlushStreamingTargetWriter = /* @__PURE__ */ new WeakSet();
+      maybeFlushStreamingTargetWriter_fn = function() {
+        if (__privateGet(this, _writer) instanceof StreamTargetWriter) {
+          __privateGet(this, _writer).flush();
+        }
+      };
+      _segmentDataOffset = /* @__PURE__ */ new WeakSet();
+      segmentDataOffset_get = function() {
+        return __privateGet(this, _writer).dataOffsets.get(__privateGet(this, _segment));
+      };
+      _writeVideoDecoderConfig = /* @__PURE__ */ new WeakSet();
+      writeVideoDecoderConfig_fn = function(meta) {
+        if (!meta.decoderConfig)
+          return;
+        if (meta.decoderConfig.colorSpace) {
+          let colorSpace = meta.decoderConfig.colorSpace;
+          __privateSet(this, _colorSpace, colorSpace);
+          __privateGet(this, _colourElement).data = [
+            { id: 21937, data: {
+              "rgb": 1,
+              "bt709": 1,
+              "bt470bg": 5,
+              "smpte170m": 6
+            }[colorSpace.matrix] },
+            { id: 21946, data: {
+              "bt709": 1,
+              "smpte170m": 6,
+              "iec61966-2-1": 13
+            }[colorSpace.transfer] },
+            { id: 21947, data: {
+              "bt709": 1,
+              "bt470bg": 5,
+              "smpte170m": 6
+            }[colorSpace.primaries] },
+            { id: 21945, data: [1, 2][Number(colorSpace.fullRange)] }
+          ];
+          if (!__privateGet(this, _options).streaming) {
+            let endPos = __privateGet(this, _writer).pos;
+            __privateGet(this, _writer).seek(__privateGet(this, _writer).offsets.get(__privateGet(this, _colourElement)));
+            __privateGet(this, _writer).writeEBML(__privateGet(this, _colourElement));
+            __privateGet(this, _writer).seek(endPos);
+          }
+        }
+        if (meta.decoderConfig.description) {
+          if (__privateGet(this, _options).streaming) {
+            __privateSet(this, _videoCodecPrivate, __privateMethod(this, _createCodecPrivateElement, createCodecPrivateElement_fn).call(this, meta.decoderConfig.description));
+          } else {
+            __privateMethod(this, _writeCodecPrivate, writeCodecPrivate_fn).call(this, __privateGet(this, _videoCodecPrivate), meta.decoderConfig.description);
+          }
+        }
+      };
+      _fixVP9ColorSpace = /* @__PURE__ */ new WeakSet();
+      fixVP9ColorSpace_fn = function(chunk) {
+        if (chunk.type !== "key")
+          return;
+        if (!__privateGet(this, _colorSpace))
+          return;
+        let i2 = 0;
+        if (readBits(chunk.data, 0, 2) !== 2)
+          return;
+        i2 += 2;
+        let profile = (readBits(chunk.data, i2 + 1, i2 + 2) << 1) + readBits(chunk.data, i2 + 0, i2 + 1);
+        i2 += 2;
+        if (profile === 3)
+          i2++;
+        let showExistingFrame = readBits(chunk.data, i2 + 0, i2 + 1);
+        i2++;
+        if (showExistingFrame)
+          return;
+        let frameType = readBits(chunk.data, i2 + 0, i2 + 1);
+        i2++;
+        if (frameType !== 0)
+          return;
+        i2 += 2;
+        let syncCode = readBits(chunk.data, i2 + 0, i2 + 24);
+        i2 += 24;
+        if (syncCode !== 4817730)
+          return;
+        if (profile >= 2)
+          i2++;
+        let colorSpaceID = {
+          "rgb": 7,
+          "bt709": 2,
+          "bt470bg": 1,
+          "smpte170m": 3
+        }[__privateGet(this, _colorSpace).matrix];
+        writeBits(chunk.data, i2 + 0, i2 + 3, colorSpaceID);
+      };
+      _writeSubtitleChunks = /* @__PURE__ */ new WeakSet();
+      writeSubtitleChunks_fn = function() {
+        let lastWrittenMediaTimestamp = Math.min(
+          __privateGet(this, _options).video ? __privateGet(this, _lastVideoTimestamp) : Infinity,
+          __privateGet(this, _options).audio ? __privateGet(this, _lastAudioTimestamp) : Infinity
+        );
+        let queue = __privateGet(this, _subtitleChunkQueue);
+        while (queue.length > 0 && queue[0].timestamp <= lastWrittenMediaTimestamp) {
+          __privateMethod(this, _writeBlock, writeBlock_fn).call(this, queue.shift(), !__privateGet(this, _options).video && !__privateGet(this, _options).audio);
+        }
+      };
+      _createInternalChunk = /* @__PURE__ */ new WeakSet();
+      createInternalChunk_fn = function(data, type, timestamp, trackNumber, duration, additions) {
+        let adjustedTimestamp = __privateMethod(this, _validateTimestamp, validateTimestamp_fn).call(this, timestamp, trackNumber);
+        let internalChunk = {
+          data,
+          additions,
+          type,
+          timestamp: adjustedTimestamp,
+          duration,
+          trackNumber
+        };
+        return internalChunk;
+      };
+      _validateTimestamp = /* @__PURE__ */ new WeakSet();
+      validateTimestamp_fn = function(timestamp, trackNumber) {
+        let lastTimestamp = trackNumber === VIDEO_TRACK_NUMBER ? __privateGet(this, _lastVideoTimestamp) : trackNumber === AUDIO_TRACK_NUMBER ? __privateGet(this, _lastAudioTimestamp) : __privateGet(this, _lastSubtitleTimestamp);
+        if (trackNumber !== SUBTITLE_TRACK_NUMBER) {
+          let firstTimestamp = trackNumber === VIDEO_TRACK_NUMBER ? __privateGet(this, _firstVideoTimestamp) : __privateGet(this, _firstAudioTimestamp);
+          if (__privateGet(this, _options).firstTimestampBehavior === "strict" && lastTimestamp === -1 && timestamp !== 0) {
+            throw new Error(
+              `The first chunk for your media track must have a timestamp of 0 (received ${timestamp}). Non-zero first timestamps are often caused by directly piping frames or audio data from a MediaStreamTrack into the encoder. Their timestamps are typically relative to the age of the document, which is probably what you want.
+
+If you want to offset all timestamps of a track such that the first one is zero, set firstTimestampBehavior: 'offset' in the options.
+If you want to allow non-zero first timestamps, set firstTimestampBehavior: 'permissive'.
+`
+            );
+          } else if (__privateGet(this, _options).firstTimestampBehavior === "offset") {
+            timestamp -= firstTimestamp;
+          }
+        }
+        if (timestamp < lastTimestamp) {
+          throw new Error(
+            `Timestamps must be monotonically increasing (went from ${lastTimestamp} to ${timestamp}).`
+          );
+        }
+        if (timestamp < 0) {
+          throw new Error(`Timestamps must be non-negative (received ${timestamp}).`);
+        }
+        return timestamp;
+      };
+      _writeBlock = /* @__PURE__ */ new WeakSet();
+      writeBlock_fn = function(chunk, canCreateNewCluster) {
+        if (__privateGet(this, _options).streaming && !__privateGet(this, _tracksElement)) {
+          __privateMethod(this, _createTracks, createTracks_fn).call(this);
+          __privateMethod(this, _createSegment, createSegment_fn).call(this);
+        }
+        let msTimestamp = Math.floor(chunk.timestamp / 1e3);
+        let relativeTimestamp = msTimestamp - __privateGet(this, _currentClusterTimestamp);
+        let shouldCreateNewClusterFromKeyFrame = canCreateNewCluster && chunk.type === "key" && relativeTimestamp >= 1e3;
+        let clusterWouldBeTooLong = relativeTimestamp >= MAX_CHUNK_LENGTH_MS;
+        if (!__privateGet(this, _currentCluster) || shouldCreateNewClusterFromKeyFrame || clusterWouldBeTooLong) {
+          __privateMethod(this, _createNewCluster, createNewCluster_fn).call(this, msTimestamp);
+          relativeTimestamp = 0;
+        }
+        if (relativeTimestamp < 0) {
+          return;
+        }
+        let prelude = new Uint8Array(4);
+        let view = new DataView(prelude.buffer);
+        view.setUint8(0, 128 | chunk.trackNumber);
+        view.setInt16(1, relativeTimestamp, false);
+        if (chunk.duration === void 0 && !chunk.additions) {
+          view.setUint8(3, Number(chunk.type === "key") << 7);
+          let simpleBlock = { id: 163, data: [
+            prelude,
+            chunk.data
+          ] };
+          __privateGet(this, _writer).writeEBML(simpleBlock);
+        } else {
+          let msDuration = Math.floor(chunk.duration / 1e3);
+          let blockGroup = { id: 160, data: [
+            { id: 161, data: [
+              prelude,
+              chunk.data
+            ] },
+            chunk.duration !== void 0 ? { id: 155, data: msDuration } : null,
+            chunk.additions ? { id: 30113, data: chunk.additions } : null
+          ] };
+          __privateGet(this, _writer).writeEBML(blockGroup);
+        }
+        __privateSet(this, _duration, Math.max(__privateGet(this, _duration), msTimestamp));
+      };
+      _createCodecPrivateElement = /* @__PURE__ */ new WeakSet();
+      createCodecPrivateElement_fn = function(data) {
+        return { id: 25506, size: 4, data: new Uint8Array(data) };
+      };
+      _writeCodecPrivate = /* @__PURE__ */ new WeakSet();
+      writeCodecPrivate_fn = function(element, data) {
+        let endPos = __privateGet(this, _writer).pos;
+        __privateGet(this, _writer).seek(__privateGet(this, _writer).offsets.get(element));
+        let codecPrivateElementSize = 2 + 4 + data.byteLength;
+        let voidDataSize = CODEC_PRIVATE_MAX_SIZE - codecPrivateElementSize;
+        if (voidDataSize < 0) {
+          let newByteLength = data.byteLength + voidDataSize;
+          if (data instanceof ArrayBuffer) {
+            data = data.slice(0, newByteLength);
+          } else {
+            data = data.buffer.slice(0, newByteLength);
+          }
+          voidDataSize = 0;
+        }
+        element = [
+          __privateMethod(this, _createCodecPrivateElement, createCodecPrivateElement_fn).call(this, data),
+          { id: 236, size: 4, data: new Uint8Array(voidDataSize) }
+        ];
+        __privateGet(this, _writer).writeEBML(element);
+        __privateGet(this, _writer).seek(endPos);
+      };
+      _createNewCluster = /* @__PURE__ */ new WeakSet();
+      createNewCluster_fn = function(timestamp) {
+        if (__privateGet(this, _currentCluster)) {
+          __privateMethod(this, _finalizeCurrentCluster, finalizeCurrentCluster_fn).call(this);
+        }
+        if (__privateGet(this, _writer) instanceof BaseStreamTargetWriter && __privateGet(this, _writer).target.options.onCluster) {
+          __privateGet(this, _writer).startTrackingWrites();
+        }
+        __privateSet(this, _currentCluster, {
+          id: 524531317,
+          size: __privateGet(this, _options).streaming ? -1 : CLUSTER_SIZE_BYTES,
+          data: [
+            { id: 231, data: timestamp }
+          ]
+        });
+        __privateGet(this, _writer).writeEBML(__privateGet(this, _currentCluster));
+        __privateSet(this, _currentClusterTimestamp, timestamp);
+        let clusterOffsetFromSegment = __privateGet(this, _writer).offsets.get(__privateGet(this, _currentCluster)) - __privateGet(this, _segmentDataOffset, segmentDataOffset_get);
+        __privateGet(this, _cues).data.push({ id: 187, data: [
+          { id: 179, data: timestamp },
+          __privateGet(this, _options).video ? { id: 183, data: [
+            { id: 247, data: VIDEO_TRACK_NUMBER },
+            { id: 241, data: clusterOffsetFromSegment }
+          ] } : null,
+          __privateGet(this, _options).audio ? { id: 183, data: [
+            { id: 247, data: AUDIO_TRACK_NUMBER },
+            { id: 241, data: clusterOffsetFromSegment }
+          ] } : null
+        ] });
+      };
+      _finalizeCurrentCluster = /* @__PURE__ */ new WeakSet();
+      finalizeCurrentCluster_fn = function() {
+        if (!__privateGet(this, _options).streaming) {
+          let clusterSize = __privateGet(this, _writer).pos - __privateGet(this, _writer).dataOffsets.get(__privateGet(this, _currentCluster));
+          let endPos = __privateGet(this, _writer).pos;
+          __privateGet(this, _writer).seek(__privateGet(this, _writer).offsets.get(__privateGet(this, _currentCluster)) + 4);
+          __privateGet(this, _writer).writeEBMLVarInt(clusterSize, CLUSTER_SIZE_BYTES);
+          __privateGet(this, _writer).seek(endPos);
+        }
+        if (__privateGet(this, _writer) instanceof BaseStreamTargetWriter && __privateGet(this, _writer).target.options.onCluster) {
+          let { data, start } = __privateGet(this, _writer).getTrackedWrites();
+          __privateGet(this, _writer).target.options.onCluster(data, start, __privateGet(this, _currentClusterTimestamp));
+        }
+      };
+      _ensureNotFinalized = /* @__PURE__ */ new WeakSet();
+      ensureNotFinalized_fn = function() {
+        if (__privateGet(this, _finalized)) {
+          throw new Error("Cannot add new video or audio chunks after the file has been finalized.");
+        }
+      };
+      cueBlockHeaderRegex = /(?:(.+?)\n)?((?:\d{2}:)?\d{2}:\d{2}.\d{3})\s+-->\s+((?:\d{2}:)?\d{2}:\d{2}.\d{3})/g;
+      preambleStartRegex = /^WEBVTT.*?\n{2}/;
+      timestampRegex = /(?:(\d{2}):)?(\d{2}):(\d{2}).(\d{3})/;
+      inlineTimestampRegex = /<(?:(\d{2}):)?(\d{2}):(\d{2}).(\d{3})>/g;
+      textEncoder = new TextEncoder();
+      SubtitleEncoder = class {
+        constructor(options) {
+          __privateAdd(this, _parseTimestamp);
+          __privateAdd(this, _formatTimestamp);
+          __privateAdd(this, _options2, void 0);
+          __privateAdd(this, _config, void 0);
+          __privateAdd(this, _preambleSeen, false);
+          __privateAdd(this, _preambleBytes, void 0);
+          __privateAdd(this, _preambleEmitted, false);
+          __privateSet(this, _options2, options);
+        }
+        configure(config) {
+          if (config.codec !== "webvtt") {
+            throw new Error("Codec must be 'webvtt'.");
+          }
+          __privateSet(this, _config, config);
+        }
+        encode(text) {
+          if (!__privateGet(this, _config)) {
+            throw new Error("Encoder not configured.");
+          }
+          text = text.replace("\r\n", "\n").replace("\r", "\n");
+          cueBlockHeaderRegex.lastIndex = 0;
+          let match;
+          if (!__privateGet(this, _preambleSeen)) {
+            if (!preambleStartRegex.test(text)) {
+              let error2 = new Error("WebVTT preamble incorrect.");
+              __privateGet(this, _options2).error(error2);
+              throw error2;
+            }
+            match = cueBlockHeaderRegex.exec(text);
+            let preamble = text.slice(0, match?.index ?? text.length).trimEnd();
+            if (!preamble) {
+              let error2 = new Error("No WebVTT preamble provided.");
+              __privateGet(this, _options2).error(error2);
+              throw error2;
+            }
+            __privateSet(this, _preambleBytes, textEncoder.encode(preamble));
+            __privateSet(this, _preambleSeen, true);
+            if (match) {
+              text = text.slice(match.index);
+              cueBlockHeaderRegex.lastIndex = 0;
+            }
+          }
+          while (match = cueBlockHeaderRegex.exec(text)) {
+            let notes = text.slice(0, match.index);
+            let cueIdentifier = match[1] || "";
+            let matchEnd = match.index + match[0].length;
+            let bodyStart = text.indexOf("\n", matchEnd) + 1;
+            let cueSettings = text.slice(matchEnd, bodyStart).trim();
+            let bodyEnd = text.indexOf("\n\n", matchEnd);
+            if (bodyEnd === -1)
+              bodyEnd = text.length;
+            let startTime = __privateMethod(this, _parseTimestamp, parseTimestamp_fn).call(this, match[2]);
+            let endTime = __privateMethod(this, _parseTimestamp, parseTimestamp_fn).call(this, match[3]);
+            let duration = endTime - startTime;
+            let body = text.slice(bodyStart, bodyEnd);
+            let additions = `${cueSettings}
+${cueIdentifier}
+${notes}`;
+            inlineTimestampRegex.lastIndex = 0;
+            body = body.replace(inlineTimestampRegex, (match2) => {
+              let time = __privateMethod(this, _parseTimestamp, parseTimestamp_fn).call(this, match2.slice(1, -1));
+              let offsetTime = time - startTime;
+              return `<${__privateMethod(this, _formatTimestamp, formatTimestamp_fn).call(this, offsetTime)}>`;
+            });
+            text = text.slice(bodyEnd).trimStart();
+            cueBlockHeaderRegex.lastIndex = 0;
+            let chunk = {
+              body: textEncoder.encode(body),
+              additions: additions.trim() === "" ? void 0 : textEncoder.encode(additions),
+              timestamp: startTime * 1e3,
+              duration: duration * 1e3
+            };
+            let meta = {};
+            if (!__privateGet(this, _preambleEmitted)) {
+              meta.decoderConfig = {
+                description: __privateGet(this, _preambleBytes)
+              };
+              __privateSet(this, _preambleEmitted, true);
+            }
+            __privateGet(this, _options2).output(chunk, meta);
+          }
+        }
+      };
+      _options2 = /* @__PURE__ */ new WeakMap();
+      _config = /* @__PURE__ */ new WeakMap();
+      _preambleSeen = /* @__PURE__ */ new WeakMap();
+      _preambleBytes = /* @__PURE__ */ new WeakMap();
+      _preambleEmitted = /* @__PURE__ */ new WeakMap();
+      _parseTimestamp = /* @__PURE__ */ new WeakSet();
+      parseTimestamp_fn = function(string) {
+        let match = timestampRegex.exec(string);
+        if (!match)
+          throw new Error("Expected match.");
+        return 60 * 60 * 1e3 * Number(match[1] || "0") + 60 * 1e3 * Number(match[2]) + 1e3 * Number(match[3]) + Number(match[4]);
+      };
+      _formatTimestamp = /* @__PURE__ */ new WeakSet();
+      formatTimestamp_fn = function(timestamp) {
+        let hours = Math.floor(timestamp / (60 * 60 * 1e3));
+        let minutes = Math.floor(timestamp % (60 * 60 * 1e3) / (60 * 1e3));
+        let seconds = Math.floor(timestamp % (60 * 1e3) / 1e3);
+        let milliseconds = timestamp % 1e3;
+        return hours.toString().padStart(2, "0") + ":" + minutes.toString().padStart(2, "0") + ":" + seconds.toString().padStart(2, "0") + "." + milliseconds.toString().padStart(3, "0");
+      };
     }
   });
 
@@ -22353,7 +23322,7 @@
   var import_jsx_runtime39 = __toESM(require_jsx_runtime(), 1);
   var import_jsx_runtime40 = __toESM(require_jsx_runtime(), 1);
   var __defProp2 = Object.defineProperty;
-  var __export = (target, all) => {
+  var __export2 = (target, all) => {
     for (var name in all)
       __defProp2(target, name, {
         get: all[name],
@@ -23604,7 +24573,7 @@ Check that all your Remotion packages are on the same version. If your dependenc
   };
   var SequenceContext = (0, import_react22.createContext)(null);
   var exports_timeline_position_state = {};
-  __export(exports_timeline_position_state, {
+  __export2(exports_timeline_position_state, {
     useTimelineSetFrame: () => useTimelineSetFrame,
     useTimelinePosition: () => useTimelinePosition,
     useTimelineContext: () => useTimelineContext,
@@ -33376,7 +34345,7 @@ Check that all your Remotion packages are on the same version. If your dependenc
     });
   };
   var exports_default_css = {};
-  __export(exports_default_css, {
+  __export2(exports_default_css, {
     makeDefaultPreviewCSS: () => makeDefaultPreviewCSS,
     injectCSS: () => injectCSS,
     OBJECTFIT_CONTAIN_CLASS_NAME: () => OBJECTFIT_CONTAIN_CLASS_NAME
@@ -64605,11 +65574,12 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     states: "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson"
   };
   var dynamicGeoCache = /* @__PURE__ */ new Map();
-  var MapAnimation = ({ timeline, isLiveEditMode = false, mapStyle = "dark-documentary" }) => {
+  var MapAnimation = ({ timeline, isLiveEditMode = false, mapStyle = "dark-documentary", onCameraChange }) => {
     const mapContainer = (0, import_react121.useRef)(null);
     const blendOverlayRef = (0, import_react121.useRef)(null);
     const uiOverlayRef = (0, import_react121.useRef)(null);
     const mapRef = (0, import_react121.useRef)(null);
+    const onCameraChangeRef = (0, import_react121.useRef)(onCameraChange);
     const [mapLoaded, setMapLoaded] = (0, import_react121.useState)(false);
     const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Dual-Canvas Engine..."));
     const [selectedCountry, setSelectedCountry] = (0, import_react121.useState)(null);
@@ -64618,6 +65588,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const { width, height } = useVideoConfig();
     const { isRendering } = getRemotionEnvironment();
     const totalFrames = timeline?.totalFrames || 300;
+    (0, import_react121.useEffect)(() => {
+      onCameraChangeRef.current = onCameraChange;
+    }, [onCameraChange]);
     (0, import_react121.useEffect)(() => {
       const loadExtra = async () => {
         const states = await fetchGeographicFeature("states");
@@ -64692,7 +65665,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       const map = new Ap2({
         container: mapContainer.current,
         fadeDuration: 0,
-        maxTileCacheSize: 1e4,
+        maxTileCacheSize: 2e4,
         preserveDrawingBuffer: true,
         renderWorldCopies: false,
         pixelRatio: isMobileEdit ? 1 : isRendering ? 2 : 1,
@@ -64702,18 +65675,30 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         pitch: currentCam.pitch,
         bearing: currentCam.bearing,
         maxPitch: 60,
-        interactive: false,
+        interactive: isLiveEditMode,
+        // Native map controls enabled
         attributionControl: false
       });
+      if (isLiveEditMode) {
+        map.on("move", () => {
+          if (onCameraChangeRef.current) {
+            onCameraChangeRef.current({ lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() });
+          }
+        });
+      }
       map.on("load", () => {
         mapRef.current = map;
+        window.__mapInstance = map;
         setMapLoaded(true);
         continueRender(initialHandle);
       });
-      return () => map.remove();
+      return () => {
+        window.__mapInstance = null;
+        map.remove();
+      };
     }, [mapStyle, isLiveEditMode]);
     (0, import_react121.useLayoutEffect)(() => {
-      if (!mapRef.current || !mapLoaded) return;
+      if (!mapRef.current || !mapLoaded || isLiveEditMode) return;
       let tileLockHandle = null;
       if (isRendering) tileLockHandle = delayRender(`Awaiting GPU Paint Frame ${frame}`);
       mapRef.current.jumpTo({ center: [currentCam.lng, currentCam.lat], zoom: currentCam.zoom, pitch: currentCam.pitch, bearing: currentCam.bearing });
@@ -64723,7 +65708,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (mapRef.current.areTilesLoaded()) release();
         else mapRef.current.once("idle", release);
       }
-    }, [currentCam, mapLoaded, isRendering, frame]);
+    }, [currentCam, mapLoaded, isRendering, frame, isLiveEditMode]);
     const projectClamped = (map, coord) => {
       const p2 = map.project(coord);
       if (!p2 || isNaN(p2.x) || isNaN(p2.y)) return null;
@@ -64814,22 +65799,23 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         } else if (frame > endF - fadeOutDuration) {
           masterAlpha = Math.max(0, (endF - frame) / fadeOutDuration);
         }
-        if (entity.revealStyle === "fade") {
-          blendCtx.globalAlpha = masterAlpha;
-        } else if (entity.revealStyle === "ink") {
+        let effectiveAlpha = masterAlpha;
+        if ((entity.revealStyle === "ink" || entity.revealStyle === "trim") && frame < startF + fadeInDuration) {
+          effectiveAlpha = 1;
+        }
+        if (entity.revealStyle === "ink") {
           const cx2 = center ? mapRef.current.project(center).x : width / 2;
           const cy2 = center ? mapRef.current.project(center).y : height / 2;
           const maxRad = Math.max(width, height) * 1.5;
           blendCtx.beginPath();
           blendCtx.arc(cx2, cy2, maxRad * Easing.bezier(0.25, 1, 0.5, 1)(Math.min(1, (frame - startF) / fadeInDuration)), 0, Math.PI * 2);
           blendCtx.clip();
-          blendCtx.globalAlpha = frame > endF - fadeOutDuration ? masterAlpha : 1;
         }
         const activeColor = entity.color || "#3b82f6";
         if (isLine) {
           if (entity.enableGlow !== false && !isMobileEdit) {
             blendCtx.save();
-            blendCtx.globalAlpha = masterAlpha;
+            blendCtx.globalAlpha = effectiveAlpha;
             blendCtx.shadowColor = activeColor;
             blendCtx.shadowBlur = entity.glowIntensity || 20;
             blendCtx.lineWidth = (entity.strokeWidth || 4) + 4;
@@ -64842,14 +65828,14 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             blendCtx.setLineDash([approxLen]);
             blendCtx.lineDashOffset = approxLen - (frame - startF) / fadeInDuration * approxLen;
           }
-          blendCtx.globalAlpha = masterAlpha;
+          blendCtx.globalAlpha = effectiveAlpha;
           blendCtx.lineWidth = entity.strokeWidth || 4;
           blendCtx.strokeStyle = entity.strokeColor || activeColor;
           blendCtx.stroke(p2d);
         } else {
           if (entity.dropShadow !== false && !isMobileEdit) {
             blendCtx.save();
-            blendCtx.globalAlpha = masterAlpha;
+            blendCtx.globalAlpha = effectiveAlpha;
             blendCtx.translate(0, 15);
             blendCtx.shadowColor = "rgba(0,0,0,0.95)";
             blendCtx.shadowBlur = 15;
@@ -64861,12 +65847,12 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             blendCtx.save();
             blendCtx.shadowColor = activeColor;
             blendCtx.shadowBlur = entity.glowIntensity !== void 0 ? entity.glowIntensity : 20;
-            blendCtx.globalAlpha = 0.55 * masterAlpha;
+            blendCtx.globalAlpha = 0.55 * effectiveAlpha;
             blendCtx.fillStyle = activeColor;
             blendCtx.fill(p2d);
             blendCtx.restore();
           }
-          blendCtx.globalAlpha = 0.9 * masterAlpha;
+          blendCtx.globalAlpha = 0.9 * effectiveAlpha;
           blendCtx.fillStyle = activeColor;
           blendCtx.fill(p2d);
           if (entity.strokeWidth) {
@@ -64912,26 +65898,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       arrows.forEach((arrow) => {
         const startF = arrow.startFrame || arrow.frame || 0;
         if (frame < startF) return;
-        if (arrow.type === "custom-path" && arrow.coordinates) {
-          uiCtx.save();
-          uiCtx.beginPath();
-          arrow.coordinates.forEach((coord, i2) => {
-            const p3 = projectClamped(mapRef.current, coord);
-            if (!p3) return;
-            if (i2 === 0) uiCtx.moveTo(p3.x, p3.y);
-            else uiCtx.lineTo(p3.x, p3.y);
-          });
-          const t4 = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
-          uiCtx.strokeStyle = arrow.color || "#f59e0b";
-          uiCtx.lineWidth = arrow.strokeWidth || 4;
-          if (!isMobileEdit) {
-            uiCtx.shadowColor = "rgba(0,0,0,0.8)";
-            uiCtx.shadowBlur = 10;
-          }
-          uiCtx.stroke();
-          uiCtx.restore();
-          return;
-        }
         let c1 = arrow.origin;
         let c22 = arrow.target;
         if (arrow.sourceName) c1 = getGeometryFromSource(arrow.sourceName, [world_default]).center;
@@ -64943,39 +65909,50 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const dx2 = p2.x - p1.x;
         const dy2 = p2.y - p1.y;
         const dist = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-        const arcH = dist * 0.38;
+        const arcH = dist * 0.35;
         const midX = (p1.x + p2.x) / 2 + -dy2 / dist * arcH;
         const midY = (p1.y + p2.y) / 2 + dx2 / dist * arcH;
         const pathD = `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
         const p2d = new Path2D(pathD);
-        const t3 = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
+        const progress = Math.max(0, Math.min(1, (frame - startF) / (arrow.duration || 60)));
         uiCtx.save();
-        if (!isMobileEdit) {
-          uiCtx.shadowColor = "#000000";
-          uiCtx.shadowBlur = 12;
-          uiCtx.shadowOffsetY = 10;
-        }
-        const approxLen = dist * 1.2;
+        uiCtx.shadowColor = arrow.color || "#38bdf8";
+        uiCtx.shadowBlur = 15;
+        uiCtx.strokeStyle = arrow.color || "#38bdf8";
+        uiCtx.lineWidth = arrow.strokeWidth || 5;
+        uiCtx.lineCap = "round";
+        const approxLen = dist * 1.3;
         uiCtx.setLineDash([approxLen]);
-        uiCtx.lineDashOffset = approxLen - t3 * approxLen;
-        if (arrow.type === "missile") {
-          uiCtx.strokeStyle = "#ef4444";
-          uiCtx.lineWidth = 8;
-          uiCtx.globalAlpha = 0.3;
-          uiCtx.stroke(p2d);
-          uiCtx.strokeStyle = "#ffffff";
-          uiCtx.lineWidth = 3;
-          uiCtx.globalAlpha = 0.9;
-          uiCtx.stroke(p2d);
-        } else {
-          const sourceData = rawCountries.find((c4) => (c4.name || c4.country || "").toLowerCase() === (arrow.sourceName || "").toLowerCase());
-          uiCtx.strokeStyle = arrow.color || sourceData?.color || "#ef4444";
-          uiCtx.lineWidth = 6;
-          uiCtx.stroke(p2d);
-          uiCtx.setLineDash([]);
-          uiCtx.strokeStyle = "#ffffff";
-          uiCtx.lineWidth = 2;
-          uiCtx.stroke(p2d);
+        uiCtx.lineDashOffset = approxLen - progress * approxLen;
+        uiCtx.stroke(p2d);
+        if (progress > 0 && progress < 1) {
+          const t3 = progress;
+          const bx2 = (1 - t3) * (1 - t3) * p1.x + 2 * (1 - t3) * t3 * midX + t3 * t3 * p2.x;
+          const by2 = (1 - t3) * (1 - t3) * p1.y + 2 * (1 - t3) * t3 * midY + t3 * t3 * p2.y;
+          uiCtx.save();
+          uiCtx.translate(bx2, by2);
+          const angle = Math.atan2(2 * (1 - t3) * (midY - p1.y) + 2 * t3 * (p2.y - midY), 2 * (1 - t3) * (midX - p1.x) + 2 * t3 * (p2.x - midX));
+          uiCtx.rotate(angle);
+          if (arrow.type === "missile") {
+            uiCtx.fillStyle = "#ffffff";
+            uiCtx.beginPath();
+            uiCtx.moveTo(16, 0);
+            uiCtx.lineTo(-10, -8);
+            uiCtx.lineTo(-4, 0);
+            uiCtx.lineTo(-10, 8);
+            uiCtx.closePath();
+            uiCtx.fill();
+          } else {
+            uiCtx.fillStyle = arrow.color || "#38bdf8";
+            uiCtx.beginPath();
+            uiCtx.moveTo(14, 0);
+            uiCtx.lineTo(-8, -6);
+            uiCtx.lineTo(-3, 0);
+            uiCtx.lineTo(-8, 6);
+            uiCtx.closePath();
+            uiCtx.fill();
+          }
+          uiCtx.restore();
         }
         uiCtx.restore();
       });
@@ -64993,24 +65970,72 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (!l2.pinned && frame > lEnd - lFade) lAlpha = Math.max(0, (lEnd - frame) / lFade);
         uiCtx.save();
         uiCtx.globalAlpha = lAlpha;
-        uiCtx.translate(p2.x, p2.y - 10);
-        if (l2.glow && !isMobileEdit) {
-          uiCtx.shadowColor = "#38bdf8";
-          uiCtx.shadowBlur = 20;
-        }
-        uiCtx.fillStyle = l2.bg || "rgba(0,0,0,0.7)";
-        if (uiCtx.roundRect) {
+        uiCtx.translate(p2.x, p2.y);
+        const themeColor = l2.color || "#ffffff";
+        const labelStyle = l2.style || "callout";
+        const txt = (l2.text || "").toUpperCase();
+        uiCtx.font = `bold ${l2.size !== void 0 ? l2.size : 20}px "SF Pro Display", sans-serif`;
+        if (labelStyle === "callout") {
           uiCtx.beginPath();
-          uiCtx.roundRect(-60, -20, 120, 36, 8);
+          uiCtx.arc(0, 0, 5, 0, Math.PI * 2);
+          uiCtx.fillStyle = themeColor;
+          if (l2.glow && !isMobileEdit) {
+            uiCtx.shadowColor = themeColor;
+            uiCtx.shadowBlur = 15;
+          }
           uiCtx.fill();
-        } else {
-          uiCtx.fillRect(-60, -20, 120, 36);
+          const lineProgress = Math.min(1, (frame - lStart) / 20);
+          const angleY = -40 * lineProgress;
+          const angleX = 30 * lineProgress;
+          uiCtx.beginPath();
+          uiCtx.moveTo(0, 0);
+          uiCtx.lineTo(angleX, angleY);
+          const tWidth = uiCtx.measureText(txt).width;
+          uiCtx.lineTo(angleX + (tWidth + 20) * lineProgress, angleY);
+          uiCtx.strokeStyle = themeColor;
+          uiCtx.lineWidth = 2;
+          uiCtx.stroke();
+          if (lineProgress > 0.5) {
+            const textAlpha = Math.min(1, (lineProgress - 0.5) * 2);
+            uiCtx.globalAlpha = lAlpha * textAlpha;
+            uiCtx.fillStyle = themeColor;
+            uiCtx.textAlign = "left";
+            uiCtx.textBaseline = "bottom";
+            uiCtx.fillText(txt, angleX + 10, angleY - 8);
+          }
+        } else if (labelStyle === "pill") {
+          const tWidth = uiCtx.measureText(txt).width;
+          uiCtx.translate(-tWidth / 2 - 20, -10);
+          if (l2.glow && !isMobileEdit) {
+            uiCtx.shadowColor = themeColor;
+            uiCtx.shadowBlur = 20;
+          }
+          uiCtx.fillStyle = l2.bg || "rgba(0,0,0,0.7)";
+          if (uiCtx.roundRect) {
+            uiCtx.beginPath();
+            uiCtx.roundRect(0, -20, tWidth + 40, l2.size + 16, 8);
+            uiCtx.fill();
+          } else {
+            uiCtx.fillRect(0, -20, tWidth + 40, l2.size + 16);
+          }
+          uiCtx.fillStyle = themeColor;
+          uiCtx.textAlign = "left";
+          uiCtx.textBaseline = "middle";
+          uiCtx.fillText(txt, 20, -2);
+        } else if (labelStyle === "minimal") {
+          uiCtx.beginPath();
+          uiCtx.arc(0, 0, 6, 0, Math.PI * 2);
+          uiCtx.fillStyle = themeColor;
+          if (l2.glow && !isMobileEdit) {
+            uiCtx.shadowColor = themeColor;
+            uiCtx.shadowBlur = 20;
+          }
+          uiCtx.fill();
+          uiCtx.fillStyle = themeColor;
+          uiCtx.textAlign = "left";
+          uiCtx.textBaseline = "middle";
+          uiCtx.fillText(txt, 15, 0);
         }
-        uiCtx.fillStyle = l2.color || "#ffffff";
-        uiCtx.font = `bold ${l2.size !== void 0 ? l2.size : 24}px sans-serif`;
-        uiCtx.textAlign = "center";
-        uiCtx.textBaseline = "middle";
-        uiCtx.fillText(l2.text, 0, -2);
         uiCtx.restore();
       });
     }, [frame, currentCam, mapLoaded, rawCountries, takeovers, arrows, labels, extraData, isLiveEditMode]);
@@ -65019,7 +66044,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 40%, rgba(4, 7, 17, 0.88) 100%)", pointerEvents: "none", zIndex: 10 } }),
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("canvas", { id: "vector-blend-overlay", ref: blendOverlayRef, width, height, style: { position: "absolute", inset: 0, zIndex: 60, pointerEvents: "none" } }),
       /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("canvas", { id: "vector-ui-overlay", ref: uiOverlayRef, width, height, style: { position: "absolute", inset: 0, zIndex: 61, pointerEvents: "none" } }),
-      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "auto", zIndex: 65 }, children: rawCountries.map((country, idx) => {
+      !isLiveEditMode && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "auto", zIndex: 65 }, children: rawCountries.map((country, idx) => {
         if (frame < (country.startFrame || 0)) return null;
         const cName = country.name || country.country;
         const { path } = getGeometryFromSource(cName, [world_default, ...extraData]);
@@ -65034,10 +66059,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
   };
 
   // src/web.tsx
-  var import_fix_webm_duration = __toESM(require_fix_webm_duration());
   var import_jsx_runtime60 = __toESM(require_jsx_runtime());
   var WebApp = () => {
     const playerRef = (0, import_react122.useRef)(null);
+    const trackContainerRef = (0, import_react122.useRef)(null);
     const [prompt, setPrompt] = (0, import_react122.useState)("");
     const [status, setStatus] = (0, import_react122.useState)("idle");
     const [errorMessage, setErrorMessage] = (0, import_react122.useState)(null);
@@ -65046,7 +66071,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [timeline, setTimeline] = (0, import_react122.useState)(null);
     const [videoDuration, setVideoDuration] = (0, import_react122.useState)(300);
     const [disabledEntities, setDisabledEntities] = (0, import_react122.useState)([]);
-    const [isTimelineOpen, setIsTimelineOpen] = (0, import_react122.useState)(true);
     const [isDesktop, setIsDesktop] = (0, import_react122.useState)(true);
     (0, import_react122.useEffect)(() => {
       const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -65059,12 +66083,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [selectedEntity, setSelectedEntity] = (0, import_react122.useState)(null);
     const [isLiveEdit, setIsLiveEdit] = (0, import_react122.useState)(false);
     const [isExporting, setIsExporting] = (0, import_react122.useState)(false);
-    const [exportProgress, setExportProgress] = (0, import_react122.useState)(0);
+    const [exportProgress, setExportProgress] = (0, import_react122.useState)("");
     const [isPreloading, setIsPreloading] = (0, import_react122.useState)(false);
-    const [isDragging, setIsDragging] = (0, import_react122.useState)(false);
-    const dragPos = (0, import_react122.useRef)(null);
-    const activePointers = (0, import_react122.useRef)(/* @__PURE__ */ new Map());
-    const previousPinch = (0, import_react122.useRef)(null);
     const [targetLat, setTargetLat] = (0, import_react122.useState)(38);
     const [targetLng, setTargetLng] = (0, import_react122.useState)(127);
     const [targetZoom, setTargetZoom] = (0, import_react122.useState)(1.2);
@@ -65083,6 +66103,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [labelColor, setLabelColor] = (0, import_react122.useState)("#ffffff");
     const [labelBg, setLabelBg] = (0, import_react122.useState)("rgba(0,0,0,0.7)");
     const [labelSize, setLabelSize] = (0, import_react122.useState)(24);
+    const [labelStyle, setLabelStyle] = (0, import_react122.useState)("callout");
     const [labelGlow, setLabelGlow] = (0, import_react122.useState)(true);
     const [labelPinned, setLabelPinned] = (0, import_react122.useState)(true);
     const [openBranches, setOpenBranches] = (0, import_react122.useState)({
@@ -65123,7 +66144,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           }
           setAllGeoNames(Array.from(names).filter(Boolean).sort());
         } catch (e63) {
-          console.warn("Could not preload dynamic names for autocomplete.");
         }
       };
       loadExtras();
@@ -65134,29 +66154,23 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       let animationFrameId;
       const syncTimeline = () => {
         if (playerRef.current && isPlaying && !isExporting) {
-          setCurrentFrame(playerRef.current.getCurrentFrame());
+          setCurrentFrame(Math.min(playerRef.current.getCurrentFrame(), videoDuration));
         }
         animationFrameId = requestAnimationFrame(syncTimeline);
       };
       syncTimeline();
       return () => cancelAnimationFrame(animationFrameId);
-    }, [isPlaying, isExporting]);
+    }, [isPlaying, isExporting, videoDuration]);
     const handleSubmit = async (e63) => {
       e63.preventDefault();
       if (!prompt.trim()) return;
       setStatus("generating");
       setErrorMessage(null);
       try {
-        const response = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt })
-        });
+        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) });
         const data = await response.json();
         if (data && data.timeline) {
-          if (!prompt.toLowerCase().includes("invad") && !prompt.toLowerCase().includes("attack") && !prompt.toLowerCase().includes("war")) {
-            data.timeline.takeovers = [];
-          }
+          if (!prompt.toLowerCase().includes("invad") && !prompt.toLowerCase().includes("attack") && !prompt.toLowerCase().includes("war")) data.timeline.takeovers = [];
           setTimeline(data.timeline);
           setVideoDuration(data.timeline.totalFrames || 300);
           setStatus("editor");
@@ -65169,120 +66183,89 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         setStatus("idle");
       }
     };
-    const handleFinalizeCache = async () => {
-      setIsPreloading(true);
+    const handleDeterministicExport = async () => {
+      if (typeof VideoEncoder === "undefined") {
+        alert("Browser does not support WebCodecs. Please use Chrome or Brave.");
+        return;
+      }
+      setIsExporting(true);
+      setExportProgress("Initializing encoder...");
       playerRef.current?.pause();
       setIsPlaying(false);
-      for (let f2 = 0; f2 < videoDuration; f2 += 5) {
-        playerRef.current?.seekTo(f2);
-        await new Promise((r2) => setTimeout(r2, 200));
+      let MuxerModule;
+      try {
+        MuxerModule = await Promise.resolve().then(() => (init_webm_muxer(), webm_muxer_exports));
+      } catch {
+        MuxerModule = await import(
+          /* webpackIgnore: true */
+          "https://cdn.jsdelivr.net/npm/webm-muxer@5.0.2/+esm"
+        );
       }
-      playerRef.current?.seekTo(0);
-      setIsPreloading(false);
-      alert("Map Cache Finalized! Ready for flawless export.");
-    };
-    const handleFastMobileExport = async () => {
-      setIsExporting(true);
-      setExportProgress(0);
-      playerRef.current?.seekTo(0);
-      playerRef.current?.play();
-      setIsPlaying(true);
-      const compositeCanvas = document.createElement("canvas");
-      compositeCanvas.width = 1080;
-      compositeCanvas.height = 1920;
-      compositeCanvas.style.cssText = "position:absolute; top:0; left:0; width:100%; height:100%; z-index:-1; pointer-events:none; border-radius:36px;";
-      const playerContainer = document.querySelector(".remotion-player") || document.body;
-      playerContainer.appendChild(compositeCanvas);
-      const ctx = compositeCanvas.getContext("2d");
-      if (!ctx) {
+      const exportWidth = 1080;
+      const exportHeight = 1920;
+      const fps = 30;
+      const muxer = new MuxerModule.Muxer({ target: new MuxerModule.ArrayBufferTarget(), video: { codec: "V_VP8", width: exportWidth, height: exportHeight, frameRate: fps } });
+      const videoEncoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e63) => console.error("VideoEncoder Error:", e63) });
+      videoEncoder.configure({ codec: "vp8", width: exportWidth, height: exportHeight, bitrate: 8e6 });
+      const offscreenCanvas = document.createElement("canvas");
+      offscreenCanvas.width = exportWidth;
+      offscreenCanvas.height = exportHeight;
+      const offCtx = offscreenCanvas.getContext("2d", { willReadFrequently: false });
+      if (!offCtx) {
         setIsExporting(false);
         return;
       }
-      const stream = compositeCanvas.captureStream(30);
-      const videoTrack = stream.getVideoTracks()[0];
-      const options = { mimeType: "video/webm", videoBitsPerSecond: 8e6 };
-      if (MediaRecorder.isTypeSupported("video/webm; codecs=vp9")) {
-        options.mimeType = "video/webm; codecs=vp9";
-      } else if (MediaRecorder.isTypeSupported("video/webm; codecs=vp8")) {
-        options.mimeType = "video/webm; codecs=vp8";
+      const frameDurationUs = Math.round(1e6 / fps);
+      for (let f2 = 0; f2 < videoDuration; f2++) {
+        setExportProgress(`Frame ${f2 + 1}/${videoDuration} (${Math.round((f2 + 1) / videoDuration * 100)}%) - Verifying tiles...`);
+        playerRef.current?.seekTo(f2);
+        setCurrentFrame(f2);
+        await new Promise((r2) => setTimeout(r2, 40));
+        const map = window.__mapInstance;
+        if (map) {
+          let attempts = 0;
+          while (!map.areTilesLoaded() && attempts < 40) {
+            await new Promise((r2) => setTimeout(r2, 50));
+            attempts++;
+          }
+          await new Promise((resolve) => {
+            map.once("render", () => setTimeout(resolve, 50));
+            map.triggerRepaint();
+          });
+        }
+        await new Promise((r2) => requestAnimationFrame(r2));
+        offCtx.fillStyle = "#040711";
+        offCtx.fillRect(0, 0, exportWidth, exportHeight);
+        const mapCanvas = map ? map.getCanvas() : null;
+        const blendCanvas = document.getElementById("vector-blend-overlay");
+        const uiCanvas = document.getElementById("vector-ui-overlay");
+        if (mapCanvas) offCtx.drawImage(mapCanvas, 0, 0, exportWidth, exportHeight);
+        offCtx.globalCompositeOperation = "source-over";
+        if (blendCanvas) offCtx.drawImage(blendCanvas, 0, 0, exportWidth, exportHeight);
+        if (uiCanvas) offCtx.drawImage(uiCanvas, 0, 0, exportWidth, exportHeight);
+        const videoFrame = new VideoFrame(offscreenCanvas, { timestamp: f2 * frameDurationUs, duration: frameDurationUs });
+        videoEncoder.encode(videoFrame, { keyFrame: f2 % 30 === 0 });
+        videoFrame.close();
       }
-      const recorder = new MediaRecorder(stream, options);
-      const chunks = [];
-      recorder.ondataavailable = (e63) => {
-        if (e63.data.size > 0) chunks.push(e63.data);
-      };
-      let animId;
-      const renderLoop = () => {
-        if (!isExporting) return;
-        ctx.clearRect(0, 0, 1080, 1920);
-        const mapCanvas = document.querySelector("canvas.maplibregl-canvas");
-        const blendCanvas = document.querySelector("canvas#vector-blend-overlay");
-        const uiCanvas = document.querySelector("canvas#vector-ui-overlay");
-        try {
-          if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, 1080, 1920);
-        } catch (e63) {
-        }
-        ctx.globalCompositeOperation = "screen";
-        try {
-          if (blendCanvas) ctx.drawImage(blendCanvas, 0, 0, 1080, 1920);
-        } catch (e63) {
-        }
-        ctx.globalCompositeOperation = "source-over";
-        try {
-          if (uiCanvas) ctx.drawImage(uiCanvas, 0, 0, 1080, 1920);
-        } catch (e63) {
-        }
-        if (videoTrack && typeof videoTrack.requestFrame === "function") videoTrack.requestFrame();
-        animId = requestAnimationFrame(renderLoop);
-      };
-      renderLoop();
-      const startTime = Date.now();
-      const durationMs = videoDuration / 30 * 1e3;
-      const progressInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const prog = Math.min(100, Math.round(elapsed / durationMs * 100));
-        setExportProgress(prog);
-      }, 100);
-      recorder.onstop = async () => {
-        clearInterval(progressInterval);
-        cancelAnimationFrame(animId);
-        if (compositeCanvas.parentNode) compositeCanvas.parentNode.removeChild(compositeCanvas);
-        let blob = new Blob(chunks, { type: options.mimeType });
-        if (blob.size === 0) {
-          alert("Export failed: Browser security (CORS) blocked canvas extraction. Use True HD Server Export instead.");
-          setIsExporting(false);
-          setExportProgress(0);
-          return;
-        }
-        try {
-          blob = await (0, import_fix_webm_duration.default)(blob, durationMs);
-        } catch (err) {
-          console.warn("Duration patcher warning:", err);
-        }
-        const url = URL.createObjectURL(blob);
-        const a4 = document.createElement("a");
-        a4.href = url;
-        a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Mobile"}_${Date.now()}.webm`;
-        a4.click();
-        URL.revokeObjectURL(url);
-        setIsExporting(false);
-        setExportProgress(0);
-      };
-      recorder.start(250);
-      setTimeout(() => {
-        if (recorder.state === "recording") recorder.stop();
-        playerRef.current?.pause();
-        setIsPlaying(false);
-      }, durationMs + 500);
+      setExportProgress("Finalizing video container...");
+      await videoEncoder.flush();
+      muxer.finalize();
+      const { buffer } = muxer.target;
+      const blob = new Blob([buffer], { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a4 = document.createElement("a");
+      a4.href = url;
+      a4.download = `${timeline?.title?.replace(/\s+/g, "_") || "Bhuloka_Pristine"}_${Date.now()}.webm`;
+      a4.click();
+      URL.revokeObjectURL(url);
+      setIsExporting(false);
+      setExportProgress("");
+      alert("Export Complete! All tiles verified and recorded at full resolution.");
     };
     const handleHDLocalExport = async () => {
       setIsExporting(true);
       try {
-        const res = await fetch("/api/render", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ timeline: dynamicTimeline })
-        });
+        const res = await fetch("/api/render", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ timeline: dynamicTimeline }) });
         if (res.ok) {
           const blob = await res.blob();
           const url = window.URL.createObjectURL(blob);
@@ -65298,13 +66281,23 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       }
       setIsExporting(false);
     };
+    const deleteAsset = (id3) => {
+      setTimeline((prev) => {
+        const updated = { ...prev };
+        if (updated.assets) updated.assets = updated.assets.filter((a4) => a4.id !== id3);
+        if (updated.arrows) updated.arrows = updated.arrows.filter((a4) => a4.id !== id3);
+        if (updated.takeovers) updated.takeovers = updated.takeovers.filter((t3) => t3.id !== id3);
+        if (updated.labels) updated.labels = updated.labels.filter((l2) => l2.id !== id3);
+        return updated;
+      });
+    };
     const initializeManualScene = () => {
       const blankTimeline = {
         title: `${entityA} vs ${entityB} (Manual)`,
         totalFrames: 300,
         highlightCountries: [
-          { name: entityA, country: entityA, color: "#ef4444", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: true, startFrame: 0, revealStyle: "ink" },
-          { name: entityB, country: entityB, color: "#3b82f6", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: 0, revealStyle: "ink" }
+          { name: entityA, country: entityA, color: "#ef4444", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, blendMode: "source-over", isPrimary: true, startFrame: 0, endFrame: 300, revealStyle: "ink" },
+          { name: entityB, country: entityB, color: "#3b82f6", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, blendMode: "source-over", isPrimary: false, startFrame: 0, endFrame: 300, revealStyle: "ink" }
         ],
         takeovers: [],
         arrows: [],
@@ -65319,36 +66312,26 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const startLiveEdit = () => {
       playerRef.current?.pause();
       setIsPlaying(false);
-      const cFrame = currentFrame;
-      const pastKfs = timeline?.cameraKeyframes?.filter((kf3) => kf3.frame <= cFrame) || [];
+      const pastKfs = timeline?.cameraKeyframes?.filter((kf3) => kf3.frame <= currentFrame) || [];
       const baseKf = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38, lng: 127, zoom: 1.2, pitch: 45, bearing: 0 };
-      setTargetLat(baseKf.lat ?? baseKf.latitude ?? 38);
-      setTargetLng(baseKf.lng ?? baseKf.longitude ?? 127);
-      setTargetZoom(baseKf.zoom ?? 1.2);
-      setTargetPitch(baseKf.pitch ?? 45);
-      setTargetBearing(baseKf.bearing ?? 0);
+      setTargetLat(baseKf.lat);
+      setTargetLng(baseKf.lng);
+      setTargetZoom(baseKf.zoom);
+      setTargetPitch(baseKf.pitch);
+      setTargetBearing(baseKf.bearing);
       setIsLiveEdit(true);
     };
     const dropKeyframeLive = () => {
-      const cFrame = currentFrame;
-      let extensionNeeded = 0;
       setTimeline((prev) => {
-        if (!prev) return prev;
         const updated = { ...prev };
-        updated.cameraKeyframes = [...prev.cameraKeyframes || []].filter((kf3) => Math.abs(kf3.frame - cFrame) > 15);
-        updated.cameraKeyframes.push({ frame: cFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, pitch: targetPitch, bearing: targetBearing });
+        updated.cameraKeyframes = [...prev.cameraKeyframes || []].filter((kf3) => Math.abs(kf3.frame - currentFrame) > 15);
+        updated.cameraKeyframes.push({ frame: currentFrame, zoom: targetZoom, lat: targetLat, lng: targetLng, pitch: targetPitch, bearing: targetBearing });
         updated.cameraKeyframes.sort((a4, b4) => a4.frame - b4.frame);
-        if (cFrame + 60 >= videoDuration) {
-          extensionNeeded = cFrame + 90 - videoDuration;
-          updated.totalFrames = cFrame + 90;
-        }
         return updated;
       });
-      if (extensionNeeded > 0) setVideoDuration((prev) => prev + extensionNeeded);
     };
     const deleteSpecificKeyframe = (frameIndex) => {
       setTimeline((prev) => {
-        if (!prev || !prev.cameraKeyframes) return prev;
         const updated = { ...prev };
         updated.cameraKeyframes = updated.cameraKeyframes.filter((kf3) => kf3.frame !== frameIndex);
         return updated;
@@ -65356,52 +66339,37 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     };
     const addCustomVector = (type) => {
       if (!pathStartCoord) return;
-      const cFrame = currentFrame;
       setTimeline((prev) => {
-        if (!prev) return prev;
         const updated = { ...prev };
-        updated.arrows = [...prev.arrows || [], { id: Math.random().toString(36).substr(2, 9), type, origin: pathStartCoord, target: [targetLng, targetLat], startFrame: cFrame, duration: 90, color: type === "missile" ? "#ffffff" : "#ef4444" }];
+        updated.arrows = [...prev.arrows || [], { id: Math.random().toString(36).substr(2, 9), type, origin: pathStartCoord, target: [targetLng, targetLat], startFrame: currentFrame, duration: 90, color: type === "missile" ? "#ffffff" : "#ef4444" }];
         return updated;
       });
       setPathStartCoord(null);
     };
     const dropLabel = () => {
       if (!labelText.trim()) return;
-      const cFrame = currentFrame;
       setTimeline((prev) => {
-        if (!prev) return prev;
         const updated = { ...prev };
         updated.labels = [...prev.labels || [], {
           id: Math.random().toString(36).substr(2, 9),
           text: labelText,
           lat: targetLat,
           lng: targetLng,
-          startFrame: cFrame,
-          duration: 150,
+          startFrame: currentFrame,
+          duration: 300,
           color: labelColor,
           bg: labelBg,
           size: labelSize,
           glow: labelGlow,
-          pinned: labelPinned
+          pinned: labelPinned,
+          style: labelStyle
         }];
-        return updated;
-      });
-    };
-    const deleteAsset = (id3) => {
-      setTimeline((prev) => {
-        if (!prev) return prev;
-        const updated = { ...prev };
-        if (updated.assets) updated.assets = updated.assets.filter((a4) => a4.id !== id3);
-        if (updated.arrows) updated.arrows = updated.arrows.filter((a4) => a4.id !== id3);
-        if (updated.takeovers) updated.takeovers = updated.takeovers.filter((t3) => t3.id !== id3);
-        if (updated.labels) updated.labels = updated.labels.filter((l2) => l2.id !== id3);
         return updated;
       });
     };
     const cutEntity = (e63, name) => {
       e63.stopPropagation();
       setTimeline((prev) => {
-        if (!prev) return prev;
         const updated = { ...prev };
         if (updated.highlightCountries) updated.highlightCountries = updated.highlightCountries.filter((c4) => c4.name !== name && c4.country !== name);
         return updated;
@@ -65410,9 +66378,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     };
     const addStoryEvent = () => {
       if (!entityA || !entityB) return;
-      const cFrame = currentFrame;
       setTimeline((prev) => {
-        if (!prev) return prev;
         const updated = { ...prev };
         updated.takeovers = [...prev.takeovers || []];
         updated.arrows = [...prev.arrows || []];
@@ -65420,97 +66386,60 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const foundEntityA = updated.highlightCountries.find((c4) => c4.name === entityA || c4.country === entityA);
         const colorA = foundEntityA?.color || "#ef4444";
         const colorB = updated.highlightCountries.find((c4) => c4.name === entityB || c4.country === entityB)?.color || "#3b82f6";
-        if (eventType === "takeover") {
-          updated.takeovers.push({ id: Math.random().toString(36).substr(2, 9), attacker: entityA, target: entityB, startFrame: cFrame, duration: 90, color: colorA });
-        } else {
-          updated.arrows.push({ id: Math.random().toString(36).substr(2, 9), type: "arrow", sourceName: entityA, targetName: entityB, startFrame: cFrame, duration: 90, color: colorA });
-        }
-        if (!foundEntityA) {
-          updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: true, startFrame: cFrame, revealStyle: "fade" });
-        }
-        if (!updated.highlightCountries.find((c4) => c4.name === entityB || c4.country === entityB)) {
-          updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, glowTarget: "both", dropShadow: true, blendMode: "screen", isPrimary: false, startFrame: cFrame, revealStyle: "fade" });
-        }
+        if (eventType === "takeover") updated.takeovers.push({ id: Math.random().toString(36).substr(2, 9), attacker: entityA, target: entityB, startFrame: currentFrame, duration: 90, color: colorA });
+        else updated.arrows.push({ id: Math.random().toString(36).substr(2, 9), type: "arrow", sourceName: entityA, targetName: entityB, startFrame: currentFrame, duration: 90, color: colorA });
+        if (!foundEntityA) updated.highlightCountries.push({ name: entityA, country: entityA, color: colorA, strokeWidth: 2, enableGlow: true, blendMode: "source-over", isPrimary: true, startFrame: currentFrame, endFrame: videoDuration, revealStyle: "fade" });
+        if (!updated.highlightCountries.find((c4) => c4.name === entityB || c4.country === entityB)) updated.highlightCountries.push({ name: entityB, country: entityB, color: colorB, strokeWidth: 2, enableGlow: true, blendMode: "source-over", isPrimary: false, startFrame: currentFrame, endFrame: videoDuration, revealStyle: "fade" });
         return updated;
       });
     };
     const addCountryMap = () => {
       if (!newCountrySearch.trim()) return;
       const searchTarget = newCountrySearch.trim();
-      const cFrame = currentFrame;
       setTimeline((prev) => {
-        if (!prev) return prev;
         const updated = { ...prev };
         updated.highlightCountries = [...prev.highlightCountries || []];
-        const exists = updated.highlightCountries.find((c4) => (c4.name || c4.country).toLowerCase() === searchTarget.toLowerCase());
-        if (!exists) {
-          updated.highlightCountries.push({
-            name: searchTarget,
-            country: searchTarget,
-            color: "#3b82f6",
-            strokeColor: "#ffffff",
-            strokeWidth: 2,
-            enableGlow: true,
-            glowTarget: "both",
-            dropShadow: true,
-            blendMode: "screen",
-            isPrimary: false,
-            startFrame: cFrame,
-            revealStyle: "fade"
-          });
+        if (!updated.highlightCountries.find((c4) => (c4.name || c4.country).toLowerCase() === searchTarget.toLowerCase())) {
+          updated.highlightCountries.push({ name: searchTarget, country: searchTarget, color: "#3b82f6", strokeWidth: 2, enableGlow: true, blendMode: "source-over", isPrimary: false, startFrame: currentFrame, endFrame: videoDuration, revealStyle: "fade" });
         }
         return updated;
       });
       setNewCountrySearch("");
       setShowSuggestions(false);
     };
-    const updateEntityStyle = (key, value) => {
-      if (!selectedEntity) return;
+    const updateEntityStyle = (name, key, value) => {
       setTimeline((prev) => {
-        if (!prev) return prev;
         const updated = { ...prev };
         if (updated.highlightCountries) {
           updated.highlightCountries = updated.highlightCountries.map((c4) => {
-            if (c4.name === selectedEntity || c4.country === selectedEntity) return { ...c4, [key]: value };
+            if (c4.name === name || c4.country === name) return { ...c4, [key]: value };
             return c4;
           });
-        }
-        if (key === "color") {
-          if (updated.arrows) updated.arrows = updated.arrows.map((arr) => arr.sourceName === selectedEntity && arr.type !== "missile" ? { ...arr, color: value } : arr);
-          if (updated.takeovers) updated.takeovers = updated.takeovers.map((t3) => t3.attacker === selectedEntity ? { ...t3, color: value } : t3);
         }
         return updated;
       });
     };
-    const toggleEntitySuppression = (name) => setDisabledEntities((prev) => prev.includes(name) ? prev.filter((c4) => c4 !== name) : [...prev, name]);
+    const updateLabelText = (id3, text) => {
+      setTimeline((prev) => {
+        const updated = { ...prev };
+        if (updated.labels) updated.labels = updated.labels.map((l2) => l2.id === id3 ? { ...l2, text } : l2);
+        return updated;
+      });
+    };
     const togglePlay = () => {
       if (!playerRef.current) return;
       if (isPlaying) playerRef.current.pause();
       else playerRef.current.play();
       setIsPlaying(!isPlaying);
     };
-    const activeEntityData = timeline?.highlightCountries?.find((c4) => c4.name === selectedEntity || c4.country === selectedEntity);
-    const activeColor = activeEntityData?.color || "#3b82f6";
-    const activeStrokeColor = activeEntityData?.strokeColor || "#ffffff";
-    const activeStrokeWidth = activeEntityData?.strokeWidth !== void 0 ? activeEntityData.strokeWidth : 2.5;
-    const activeEnableGlow = activeEntityData?.enableGlow !== void 0 ? activeEntityData.enableGlow : true;
-    const activeGlowIntensity = activeEntityData?.glowIntensity !== void 0 ? activeEntityData.glowIntensity : 20;
-    const activeBlendMode = activeEntityData?.blendMode || "screen";
-    const activeDropShadow = activeEntityData?.dropShadow !== void 0 ? activeEntityData.dropShadow : true;
     const dynamicTimeline = (0, import_react122.useMemo)(() => {
       if (!timeline) return null;
       const modified = { ...timeline, totalFrames: videoDuration };
-      modified.highlightCountries = timeline.highlightCountries;
-      modified.takeovers = timeline.takeovers;
-      modified.arrows = timeline.arrows;
-      modified.assets = timeline.assets;
-      modified.labels = timeline.labels || [];
       if (disabledEntities.length > 0) {
         modified.highlightCountries = modified.highlightCountries?.filter((c4) => !disabledEntities.includes(c4.name || c4.country));
         modified.takeovers = modified.takeovers?.filter((t3) => !disabledEntities.includes(t3.target || t3.to || t3.country));
       }
       let newKfs = [...timeline.cameraKeyframes || []];
-      newKfs = newKfs.map((kf3) => ({ ...kf3, lat: kf3.lat !== void 0 ? kf3.lat : kf3.latitude !== void 0 ? kf3.latitude : 38, lng: kf3.lng !== void 0 ? kf3.lng : kf3.longitude !== void 0 ? kf3.longitude : 127, zoom: kf3.zoom !== void 0 ? kf3.zoom : 1.2, pitch: kf3.pitch !== void 0 ? kf3.pitch : 0, bearing: kf3.bearing !== void 0 ? kf3.bearing : 0 }));
       if (isLiveEdit && playerRef.current && !isPlaying) {
         newKfs = newKfs.filter((kf3) => Math.abs(kf3.frame - currentFrame) > 15);
         newKfs.push({ frame: currentFrame, lat: targetLat, lng: targetLng, zoom: targetZoom, pitch: targetPitch, bearing: targetBearing });
@@ -65522,95 +66451,109 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const playerInputProps = (0, import_react122.useMemo)(() => ({
       timeline: dynamicTimeline,
       isLiveEditMode: isLiveEdit,
-      mapStyle
+      mapStyle,
+      onCameraChange: (cam) => {
+        setTargetLat(cam.lat);
+        setTargetLng(cam.lng);
+        setTargetZoom(cam.zoom);
+        setTargetPitch(cam.pitch);
+        setTargetBearing(cam.bearing);
+      }
     }), [dynamicTimeline, isLiveEdit, mapStyle]);
     const panelStyle = {
-      background: "rgba(20, 20, 24, 0.55)",
-      backdropFilter: "blur(30px) saturate(180%)",
-      WebkitBackdropFilter: "blur(30px) saturate(180%)",
-      border: "1px solid rgba(255, 255, 255, 0.15)",
-      boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)"
+      background: "rgba(20, 20, 24, 0.7)",
+      backdropFilter: "blur(40px) saturate(200%)",
+      WebkitBackdropFilter: "blur(40px) saturate(200%)",
+      border: "1px solid rgba(255, 255, 255, 0.1)",
+      boxShadow: "0 30px 60px rgba(0,0,0,0.6)",
+      borderRadius: "24px"
     };
     const BranchHeader = ({ title, branchKey }) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("button", { onClick: () => toggleBranch(branchKey), style: { display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "rgba(255,255,255,0.06)", borderRadius: "8px", color: "#fff", border: "1px solid rgba(255,255,255,0.05)", cursor: "pointer", fontSize: "11px", fontWeight: 700, width: "100%", letterSpacing: "0.05em" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { children: title }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { children: openBranches[branchKey] ? "\u25BC" : "\u25B6" })
     ] });
-    const leftPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" }, children: [
+    const leftPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", padding: "16px", boxSizing: "border-box" }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(BranchHeader, { title: "\u{1F30D} SCENE ENTITIES", branchKey: "entities" }),
         openBranches.entities && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: "8px", background: "rgba(0,0,0,0.3)", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "6px" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px", position: "relative" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "relative", flex: 1 }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-                "input",
-                {
-                  type: "text",
-                  value: newCountrySearch,
-                  onChange: (e63) => {
-                    setNewCountrySearch(e63.target.value);
-                    setShowSuggestions(true);
-                  },
-                  onFocus: () => setShowSuggestions(true),
-                  onBlur: () => setTimeout(() => setShowSuggestions(false), 200),
-                  placeholder: "Search river, state, country...",
-                  style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "11px", padding: "8px", borderRadius: "8px", outline: "none" },
-                  onKeyDown: (e63) => e63.key === "Enter" && addCountryMap()
-                }
-              ),
-              showSuggestions && filteredSuggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "100%", left: 0, right: 0, background: "#111827", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", zIndex: 999, marginTop: "4px", overflow: "hidden", boxShadow: "0 10px 25px rgba(0,0,0,0.8)" }, children: filteredSuggestions.map((s2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-                "div",
-                {
-                  onClick: () => {
-                    setNewCountrySearch(s2);
-                    setShowSuggestions(false);
-                  },
-                  style: { padding: "8px 12px", fontSize: "11px", color: "#fff", cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)" },
-                  onMouseEnter: (e63) => e63.currentTarget.style.backgroundColor = "rgba(56,189,248,0.2)",
-                  onMouseLeave: (e63) => e63.currentTarget.style.backgroundColor = "transparent",
-                  children: s2
-                },
-                s2
-              )) })
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: newCountrySearch, onChange: (e63) => {
+                setNewCountrySearch(e63.target.value);
+                setShowSuggestions(true);
+              }, onFocus: () => setShowSuggestions(true), onBlur: () => setTimeout(() => setShowSuggestions(false), 200), placeholder: "Search river, state, country...", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "11px", padding: "8px", borderRadius: "8px", outline: "none", boxSizing: "border-box" }, onKeyDown: (e63) => e63.key === "Enter" && addCountryMap() }),
+              showSuggestions && filteredSuggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "100%", left: 0, right: 0, background: "#111827", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", zIndex: 999, marginTop: "4px", overflow: "hidden", boxShadow: "0 10px 25px rgba(0,0,0,0.8)" }, children: filteredSuggestions.map((s2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onMouseDown: () => {
+                setNewCountrySearch(s2);
+                addCountryMap();
+                setShowSuggestions(false);
+              }, style: { padding: "8px 12px", fontSize: "11px", color: "#fff", cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)" }, children: s2 }, s2)) })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: addCountryMap, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", padding: "0 10px", fontWeight: "bold", cursor: "pointer" }, children: "+" })
           ] }),
-          timeline?.highlightCountries?.map((c4, idx) => {
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "400px", overflowY: "visible", overflowX: "hidden" }, children: timeline?.highlightCountries?.map((c4, idx) => {
             const name = c4.name || c4.country;
             const isSelected = selectedEntity === name;
-            const isDisabled = disabledEntities.includes(name);
-            return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setSelectedEntity(name), style: { flex: 1, background: isSelected ? "rgba(56, 189, 248, 0.3)" : "rgba(255, 255, 255, 0.05)", border: isSelected ? "1px solid #38bdf8" : "1px solid rgba(255, 255, 255, 0.08)", color: "#ffffff", borderRadius: "8px", padding: "6px 10px", fontSize: "11px", textAlign: "left", cursor: "pointer", textDecoration: isDisabled ? "line-through" : "none" }, children: name }),
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => toggleEntitySuppression(name), style: { background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "#8e8e93", borderRadius: "8px", padding: "0 6px", cursor: "pointer", fontSize: "11px" }, children: isDisabled ? "\u{1F648}" : "\u{1F441}\uFE0F" }),
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: (e63) => cutEntity(e63, name), style: { background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", borderRadius: "8px", border: "none", padding: "0 8px", cursor: "pointer", fontSize: "10px" }, children: "\u2715" })
+            return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: isSelected ? "1px solid #38bdf8" : "1px solid rgba(255,255,255,0.08)" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", padding: "8px", gap: "6px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("button", { onClick: () => setSelectedEntity(isSelected ? null : name), style: { flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "11px", textAlign: "left", cursor: "pointer", fontWeight: 600 }, children: [
+                  isSelected ? "\u25BC" : "\u25B6",
+                  " ",
+                  name
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: (e63) => cutEntity(e63, name), style: { background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", borderRadius: "6px", border: "none", padding: "4px 8px", fontSize: "10px", cursor: "pointer" }, children: "\u2715" })
+              ] }),
+              isSelected && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", padding: "8px 10px 12px 10px", background: "rgba(0,0,0,0.4)", borderTop: "1px solid rgba(255,255,255,0.08)" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "Reveal Style" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: c4.revealStyle || "fade", onChange: (e63) => updateEntityStyle(name, "revealStyle", e63.target.value), style: { background: "#111", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "4px", fontSize: "10px", padding: "4px" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "fade", children: "Fade In" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "ink", children: "Ink Bleed" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "trim", children: "River Trim" })
+                  ] })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "Fill Color" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: c4.color || "#3b82f6", onChange: (e63) => updateEntityStyle(name, "color", e63.target.value), style: { width: "24px", height: "24px", border: "none", background: "transparent", cursor: "pointer" } })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "Blend Mode" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: c4.blendMode || "source-over", onChange: (e63) => updateEntityStyle(name, "blendMode", e63.target.value), style: { background: "#111", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "4px", fontSize: "10px", padding: "4px" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "source-over", children: "Normal" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "screen", children: "Screen" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "multiply", children: "Multiply" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "overlay", children: "Overlay" })
+                  ] })
+                ] })
+              ] })
             ] }, idx);
-          })
+          }) })
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(BranchHeader, { title: "\u{1F4DD} TYPOGRAPHY", branchKey: "typography" }),
         openBranches.typography && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: "8px", background: "rgba(0,0,0,0.3)", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "6px" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: labelText, onChange: (e63) => setLabelText(e63.target.value), placeholder: "Label Text...", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "11px", padding: "8px", borderRadius: "8px", outline: "none" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "STYLE ENGINE" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: labelStyle, onChange: (e63) => setLabelStyle(e63.target.value), style: { background: "#111", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "4px", fontSize: "10px", padding: "4px" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "callout", children: "Classy Callout" }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "pill", children: "Cinematic Pill" }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "minimal", children: "Minimal Dot" })
+            ] })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px", alignItems: "center", justifyContent: "space-between" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px", alignItems: "center" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "TXT" }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "COLOR" }),
               /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: labelColor, onChange: (e63) => setLabelColor(e63.target.value), style: { width: "18px", height: "18px", border: "none", background: "transparent", cursor: "pointer" } })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px", alignItems: "center" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "BG" }),
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: labelBg, onChange: (e63) => setLabelBg(e63.target.value), style: { width: "18px", height: "18px", border: "none", background: "transparent", cursor: "pointer" } })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px", alignItems: "center" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "SIZE" }),
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "12", max: "72", value: labelSize, onChange: (e63) => setLabelSize(Number(e63.target.value)), style: { width: "40px", accentColor: "#38bdf8" } })
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "12", max: "72", value: labelSize, onChange: (e63) => setLabelSize(Number(e63.target.value)), style: { width: "50px", accentColor: "#38bdf8" } })
             ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setLabelGlow(!labelGlow), style: { flex: 1, background: labelGlow ? "#38bdf8" : "rgba(255,255,255,0.05)", color: labelGlow ? "#000" : "#8e8e93", border: "none", borderRadius: "6px", padding: "4px", fontSize: "9px", fontWeight: 700, cursor: "pointer" }, children: labelGlow ? "GLOW ON" : "GLOW OFF" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setLabelPinned(!labelPinned), style: { flex: 1, background: labelPinned ? "#10b981" : "rgba(255,255,255,0.05)", color: labelPinned ? "#000" : "#8e8e93", border: "none", borderRadius: "6px", padding: "4px", fontSize: "9px", fontWeight: 700, cursor: "pointer" }, children: labelPinned ? "\u{1F4CC} PINNED" : "FLOAT" })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => {
             if (isLiveEdit) dropLabel();
-          }, style: { background: isLiveEdit ? "rgba(56, 189, 248, 0.15)" : "rgba(255,255,255,0.05)", color: isLiveEdit ? "#38bdf8" : "#8e8e93", border: `1px solid ${isLiveEdit ? "rgba(56,189,248,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: "8px", padding: "8px", fontSize: "11px", fontWeight: 700, cursor: isLiveEdit ? "pointer" : "not-allowed" }, children: isLiveEdit ? "\u{1F4CD} Drop Label at Crosshair" : "Enter Live Edit to Drop" })
+          }, style: { background: isLiveEdit ? "rgba(56, 189, 248, 0.15)" : "rgba(255,255,255,0.05)", color: isLiveEdit ? "#38bdf8" : "#8e8e93", border: `1px solid ${isLiveEdit ? "rgba(56,189,248,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: "8px", padding: "8px", fontSize: "11px", fontWeight: 700, cursor: isLiveEdit ? "pointer" : "not-allowed" }, children: isLiveEdit ? "\u{1F4CD} Drop Element at Crosshair" : "Enter Live Edit to Drop" })
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px" }, children: [
@@ -65629,15 +66572,21 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setPathStartCoord(null), style: { background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "8px", padding: "6px 10px", color: "#fff", fontSize: "10px", fontWeight: 600, cursor: "pointer" }, children: "\u2715" })
           ] })
         ] }) })
+      ] })
+    ] });
+    const rightPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", padding: "16px", boxSizing: "border-box" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleDeterministicExport, disabled: isPreloading || isExporting, style: { background: isExporting ? "#f59e0b" : "#10b981", color: "#000", border: "none", borderRadius: "10px", height: "42px", fontSize: "11px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer", boxShadow: "0 0 15px rgba(16,185,129,0.2)" }, children: isExporting ? `\u23F3 Exporting...` : "\u{1F3A5} Offline WebM (100% Tiles)" }) }),
+      isExporting && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "8px", fontSize: "10px", color: "#fde047", textAlign: "center", marginBottom: "8px" }, children: exportProgress }),
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em" }, children: "CAMERA ENGINE" }),
+        isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setIsLiveEdit(false), style: { background: "transparent", color: "#8e8e93", border: "none", fontSize: "10px", cursor: "pointer" }, children: "\u2715 Close" })
       ] }),
-      (timeline?.assets?.length > 0 || timeline?.arrows?.some((a4) => a4.id) || timeline?.takeovers?.some((t3) => t3.id) || timeline?.labels?.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
+      !isLiveEdit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: startLiveEdit, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", width: "100%", height: "38px", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 0 15px rgba(56,189,248,0.1)", marginTop: "10px" }, children: "\u{1F3AF} Enter Live Canvas Edit" }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: dropKeyframeLive, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "8px", padding: "8px", fontSize: "12px", fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 12px rgba(56,189,248,0.4)" }, children: "\u{1F4CD} Save Keyframe Here" }) }),
+      (timeline?.arrows?.length > 0 || timeline?.takeovers?.length > 0 || timeline?.labels?.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", width: "100%", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "10px" }, children: "ACTIVE ASSETS" }),
         /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "6px" }, children: [
-          timeline.labels?.map((l2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "6px 12px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "11px", color: "#fff" }, children: [
-              "\u{1F4DD} ",
-              l2.text
-            ] }),
+          timeline.labels?.map((l2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "6px" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: l2.text, onChange: (e63) => updateLabelText(l2.id, e63.target.value), style: { background: "transparent", border: "none", color: "#fff", fontSize: "11px", flex: 1, outline: "none" } }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => deleteAsset(l2.id), style: { background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "12px" }, children: "\u2715" })
           ] }, l2.id)),
           timeline.arrows?.filter((a4) => a4.id).map((a4) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "6px 12px" }, children: [
@@ -65656,153 +66605,121 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         ] })
       ] })
     ] });
-    const rightPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleHDLocalExport, disabled: isPreloading || isExporting, style: { background: isExporting ? "#f59e0b" : "#a855f7", color: "#fff", border: "none", borderRadius: "10px", width: "100%", height: "34px", fontSize: "11px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer" }, children: isExporting ? "\u23F3 Rendering HD MP4..." : "\u{1F5A5}\uFE0F True HD Server Export" }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleFinalizeCache, disabled: isPreloading || isExporting, style: { flex: 1, background: isPreloading ? "#f59e0b" : "#3b82f6", color: "#fff", border: "none", borderRadius: "10px", height: "38px", fontSize: "10px", fontWeight: 800, cursor: isPreloading ? "wait" : "pointer" }, children: isPreloading ? "\u23F3 Preloading..." : "\u{1F4E6} Finalize Cache" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleFastMobileExport, disabled: isExporting || isPreloading, style: { flex: 1, background: isExporting ? "#f59e0b" : "#10b981", color: "#000", border: "none", borderRadius: "10px", height: "38px", fontSize: "10px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer", boxShadow: "0 0 15px rgba(16,185,129,0.2)" }, children: isExporting ? `\u23F3 Compiling... ${exportProgress}%` : "\u{1F3A5} Mobile WebM Export" })
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em" }, children: "CAMERA ENGINE" }),
-        isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setIsLiveEdit(false), style: { background: "transparent", color: "#8e8e93", border: "none", fontSize: "10px", cursor: "pointer" }, children: "\u2715 Close" })
-      ] }),
-      !isLiveEdit ? /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: startLiveEdit, style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.4)", borderRadius: "10px", width: "100%", height: "38px", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 0 15px rgba(56,189,248,0.1)", marginTop: "10px" }, children: "\u{1F3AF} Enter Live Canvas Edit" }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: dropKeyframeLive, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "8px", padding: "8px", fontSize: "12px", fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 12px rgba(56,189,248,0.4)" }, children: "\u{1F4CD} Save Keyframe Here" }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px", maxHeight: "120px", overflowY: "auto" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "9px", color: "#8e8e93" }, children: "ACTIVE TIMELINE MARKERS:" }),
-          timeline?.cameraKeyframes?.map((kf3) => /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "4px" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "10px", color: "#fff" }, children: [
-              "Frame: ",
-              Math.round(kf3.frame)
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => deleteSpecificKeyframe(kf3.frame), style: { background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "10px" }, children: "\u2715 Delete" })
-          ] }, kf3.frame))
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "PITCH TILT" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#38bdf8", fontWeight: 600 }, children: [
-            Math.round(targetPitch),
-            "\xB0"
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "60", step: "1", value: targetPitch, onChange: (e63) => setTargetPitch(Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "2px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "BEARING ROTATION" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#38bdf8", fontWeight: 600 }, children: [
-            Math.round(targetBearing),
-            "\xB0"
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "-180", max: "180", step: "1", value: targetBearing, onChange: (e63) => setTargetBearing(Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } })
-      ] }),
-      selectedEntity ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { fontSize: "9px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", paddingBottom: "2px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "8px" }, children: [
-          "STYLING: ",
-          selectedEntity.toUpperCase()
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "REVEAL ANIMATION" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: timeline?.highlightCountries?.find((c4) => c4.name === selectedEntity)?.revealStyle || "fade", onChange: (e63) => updateEntityStyle("revealStyle", e63.target.value), style: { background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", outline: "none", fontSize: "10px", padding: "6px", cursor: "pointer" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "fade", children: "Fade In" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "ink", children: "Ink Bleed" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "trim", children: "River Trim" })
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "FILL COLOR" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: activeColor, onChange: (e63) => updateEntityStyle("color", e63.target.value), style: { width: "24px", height: "24px", border: "none", borderRadius: "4px", cursor: "pointer", background: "transparent" } })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "GLOW" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => updateEntityStyle("enableGlow", !activeEnableGlow), style: { background: activeEnableGlow ? "#38bdf8" : "transparent", color: activeEnableGlow ? "#000" : "#8e8e93", border: "1px solid #38bdf8", borderRadius: "4px", padding: "2px 8px", fontSize: "9px", fontWeight: 700, cursor: "pointer" }, children: activeEnableGlow ? "ON" : "OFF" })
-        ] }),
-        activeEnableGlow && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "50", step: "1", value: activeGlowIntensity, onChange: (e63) => updateEntityStyle("glowIntensity", Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "DROP SHADOW" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => updateEntityStyle("dropShadow", !activeDropShadow), style: { background: activeDropShadow ? "#38bdf8" : "transparent", color: activeDropShadow ? "#000" : "#8e8e93", border: "1px solid #38bdf8", borderRadius: "4px", padding: "2px 8px", fontSize: "9px", fontWeight: 700, cursor: "pointer" }, children: activeDropShadow ? "ON" : "OFF" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "6px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: [
-            "STROKE (",
-            activeStrokeWidth,
-            "px)"
+    const handleDragEdge = (e63, index, isStart) => {
+      e63.stopPropagation();
+      const track = trackContainerRef.current?.getBoundingClientRect();
+      if (!track) return;
+      const onMove = (moveEvent) => {
+        const px2 = moveEvent.clientX - track.left;
+        const pct = Math.max(0, Math.min(1, px2 / track.width));
+        const frame = Math.round(pct * videoDuration);
+        setTimeline((prev) => {
+          const u2 = { ...prev, highlightCountries: [...prev.highlightCountries] };
+          const entity = u2.highlightCountries[index];
+          if (isStart) entity.startFrame = Math.min(frame, (entity.endFrame || videoDuration) - 5);
+          else entity.endFrame = Math.max(frame, (entity.startFrame || 0) + 5);
+          return u2;
+        });
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    };
+    const handleDragClip = (e63, index) => {
+      e63.stopPropagation();
+      setSelectedEntity(timeline.highlightCountries[index].name);
+      const track = trackContainerRef.current?.getBoundingClientRect();
+      if (!track) return;
+      const startX = e63.clientX;
+      const initialStartFrame = timeline.highlightCountries[index].startFrame || 0;
+      const initialEndFrame = timeline.highlightCountries[index].endFrame || videoDuration;
+      const onMove = (moveEvent) => {
+        const dx2 = moveEvent.clientX - startX;
+        const frameShift = Math.round(dx2 / track.width * videoDuration);
+        setTimeline((prev) => {
+          const u2 = { ...prev, highlightCountries: [...prev.highlightCountries] };
+          const entity = u2.highlightCountries[index];
+          let newStart = initialStartFrame + frameShift;
+          let newEnd = initialEndFrame + frameShift;
+          if (newStart < 0) {
+            newEnd -= newStart;
+            newStart = 0;
+          }
+          if (newEnd > videoDuration) {
+            newStart -= newEnd - videoDuration;
+            newEnd = videoDuration;
+          }
+          entity.startFrame = newStart;
+          entity.endFrame = newEnd;
+          return u2;
+        });
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    };
+    const handleDragKeyframe = (e63, kfIndex) => {
+      e63.stopPropagation();
+      const track = trackContainerRef.current?.getBoundingClientRect();
+      if (!track) return;
+      const onMove = (moveEvent) => {
+        const px2 = moveEvent.clientX - track.left;
+        const pct = Math.max(0, Math.min(1, px2 / track.width));
+        const frame = Math.round(pct * videoDuration);
+        setTimeline((prev) => {
+          const u2 = { ...prev, cameraKeyframes: [...prev.cameraKeyframes] };
+          const isCollision = u2.cameraKeyframes.some((k2, idx) => idx !== kfIndex && Math.abs(k2.frame - frame) < 15);
+          if (!isCollision) {
+            u2.cameraKeyframes[kfIndex].frame = frame;
+            u2.cameraKeyframes.sort((a4, b4) => a4.frame - b4.frame);
+          }
+          return u2;
+        });
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { backgroundColor: "#000", width: "100vw", height: "100vh", display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", color: "#fff", overflow: "hidden" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { flex: 1, position: "relative", display: "flex", justifyContent: "center", alignItems: "center", padding: isDesktop ? "20px" : "0px", overflow: "hidden" }, children: [
+        status !== "editor" && status !== "generating" && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "680px", padding: "16px", boxSizing: "border-box" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("h1", { style: { fontSize: isDesktop ? "42px" : "28px", fontWeight: 700, letterSpacing: "-0.04em", marginBottom: "24px", textAlign: "center" }, children: "Cinematic Timeline Studio" }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "8px", marginBottom: "24px", background: "rgba(255,255,255,0.06)", padding: "6px", borderRadius: "18px", width: "100%", maxWidth: "320px", boxSizing: "border-box" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setManualMode(false), style: { flex: 1, background: !manualMode ? "rgba(255,255,255,0.15)" : "transparent", color: !manualMode ? "#fff" : "#8e8e93", border: "none", borderRadius: "12px", padding: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }, children: "AI Directive" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setManualMode(true), style: { background: manualMode ? "rgba(255,255,255,0.15)" : "transparent", color: manualMode ? "#fff" : "#8e8e93", border: "none", borderRadius: "12px", padding: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }, children: "Manual Builder" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", value: activeStrokeColor, onChange: (e63) => updateEntityStyle("strokeColor", e63.target.value), style: { width: "20px", height: "20px", border: "none", borderRadius: "4px", cursor: "pointer", background: "transparent" } })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "10", step: "0.5", value: activeStrokeWidth, onChange: (e63) => updateEntityStyle("strokeWidth", Number(e63.target.value)), style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginTop: "4px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93", fontWeight: 500 }, children: "BLEND MODE" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: activeBlendMode, onChange: (e63) => updateEntityStyle("blendMode", e63.target.value), style: { background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", outline: "none", fontSize: "10px", padding: "6px", cursor: "pointer" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "normal", children: "Normal" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "screen", children: "Screen" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "multiply", children: "Multiply" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "overlay", children: "Overlay" }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "add", children: "Color Dodge" })
+          !manualMode ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("form", { onSubmit: handleSubmit, style: { display: "flex", flexDirection: "column", gap: "16px", width: "100%", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "24px", padding: "16px", boxSizing: "border-box" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("textarea", { placeholder: "e.g., North Korea and South Korea relations...", value: prompt, onChange: (e63) => setPrompt(e63.target.value), rows: 3, style: { width: "100%", background: "transparent", border: "none", color: "#ffffff", fontSize: "16px", outline: "none", resize: "none", boxSizing: "border-box" }, required: true }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { type: "submit", style: { background: "#fff", color: "#000", border: "none", borderRadius: "16px", padding: "12px 24px", fontSize: "14px", fontWeight: 600, cursor: "pointer", alignSelf: "flex-end" }, children: "Generate \u2726" })
+          ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "16px", width: "100%", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "24px", padding: "16px", boxSizing: "border-box" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityA, onChange: (e63) => setEntityA(e63.target.value), placeholder: "Primary Entity", style: { width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "14px", outline: "none", boxSizing: "border-box" } }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityB, onChange: (e63) => setEntityB(e63.target.value), placeholder: "Secondary Entity", style: { width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px", padding: "12px", color: "#fff", fontSize: "14px", outline: "none", boxSizing: "border-box" } }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: initializeManualScene, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "16px", padding: "14px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }, children: "Launch Empty Studio \u{1F680}" })
           ] })
-        ] })
-      ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "9px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em", paddingBottom: "2px", borderBottom: "1px solid rgba(255,255,255,0.1)", marginTop: "8px" }, children: "AUTO INJECTOR" }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px", flexDirection: "column" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityA, onChange: (e63) => setEntityA(e63.target.value), placeholder: "Origin Country", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "10px", padding: "8px", borderRadius: "6px", outline: "none" } }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityB, onChange: (e63) => setEntityB(e63.target.value), placeholder: "Target Country", style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "10px", padding: "8px", borderRadius: "6px", outline: "none" } })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: eventType, onChange: (e63) => setEventType(e63.target.value), style: { width: "100%", background: "rgba(0,0,0,0.5)", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "6px", outline: "none", fontSize: "11px", padding: "8px", cursor: "pointer", marginTop: "2px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "arrow", children: "Diplomatic Line (Arrow)" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "takeover", children: "Conflict (Invasion Wave)" })
+        status === "generating" && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { width: "60px", height: "60px", borderRadius: "50%", border: "3px solid rgba(56,189,248,0.2)", borderTopColor: "#38bdf8", animation: "spin 1s linear infinite" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "14px", letterSpacing: "0.2em", color: "#38bdf8", fontWeight: 600 }, children: "COMPILING DIRECTIVE..." })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: addStoryEvent, style: { background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "8px", width: "100%", height: "36px", fontSize: "11px", fontWeight: 700, cursor: "pointer", marginTop: "4px" }, children: "\uFF0B Inject Event" })
-      ] })
-    ] });
-    return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { backgroundColor: "#000000", width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', color: "#ffffff", margin: 0, padding: 0, overflow: "hidden" }, children: [
-      status !== "editor" && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", width: "800px", height: "800px", background: "radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(148,163,184,0.02) 50%, transparent 70%)", borderRadius: "50%", zIndex: 1, pointerEvents: "none", filter: "blur(100px)" } }),
-      status === "generating" && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "absolute", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(30px)", zIndex: 100, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { width: "60px", height: "60px", borderRadius: "50%", border: "3px solid rgba(56,189,248,0.2)", borderTopColor: "#38bdf8", animation: "spin 1s linear infinite" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "14px", letterSpacing: "0.2em", color: "#38bdf8", fontWeight: 600, animation: "pulse 1.5s infinite" }, children: "COMPILING..." })
-      ] }),
-      status !== "editor" && status !== "generating" && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", width: "90%", maxWidth: "680px", padding: "20px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("h1", { style: { fontSize: "42px", fontWeight: 700, letterSpacing: "-0.04em", marginBottom: "24px", textAlign: "center" }, children: "Cinematic Timeline Studio" }),
-        errorMessage && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: "100%", background: "rgba(245, 158, 11, 0.12)", border: "1px solid rgba(245, 158, 11, 0.35)", borderRadius: "16px", padding: "16px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "12px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "20px" }, children: "\u26A1" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "13px", color: "#fde047" }, children: errorMessage })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "8px", marginBottom: "24px", background: "rgba(255,255,255,0.06)", padding: "6px", borderRadius: "18px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setManualMode(false), style: { background: !manualMode ? "rgba(255,255,255,0.15)" : "transparent", color: !manualMode ? "#fff" : "#8e8e93", border: "none", borderRadius: "12px", padding: "10px 24px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }, children: "AI Directive" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setManualMode(true), style: { background: manualMode ? "rgba(255,255,255,0.15)" : "transparent", color: manualMode ? "#fff" : "#8e8e93", border: "none", borderRadius: "12px", padding: "10px 24px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }, children: "Manual Builder" })
-        ] }),
-        !manualMode ? /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("form", { onSubmit: handleSubmit, style: { display: "flex", flexDirection: "column", gap: "16px", width: "100%", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "32px", padding: "24px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("textarea", { placeholder: "e.g., North Korea and South Korea relations...", value: prompt, onChange: (e63) => setPrompt(e63.target.value), rows: 2, style: { width: "100%", background: "transparent", border: "none", color: "#ffffff", fontSize: "18px", outline: "none", resize: "none" }, required: true }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { type: "submit", style: { background: "#fff", color: "#000", border: "none", borderRadius: "20px", padding: "14px 28px", fontSize: "15px", fontWeight: 600, cursor: "pointer", alignSelf: "flex-end" }, children: "Generate \u2726" })
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "16px", width: "100%", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: "32px", padding: "24px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "16px", flexDirection: "column" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityA, onChange: (e63) => setEntityA(e63.target.value), placeholder: "Primary Entity", style: { width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px", padding: "16px", color: "#fff", fontSize: "16px", outline: "none" } }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "text", value: entityB, onChange: (e63) => setEntityB(e63.target.value), placeholder: "Secondary Entity", style: { width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px", padding: "16px", color: "#fff", fontSize: "16px", outline: "none" } })
+        status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(import_react122.default.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", left: leftPanelOpen ? "0px" : "-300px", top: "40%", transform: "translateY(-50%)", transition: "left 0.3s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "300px", maxHeight: "75vh", borderLeft: "none", borderRadius: "0 16px 16px 0", overflowY: "auto" }, children: leftPanelJSX }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setLeftPanelOpen(!leftPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderLeft: "none", borderRadius: "0 12px 12px 0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#38bdf8", fontSize: "14px", marginLeft: "-1px" }, children: leftPanelOpen ? "\u25C0" : "\u25B6" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: initializeManualScene, style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "20px", padding: "16px 28px", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginTop: "10px" }, children: "Launch Empty Studio \u{1F680}" })
-        ] })
-      ] }),
-      status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", paddingBottom: "100px" }, children: [
-        !isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "12px", marginBottom: "10px", zIndex: 100, flexShrink: 0 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setLeftPanelOpen(true), style: { background: "#38bdf8", color: "#000", border: "none", borderRadius: "8px", padding: "8px 16px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }, children: "\u{1F30D} Entities" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setRightPanelOpen(true), style: { background: "#a855f7", color: "#fff", border: "none", borderRadius: "8px", padding: "8px 16px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }, children: "\u2699\uFE0F Controls" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "32px", width: "100%", height: "100%" }, children: [
-          isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, display: "flex", flexDirection: "column", gap: "10px", borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: leftPanelJSX }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: {
-            height: "75vh",
-            minHeight: "500px",
-            maxHeight: "800px",
-            aspectRatio: "9/16",
-            borderRadius: "36px",
-            border: "4px solid #1a1a1a",
-            boxShadow: isLiveEdit ? "0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)" : "0 0 0 2px #38bdf8, 0 0 40px rgba(56,189,248,0.2)",
-            position: "relative",
-            overflow: "hidden",
-            background: "#040711",
-            flexShrink: 0,
-            zIndex: 10
-          }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { className: "remotion-player", style: { position: "absolute", inset: 0, zIndex: 10, width: "100%", height: "100%" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", right: rightPanelOpen ? "0px" : "-300px", top: "40%", transform: "translateY(-50%)", transition: "right 0.3s cubic-bezier(0.25, 1, 0.5, 1)", zIndex: 100, display: "flex", alignItems: "center" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setRightPanelOpen(!rightPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderRight: "none", borderRadius: "12px 0 0 12px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#a855f7", fontSize: "14px", marginRight: "-1px" }, children: rightPanelOpen ? "\u25B6" : "\u25C0" }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "300px", maxHeight: "75vh", borderRight: "none", borderRadius: "16px 0 0 16px", overflowY: "auto" }, children: rightPanelJSX })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { height: "100%", maxHeight: "100%", aspectRatio: "9/16", borderRadius: isDesktop ? "24px" : "0px", border: isDesktop ? "2px solid #1a1a1a" : "none", boxShadow: isLiveEdit ? "0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)" : "0 0 40px rgba(0,0,0,0.8)", position: "relative", overflow: "hidden", background: "#040711", zIndex: 10 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
               Player,
               {
@@ -65816,202 +66733,55 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                 controls: false,
                 loop: true,
                 autoPlay: true,
-                style: { width: "100%", height: "100%", display: "block", pointerEvents: isLiveEdit ? "auto" : "none" }
+                style: { width: "100%", height: "100%", display: "block", pointerEvents: isLiveEdit ? "none" : "none" }
               }
             ),
-            isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(import_react122.default.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+            isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "28px", height: "28px", border: "1.5px solid rgba(56,189,248,0.5)", borderRadius: "50%", pointerEvents: "none", zIndex: 50 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "4px", height: "4px", background: "#38bdf8", borderRadius: "50%" } }) })
+          ] })
+        ] })
+      ] }),
+      status === "editor" && dynamicTimeline && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "fixed", bottom: isDesktop ? "20px" : "30px", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 120, padding: "0 16px", boxSizing: "border-box" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { ...panelStyle, width: "100%", maxWidth: "900px", display: "flex", alignItems: "center", gap: "16px", borderRadius: "24px", padding: "12px 24px", height: "140px", boxSizing: "border-box" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: togglePlay, style: { background: "#ffffff", color: "#000", border: "none", borderRadius: "50%", width: "40px", height: "40px", flexShrink: 0, cursor: "pointer", fontWeight: "bold", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 15px rgba(0,0,0,0.5)", alignSelf: "flex-start" }, children: isPlaying ? "\u275A\u275A" : "\u25B6" }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { flex: 1, height: "100%", overflowY: "auto", paddingRight: "8px", position: "relative" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { ref: trackContainerRef, style: { position: "relative", minHeight: "100%" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "sticky", top: 0, height: "24px", background: "rgba(255,255,255,0.05)", borderRadius: "4px", zIndex: 5 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: videoDuration, step: "1", value: currentFrame, onChange: (e63) => {
+            const tf3 = Number(e63.target.value);
+            setCurrentFrame(tf3);
+            playerRef.current?.seekTo(tf3);
+          }, style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer", margin: 0, height: "100%", opacity: 0.3 } }) }),
+          timeline?.cameraKeyframes && timeline.cameraKeyframes.map((kf3, i2) => {
+            const leftPercent = kf3.frame / videoDuration * 100;
+            return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, top: "8px", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "4px", zIndex: 30 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onPointerDown: (e63) => handleDragKeyframe(e63, i2), style: { width: "12px", height: "12px", backgroundColor: "#a855f7", border: "2px solid #ffffff", cursor: "ew-resize", transform: "rotate(45deg)", boxShadow: "0 2px 8px rgba(0,0,0,0.8)" } }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => {
+                if (confirm(`Delete keyframe at frame ${kf3.frame}?`)) deleteSpecificKeyframe(kf3.frame);
+              }, style: { background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: "14px", height: "14px", fontSize: "8px", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }, children: "\u2715" })
+            ] }, `kf-drawer-${i2}`);
+          }),
+          timeline?.highlightCountries && timeline.highlightCountries.map((c4, i2) => {
+            const startPct = (c4.startFrame || 0) / videoDuration * 100;
+            const endPct = (c4.endFrame || videoDuration) / videoDuration * 100;
+            const widthPct = endPct - startPct;
+            return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)(
               "div",
               {
-                onContextMenu: (e63) => e63.preventDefault(),
-                onWheel: (e63) => setTargetZoom((z2) => Math.max(0.5, Math.min(15, z2 - e63.nativeEvent.deltaY * 5e-3))),
-                onPointerDown: (e63) => {
-                  activePointers.current.set(e63.pointerId, { x: e63.clientX, y: e63.clientY });
-                  e63.currentTarget.setPointerCapture(e63.pointerId);
-                  if (activePointers.current.size === 1) {
-                    setIsDragging(true);
-                    dragPos.current = { x: e63.clientX, y: e63.clientY };
-                  } else if (activePointers.current.size === 2) {
-                    setIsDragging(false);
-                    const pts = Array.from(activePointers.current.values());
-                    const dx2 = pts[0].x - pts[1].x;
-                    const dy2 = pts[0].y - pts[1].y;
-                    previousPinch.current = { dist: Math.hypot(dx2, dy2), angle: Math.atan2(dy2, dx2), centerY: (pts[0].y + pts[1].y) / 2, centerX: (pts[0].x + pts[1].x) / 2 };
-                  }
-                },
-                onPointerUp: (e63) => {
-                  activePointers.current.delete(e63.pointerId);
-                  e63.currentTarget.releasePointerCapture(e63.pointerId);
-                  if (activePointers.current.size < 2) previousPinch.current = null;
-                  if (activePointers.current.size === 0) setIsDragging(false);
-                  if (activePointers.current.size === 1) {
-                    const remainingPt = Array.from(activePointers.current.values())[0];
-                    dragPos.current = { x: remainingPt.x, y: remainingPt.y };
-                    setIsDragging(true);
-                  }
-                },
-                onPointerLeave: (e63) => {
-                  activePointers.current.delete(e63.pointerId);
-                  if (activePointers.current.size < 2) previousPinch.current = null;
-                  if (activePointers.current.size === 0) setIsDragging(false);
-                },
-                onPointerMove: (e63) => {
-                  if (!activePointers.current.has(e63.pointerId)) return;
-                  activePointers.current.set(e63.pointerId, { x: e63.clientX, y: e63.clientY });
-                  if (activePointers.current.size === 1 && isDragging && dragPos.current) {
-                    const dx2 = e63.clientX - dragPos.current.x;
-                    const dy2 = e63.clientY - dragPos.current.y;
-                    dragPos.current = { x: e63.clientX, y: e63.clientY };
-                    if (e63.buttons === 2 || e63.shiftKey || e63.altKey) {
-                      setTargetPitch((p2) => Math.max(0, Math.min(85, p2 - dy2 * 0.4)));
-                      setTargetBearing((b4) => b4 + dx2 * 0.8);
-                    } else {
-                      const panSens = 0.2 / Math.max(0.5, targetZoom);
-                      setTargetLng((l2) => l2 - dx2 * panSens);
-                      setTargetLat((l2) => Math.max(-85, Math.min(85, l2 + dy2 * panSens)));
-                    }
-                  } else if (activePointers.current.size === 2 && previousPinch.current) {
-                    const pts = Array.from(activePointers.current.values());
-                    const dx2 = pts[0].x - pts[1].x;
-                    const dy2 = pts[0].y - pts[1].y;
-                    const currentDist = Math.hypot(dx2, dy2);
-                    const currentAngle = Math.atan2(dy2, dx2);
-                    const currentCenterY = (pts[0].y + pts[1].y) / 2;
-                    const currentCenterX = (pts[0].x + pts[1].x) / 2;
-                    const distDiff = currentDist - previousPinch.current.dist;
-                    let angleDiff = currentAngle - previousPinch.current.angle;
-                    const yDiff = currentCenterY - previousPinch.current.centerY;
-                    const xDiff = currentCenterX - previousPinch.current.centerX;
-                    if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                    setTargetZoom((z2) => Math.max(0.5, Math.min(15, z2 + distDiff * 0.01)));
-                    setTargetBearing((b4) => b4 + angleDiff * 60);
-                    if (Math.abs(yDiff) > 2) setTargetPitch((p2) => Math.max(0, Math.min(85, p2 - yDiff * 0.4)));
-                    const panSens = 0.1 / Math.max(0.5, targetZoom);
-                    setTargetLng((l2) => l2 - xDiff * panSens);
-                    setTargetLat((l2) => Math.max(-85, Math.min(85, l2 + yDiff * panSens)));
-                    previousPinch.current = { dist: currentDist, angle: currentAngle, centerY: currentCenterY, centerX: currentCenterX };
-                  }
-                },
-                style: { position: "absolute", inset: 0, cursor: isDragging ? "grabbing" : "grab", zIndex: 50, touchAction: "none" },
-                children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "28px", height: "28px", border: "1.5px solid rgba(56,189,248,0.5)", borderRadius: "50%", pointerEvents: "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "4px", height: "4px", background: pathStartCoord ? "#ef4444" : "#38bdf8", borderRadius: "50%" } }) })
-              }
-            ) })
-          ] }) }),
-          isDesktop && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, display: "flex", flexDirection: "column", gap: "14px", borderRadius: "20px", padding: "16px", width: "280px", maxHeight: "80vh", overflowY: "auto", zIndex: 60, flexShrink: 0 }, children: rightPanelJSX })
-        ] }),
-        !isDesktop && leftPanelOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", zIndex: 200, display: "flex", flexDirection: "column", padding: "20px", overflowY: "auto", boxSizing: "border-box" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setLeftPanelOpen(false), style: { alignSelf: "flex-end", background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: "36px", height: "36px", fontWeight: "bold", cursor: "pointer", marginBottom: "15px", flexShrink: 0 }, children: "\u2715" }),
-          leftPanelJSX
-        ] }),
-        !isDesktop && rightPanelOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", zIndex: 200, display: "flex", flexDirection: "column", padding: "20px", overflowY: "auto", boxSizing: "border-box" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setRightPanelOpen(false), style: { alignSelf: "flex-end", background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", width: "36px", height: "36px", fontWeight: "bold", cursor: "pointer", marginBottom: "15px", flexShrink: 0 }, children: "\u2715" }),
-          rightPanelJSX
-        ] }),
-        isTimelineOpen && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "fixed", bottom: isDesktop ? "20px" : "30px", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 120 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { ...panelStyle, width: "90%", maxWidth: "800px", display: "flex", alignItems: "center", gap: "16px", borderRadius: "24px", padding: "14px 24px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: togglePlay, style: { background: "#ffffff", color: "#000", border: "none", borderRadius: "50%", width: "36px", height: "36px", flexShrink: 0, cursor: "pointer", fontWeight: "bold", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 15px rgba(0,0,0,0.5)" }, children: isPlaying ? "\u275A\u275A" : "\u25B6" }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "relative", flex: 1, height: "30px", display: "flex", alignItems: "center" }, children: [
-            timeline?.highlightCountries && timeline.highlightCountries.map((c4, i2) => {
-              const leftPercent = (c4.startFrame || 0) / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-                "div",
-                {
-                  title: `Entity Reveal: ${c4.name || c4.country}`,
-                  onPointerDown: (e63) => {
-                    const trackRect = e63.currentTarget.parentElement?.getBoundingClientRect();
-                    if (!trackRect) return;
-                    e63.currentTarget.setPointerCapture(e63.pointerId);
-                    const handlePointerMove = (moveEvent) => {
-                      const xPos = moveEvent.clientX - trackRect.left;
-                      const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
-                      const newFrame = Math.round(percentage * videoDuration);
-                      setTimeline((prev) => {
-                        if (!prev) return prev;
-                        const updated = JSON.parse(JSON.stringify(prev));
-                        updated.highlightCountries[i2].startFrame = newFrame;
-                        return updated;
-                      });
-                    };
-                    const handlePointerUp = () => {
-                      window.removeEventListener("pointermove", handlePointerMove);
-                      window.removeEventListener("pointerup", handlePointerUp);
-                    };
-                    window.addEventListener("pointermove", handlePointerMove);
-                    window.addEventListener("pointerup", handlePointerUp);
-                  },
-                  style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", top: "3px", width: "14px", height: "24px", backgroundColor: c4.color || "#3b82f6", border: "2px solid #ffffff", borderRadius: "4px", cursor: "ew-resize", zIndex: 16, boxShadow: "0 2px 6px rgba(0,0,0,0.8)" }
-                },
-                `hc-drawer-${i2}`
-              );
-            }),
-            timeline?.takeovers && timeline.takeovers.map((t3, i2) => {
-              const leftPercent = (t3.startFrame || 0) / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { title: `Conflict: ${t3.attacker} > ${t3.target}`, style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", width: "4px", height: "14px", backgroundColor: "#ef4444", borderRadius: "2px", cursor: "help", zIndex: 15 } }, `inv-drawer-${i2}`);
-            }),
-            timeline?.arrows && timeline.arrows.map((a4, i2) => {
-              const leftPercent = (a4.startFrame || 0) / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { title: `${a4.type === "missile" ? "Missile" : "Arrow"}`, style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", width: "4px", height: "14px", backgroundColor: a4.type === "missile" ? "#ffffff" : "#3b82f6", borderRadius: "2px", cursor: "help", zIndex: 15 } }, `arr-drawer-${i2}`);
-            }),
-            timeline?.labels && timeline.labels.map((l2, i2) => {
-              const leftPercent = (l2.startFrame || 0) / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { title: `Label: ${l2.text}`, style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", width: "6px", height: "6px", backgroundColor: "#a855f7", borderRadius: "50%", cursor: "help", zIndex: 15 } }, `lbl-drawer-${i2}`);
-            }),
-            timeline?.cameraKeyframes && timeline.cameraKeyframes.map((kf3, i2) => {
-              const leftPercent = kf3.frame / videoDuration * 100;
-              return /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-                "div",
-                {
-                  onContextMenu: (e63) => {
-                    e63.preventDefault();
-                    setTimeline((prev) => {
-                      if (!prev) return prev;
-                      const updated = JSON.parse(JSON.stringify(prev));
-                      updated.cameraKeyframes = updated.cameraKeyframes.filter((k2) => k2.frame !== kf3.frame);
-                      return updated;
-                    });
-                  },
-                  onPointerDown: (e63) => {
-                    const trackRect = e63.currentTarget.parentElement?.getBoundingClientRect();
-                    if (!trackRect) return;
-                    e63.currentTarget.setPointerCapture(e63.pointerId);
-                    const handlePointerMove = (moveEvent) => {
-                      const xPos = moveEvent.clientX - trackRect.left;
-                      const percentage = Math.max(0, Math.min(1, xPos / trackRect.width));
-                      const newFrame = Math.round(percentage * videoDuration);
-                      setTimeline((prev) => {
-                        if (!prev) return prev;
-                        const updated = JSON.parse(JSON.stringify(prev));
-                        const isCollision = updated.cameraKeyframes.some((k2, idx) => idx !== i2 && Math.abs(k2.frame - newFrame) < 15);
-                        if (isCollision) return prev;
-                        updated.cameraKeyframes[i2].frame = newFrame;
-                        updated.cameraKeyframes.sort((a4, b4) => a4.frame - b4.frame);
-                        return updated;
-                      });
-                    };
-                    const handlePointerUp = () => {
-                      window.removeEventListener("pointermove", handlePointerMove);
-                      window.removeEventListener("pointerup", handlePointerUp);
-                    };
-                    window.addEventListener("pointermove", handlePointerMove);
-                    window.addEventListener("pointerup", handlePointerUp);
-                  },
-                  style: { position: "absolute", left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, transform: "translateX(-50%)", top: "3px", width: "14px", height: "24px", backgroundColor: "#38bdf8", border: "2px solid #ffffff", borderRadius: "4px", cursor: "ew-resize", zIndex: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.8)" }
-                },
-                `kf-drawer-${i2}`
-              );
-            }),
-            /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: videoDuration, step: "1", value: currentFrame, onChange: (e63) => {
-              const targetFrame = Number(e63.target.value);
-              setCurrentFrame(targetFrame);
-              playerRef.current?.seekTo(targetFrame);
-            }, style: { width: "100%", accentColor: "#38bdf8", cursor: "pointer", position: "relative", zIndex: 6, background: "transparent" } })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "11px", color: "#fff", fontWeight: 600, letterSpacing: "0.05em", textShadow: "0 2px 8px rgba(0,0,0,0.8)", flexShrink: 0 }, children: [
-            Math.round(currentFrame),
-            " / ",
-            videoDuration
-          ] })
+                style: { position: "absolute", left: `${startPct}%`, width: `${widthPct}%`, top: `${32 + i2 * 28}px`, height: "22px", background: c4.color || "#3b82f6", opacity: 0.85, borderRadius: "4px", display: "flex", justifyContent: "space-between", zIndex: 16, boxShadow: "0 2px 6px rgba(0,0,0,0.8)" },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onPointerDown: (e63) => handleDragEdge(e63, i2, true), style: { width: "16px", height: "100%", background: "rgba(255,255,255,0.4)", borderRadius: "4px 0 0 4px", cursor: "ew-resize" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onPointerDown: (e63) => handleDragClip(e63, i2), style: { flex: 1, height: "100%", cursor: "grab", display: "flex", alignItems: "center", justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "10px", color: "#fff", fontWeight: 600, pointerEvents: "none", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }, children: c4.name }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onPointerDown: (e63) => handleDragEdge(e63, i2, false), style: { width: "16px", height: "100%", background: "rgba(255,255,255,0.4)", borderRadius: "0 4px 4px 0", cursor: "ew-resize" } })
+                ]
+              },
+              `hc-drawer-${i2}`
+            );
+          })
+        ] }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", alignSelf: "flex-start" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("span", { style: { fontSize: "13px", color: "#fff", fontWeight: 600, fontFamily: "monospace", letterSpacing: "0.05em", flexShrink: 0 }, children: [
+          (currentFrame / 30).toFixed(1),
+          "s / ",
+          (videoDuration / 30).toFixed(1),
+          "s"
         ] }) })
-      ] }),
+      ] }) }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("style", { children: `
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }

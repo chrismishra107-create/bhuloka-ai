@@ -17,11 +17,13 @@ export const MapAnimation: React.FC<{
   timeline: any;
   isLiveEditMode?: boolean;
   mapStyle?: string;
-}> = ({ timeline, isLiveEditMode = false, mapStyle = 'dark-documentary' }) => {
+  onCameraChange?: (cam: any) => void;
+}> = ({ timeline, isLiveEditMode = false, mapStyle = 'dark-documentary', onCameraChange }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const blendOverlayRef = useRef<HTMLCanvasElement>(null);
   const uiOverlayRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const onCameraChangeRef = useRef(onCameraChange);
   
   const [mapLoaded, setMapLoaded] = useState(false);
   const [initialHandle] = useState(() => delayRender('Booting Dual-Canvas Engine...'));
@@ -34,6 +36,10 @@ export const MapAnimation: React.FC<{
   const { isRendering } = getRemotionEnvironment();
 
   const totalFrames = timeline?.totalFrames || 300;
+
+  useEffect(() => {
+    onCameraChangeRef.current = onCameraChange;
+  }, [onCameraChange]);
 
   useEffect(() => {
     const loadExtra = async () => {
@@ -118,7 +124,7 @@ export const MapAnimation: React.FC<{
     const map = new maplibregl.Map({
       container: mapContainer.current, 
       fadeDuration: 0, 
-      maxTileCacheSize: 10000,
+      maxTileCacheSize: 20000,
       preserveDrawingBuffer: true, 
       renderWorldCopies: false, 
       pixelRatio: isMobileEdit ? 1 : (isRendering ? 2 : 1), 
@@ -128,18 +134,33 @@ export const MapAnimation: React.FC<{
       pitch: currentCam.pitch, 
       bearing: currentCam.bearing, 
       maxPitch: 60, 
-      interactive: false, 
+      interactive: isLiveEditMode, // Native map controls enabled
       attributionControl: false
     } as any); 
 
-    map.on('load', () => { mapRef.current = map; setMapLoaded(true); continueRender(initialHandle); });
-    return () => map.remove();
+    if (isLiveEditMode) {
+      map.on('move', () => {
+        if (onCameraChangeRef.current) {
+          onCameraChangeRef.current({ lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() });
+        }
+      });
+    }
+
+    map.on('load', () => { 
+      mapRef.current = map; 
+      (window as any).__mapInstance = map;
+      setMapLoaded(true); 
+      continueRender(initialHandle); 
+    });
+    return () => {
+      (window as any).__mapInstance = null;
+      map.remove();
+    };
   }, [mapStyle, isLiveEditMode]);
 
   useLayoutEffect(() => {
-    if (!mapRef.current || !mapLoaded) return;
+    if (!mapRef.current || !mapLoaded || isLiveEditMode) return; 
     let tileLockHandle: number | null = null;
-    
     if (isRendering) tileLockHandle = delayRender(`Awaiting GPU Paint Frame ${frame}`);
     
     mapRef.current.jumpTo({ center: [currentCam.lng, currentCam.lat], zoom: currentCam.zoom, pitch: currentCam.pitch, bearing: currentCam.bearing });
@@ -150,7 +171,7 @@ export const MapAnimation: React.FC<{
       if (mapRef.current.areTilesLoaded()) release();
       else mapRef.current.once('idle', release);
     }
-  }, [currentCam, mapLoaded, isRendering, frame]);
+  }, [currentCam, mapLoaded, isRendering, frame, isLiveEditMode]);
 
   const projectClamped = (map: maplibregl.Map, coord: [number, number]) => {
     const p = map.project(coord);
@@ -239,7 +260,6 @@ export const MapAnimation: React.FC<{
       const p2d = new Path2D(path);
 
       blendCtx.save();
-      // 🔥 FIX: RESPECT THE ACTUAL BLEND MODE CHOSEN BY USER IN UI 🔥
       blendCtx.globalCompositeOperation = entity.blendMode || 'source-over';
       
       let masterAlpha = 1;
@@ -252,39 +272,41 @@ export const MapAnimation: React.FC<{
         masterAlpha = Math.max(0, (endF - frame) / fadeOutDuration);
       }
 
-      if (entity.revealStyle === 'fade') {
-        blendCtx.globalAlpha = masterAlpha;
-      } else if (entity.revealStyle === 'ink') {
+      let effectiveAlpha = masterAlpha;
+      if ((entity.revealStyle === 'ink' || entity.revealStyle === 'trim') && frame < startF + fadeInDuration) {
+        effectiveAlpha = 1;
+      }
+
+      if (entity.revealStyle === 'ink') {
         const cx = center ? mapRef.current!.project(center).x : width/2;
         const cy = center ? mapRef.current!.project(center).y : height/2;
         const maxRad = Math.max(width, height) * 1.5;
         blendCtx.beginPath();
         blendCtx.arc(cx, cy, maxRad * Easing.bezier(0.25, 1, 0.5, 1)(Math.min(1, (frame - startF) / fadeInDuration)), 0, Math.PI*2);
         blendCtx.clip();
-        blendCtx.globalAlpha = frame > endF - fadeOutDuration ? masterAlpha : 1; 
       }
 
       const activeColor = entity.color || '#3b82f6';
 
       if (isLine) {
         if (entity.enableGlow !== false && !isMobileEdit) {
-          blendCtx.save(); blendCtx.globalAlpha = masterAlpha; blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity || 20; blendCtx.lineWidth = (entity.strokeWidth || 4) + 4; blendCtx.strokeStyle = activeColor; blendCtx.stroke(p2d); blendCtx.restore();
+          blendCtx.save(); blendCtx.globalAlpha = effectiveAlpha; blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity || 20; blendCtx.lineWidth = (entity.strokeWidth || 4) + 4; blendCtx.strokeStyle = activeColor; blendCtx.stroke(p2d); blendCtx.restore();
         }
         if (entity.revealStyle === 'trim' && frame < startF + fadeInDuration) {
           const approxLen = 4000; 
           blendCtx.setLineDash([approxLen]);
           blendCtx.lineDashOffset = approxLen - (((frame - startF) / fadeInDuration) * approxLen);
         }
-        blendCtx.globalAlpha = masterAlpha;
+        blendCtx.globalAlpha = effectiveAlpha;
         blendCtx.lineWidth = entity.strokeWidth || 4; blendCtx.strokeStyle = entity.strokeColor || activeColor; blendCtx.stroke(p2d);
       } else {
         if (entity.dropShadow !== false && !isMobileEdit) {
-          blendCtx.save(); blendCtx.globalAlpha = masterAlpha; blendCtx.translate(0, 15); blendCtx.shadowColor = 'rgba(0,0,0,0.95)'; blendCtx.shadowBlur = 15; blendCtx.fillStyle = '#000000'; blendCtx.fill(p2d); blendCtx.restore();
+          blendCtx.save(); blendCtx.globalAlpha = effectiveAlpha; blendCtx.translate(0, 15); blendCtx.shadowColor = 'rgba(0,0,0,0.95)'; blendCtx.shadowBlur = 15; blendCtx.fillStyle = '#000000'; blendCtx.fill(p2d); blendCtx.restore();
         }
         if (entity.enableGlow !== false && !isMobileEdit) {
-          blendCtx.save(); blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity !== undefined ? entity.glowIntensity : 20; blendCtx.globalAlpha = 0.55 * masterAlpha; blendCtx.fillStyle = activeColor; blendCtx.fill(p2d); blendCtx.restore();
+          blendCtx.save(); blendCtx.shadowColor = activeColor; blendCtx.shadowBlur = entity.glowIntensity !== undefined ? entity.glowIntensity : 20; blendCtx.globalAlpha = 0.55 * effectiveAlpha; blendCtx.fillStyle = activeColor; blendCtx.fill(p2d); blendCtx.restore();
         }
-        blendCtx.globalAlpha = 0.9 * masterAlpha; 
+        blendCtx.globalAlpha = 0.9 * effectiveAlpha; 
         blendCtx.fillStyle = activeColor; blendCtx.fill(p2d);
         if (entity.strokeWidth) { blendCtx.lineWidth = entity.strokeWidth; blendCtx.strokeStyle = entity.strokeColor || '#fff'; blendCtx.stroke(p2d); }
       }
@@ -320,24 +342,6 @@ export const MapAnimation: React.FC<{
     arrows.forEach((arrow: any) => {
       const startF = arrow.startFrame || arrow.frame || 0;
       if (frame < startF) return;
-      
-      if (arrow.type === 'custom-path' && arrow.coordinates) {
-         uiCtx.save();
-         uiCtx.beginPath();
-         arrow.coordinates.forEach((coord: [number, number], i: number) => {
-            const p = projectClamped(mapRef.current!, coord);
-            if (!p) return;
-            if (i === 0) uiCtx.moveTo(p.x, p.y);
-            else uiCtx.lineTo(p.x, p.y);
-         });
-         const t = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
-         uiCtx.strokeStyle = arrow.color || '#f59e0b';
-         uiCtx.lineWidth = arrow.strokeWidth || 4;
-         if (!isMobileEdit) { uiCtx.shadowColor = 'rgba(0,0,0,0.8)'; uiCtx.shadowBlur = 10; }
-         uiCtx.stroke();
-         uiCtx.restore();
-         return;
-      }
 
       let c1 = arrow.origin; let c2 = arrow.target;
       if (arrow.sourceName) c1 = getGeometryFromSource(arrow.sourceName, [worldData]).center;
@@ -349,25 +353,50 @@ export const MapAnimation: React.FC<{
       if (!p1 || !p2) return;
 
       const dx = p2.x - p1.x; const dy = p2.y - p1.y; const dist = Math.sqrt(dx*dx + dy*dy);
-      const arcH = dist * 0.38; const midX = (p1.x+p2.x)/2 + (-dy/dist)*arcH; const midY = (p1.y+p2.y)/2 + (dx/dist)*arcH;
+      const arcH = dist * 0.35; 
+      const midX = (p1.x + p2.x) / 2 + (-dy / dist) * arcH; 
+      const midY = (p1.y + p2.y) / 2 + (dx / dist) * arcH;
       
       const pathD = `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
       const p2d = new Path2D(pathD);
-      const t = Math.max(0, Math.min(1, Easing.bezier(0.25, 0.1, 0.25, 1)((frame - startF) / 45)));
+      const progress = Math.max(0, Math.min(1, (frame - startF) / (arrow.duration || 60)));
 
       uiCtx.save();
-      if (!isMobileEdit) { uiCtx.shadowColor = '#000000'; uiCtx.shadowBlur = 12; uiCtx.shadowOffsetY = 10; }
-      const approxLen = dist * 1.2;
+      uiCtx.shadowColor = arrow.color || '#38bdf8'; 
+      uiCtx.shadowBlur = 15;
+      uiCtx.strokeStyle = arrow.color || '#38bdf8'; 
+      uiCtx.lineWidth = arrow.strokeWidth || 5;
+      uiCtx.lineCap = 'round';
+      
+      const approxLen = dist * 1.3;
       uiCtx.setLineDash([approxLen]);
-      uiCtx.lineDashOffset = approxLen - (t * approxLen);
-
-      if (arrow.type === 'missile') {
-         uiCtx.strokeStyle = '#ef4444'; uiCtx.lineWidth = 8; uiCtx.globalAlpha = 0.3; uiCtx.stroke(p2d);
-         uiCtx.strokeStyle = '#ffffff'; uiCtx.lineWidth = 3; uiCtx.globalAlpha = 0.9; uiCtx.stroke(p2d);
-      } else {
-         const sourceData = rawCountries.find((c: any) => (c.name || c.country || '').toLowerCase() === (arrow.sourceName || '').toLowerCase());
-         uiCtx.strokeStyle = arrow.color || sourceData?.color || '#ef4444'; uiCtx.lineWidth = 6; uiCtx.stroke(p2d);
-         uiCtx.setLineDash([]); uiCtx.strokeStyle = '#ffffff'; uiCtx.lineWidth = 2; uiCtx.stroke(p2d);
+      uiCtx.lineDashOffset = approxLen - (progress * approxLen);
+      uiCtx.stroke(p2d);
+      
+      if (progress > 0 && progress < 1) {
+        const t = progress;
+        const bx = (1 - t) * (1 - t) * p1.x + 2 * (1 - t) * t * midX + t * t * p2.x;
+        const by = (1 - t) * (1 - t) * p1.y + 2 * (1 - t) * t * midY + t * t * p2.y;
+        
+        uiCtx.save();
+        uiCtx.translate(bx, by);
+        const angle = Math.atan2(2 * (1 - t) * (midY - p1.y) + 2 * t * (p2.y - midY), 2 * (1 - t) * (midX - p1.x) + 2 * t * (p2.x - midX));
+        uiCtx.rotate(angle);
+        
+        if (arrow.type === 'missile') {
+          uiCtx.fillStyle = '#ffffff';
+          uiCtx.beginPath();
+          uiCtx.moveTo(16, 0); uiCtx.lineTo(-10, -8); uiCtx.lineTo(-4, 0); uiCtx.lineTo(-10, 8);
+          uiCtx.closePath();
+          uiCtx.fill();
+        } else {
+          uiCtx.fillStyle = arrow.color || '#38bdf8';
+          uiCtx.beginPath();
+          uiCtx.moveTo(14, 0); uiCtx.lineTo(-8, -6); uiCtx.lineTo(-3, 0); uiCtx.lineTo(-8, 6);
+          uiCtx.closePath();
+          uiCtx.fill();
+        }
+        uiCtx.restore();
       }
       uiCtx.restore();
     });
@@ -390,18 +419,66 @@ export const MapAnimation: React.FC<{
       
       uiCtx.save();
       uiCtx.globalAlpha = lAlpha;
-      uiCtx.translate(p.x, p.y - 10);
-      if (l.glow && !isMobileEdit) { uiCtx.shadowColor = '#38bdf8'; uiCtx.shadowBlur = 20; }
-      uiCtx.fillStyle = l.bg || 'rgba(0,0,0,0.7)';
-      if (uiCtx.roundRect) {
-        uiCtx.beginPath(); uiCtx.roundRect(-60, -20, 120, 36, 8); uiCtx.fill();
-      } else {
-        uiCtx.fillRect(-60, -20, 120, 36);
+      uiCtx.translate(p.x, p.y);
+      
+      const themeColor = l.color || '#ffffff';
+      const labelStyle = l.style || 'callout';
+      const txt = (l.text || '').toUpperCase();
+      uiCtx.font = `bold ${l.size !== undefined ? l.size : 20}px "SF Pro Display", sans-serif`;
+
+      if (labelStyle === 'callout') {
+        uiCtx.beginPath();
+        uiCtx.arc(0, 0, 5, 0, Math.PI * 2);
+        uiCtx.fillStyle = themeColor;
+        if (l.glow && !isMobileEdit) { uiCtx.shadowColor = themeColor; uiCtx.shadowBlur = 15; }
+        uiCtx.fill();
+        
+        const lineProgress = Math.min(1, (frame - lStart) / 20);
+        const angleY = -40 * lineProgress;
+        const angleX = 30 * lineProgress;
+        
+        uiCtx.beginPath();
+        uiCtx.moveTo(0, 0); uiCtx.lineTo(angleX, angleY);
+        const tWidth = uiCtx.measureText(txt).width;
+        uiCtx.lineTo(angleX + (tWidth + 20) * lineProgress, angleY);
+        uiCtx.strokeStyle = themeColor;
+        uiCtx.lineWidth = 2;
+        uiCtx.stroke();
+        
+        if (lineProgress > 0.5) {
+          const textAlpha = Math.min(1, (lineProgress - 0.5) * 2);
+          uiCtx.globalAlpha = lAlpha * textAlpha;
+          uiCtx.fillStyle = themeColor;
+          uiCtx.textAlign = 'left';
+          uiCtx.textBaseline = 'bottom';
+          uiCtx.fillText(txt, angleX + 10, angleY - 8);
+        }
+      } else if (labelStyle === 'pill') {
+        const tWidth = uiCtx.measureText(txt).width;
+        uiCtx.translate(-tWidth/2 - 20, -10);
+        if (l.glow && !isMobileEdit) { uiCtx.shadowColor = themeColor; uiCtx.shadowBlur = 20; }
+        uiCtx.fillStyle = l.bg || 'rgba(0,0,0,0.7)';
+        if (uiCtx.roundRect) {
+          uiCtx.beginPath(); uiCtx.roundRect(0, -20, tWidth + 40, l.size + 16, 8); uiCtx.fill();
+        } else {
+          uiCtx.fillRect(0, -20, tWidth + 40, l.size + 16);
+        }
+        uiCtx.fillStyle = themeColor;
+        uiCtx.textAlign = 'left'; uiCtx.textBaseline = 'middle';
+        uiCtx.fillText(txt, 20, -2);
+      } else if (labelStyle === 'minimal') {
+        uiCtx.beginPath();
+        uiCtx.arc(0, 0, 6, 0, Math.PI * 2);
+        uiCtx.fillStyle = themeColor;
+        if (l.glow && !isMobileEdit) { uiCtx.shadowColor = themeColor; uiCtx.shadowBlur = 20; }
+        uiCtx.fill();
+        
+        uiCtx.fillStyle = themeColor;
+        uiCtx.textAlign = 'left';
+        uiCtx.textBaseline = 'middle';
+        uiCtx.fillText(txt, 15, 0);
       }
-      uiCtx.fillStyle = l.color || '#ffffff';
-      uiCtx.font = `bold ${l.size !== undefined ? l.size : 24}px sans-serif`;
-      uiCtx.textAlign = 'center'; uiCtx.textBaseline = 'middle';
-      uiCtx.fillText(l.text, 0, -2);
+
       uiCtx.restore();
     });
 
@@ -415,21 +492,23 @@ export const MapAnimation: React.FC<{
       <canvas id="vector-blend-overlay" ref={blendOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none' }} />
       <canvas id="vector-ui-overlay" ref={uiOverlayRef} width={width} height={height} style={{ position: 'absolute', inset: 0, zIndex: 61, pointerEvents: 'none' }} />
 
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 65 }}>
-        {rawCountries.map((country: any, idx: number) => {
-          if (frame < (country.startFrame || 0)) return null;
-          const cName = country.name || country.country;
-          const { path } = getGeometryFromSource(cName, [worldData, ...extraData]);
-          if (!path) return null;
-          const isSelected = selectedCountry === cName;
-          return (
-            <g key={`hitbox-${idx}`}>
-              {isSelected && <path d={path} fill="none" stroke="#ffffff" strokeWidth="3" strokeDasharray="8 8" />}
-              <path d={path} fill="transparent" stroke="transparent" strokeWidth="20" style={{ cursor: 'crosshair' }} onClick={() => setSelectedCountry(cName)} />
-            </g>
-          );
-        })}
-      </svg>
+      {!isLiveEditMode && (
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'auto', zIndex: 65 }}>
+          {rawCountries.map((country: any, idx: number) => {
+            if (frame < (country.startFrame || 0)) return null;
+            const cName = country.name || country.country;
+            const { path } = getGeometryFromSource(cName, [worldData, ...extraData]);
+            if (!path) return null;
+            const isSelected = selectedCountry === cName;
+            return (
+              <g key={`hitbox-${idx}`}>
+                {isSelected && <path d={path} fill="none" stroke="#ffffff" strokeWidth="3" strokeDasharray="8 8" />}
+                <path d={path} fill="transparent" stroke="transparent" strokeWidth="20" style={{ cursor: 'crosshair' }} onClick={() => setSelectedCountry(cName)} />
+              </g>
+            );
+          })}
+        </svg>
+      )}
     </AbsoluteFill>
   );
 };
