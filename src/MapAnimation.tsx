@@ -1,12 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AbsoluteFill, Easing, continueRender, delayRender, getRemotionEnvironment, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';import * as maplibregl from 'maplibre-gl';
+import { AbsoluteFill, Easing, continueRender, delayRender, getRemotionEnvironment, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import worldData from './world.json';
 import indiaData from './india.json';
 
 const GEOJSON_RESOURCES: Record<string, string> = {
-  rivers: 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson',
-  states: 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',
+  rivers: 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_rivers_lake_centerlines.geojson',
+  states: 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces.geojson',
 };
 
 const dynamicGeoCache = new Map<string, any>();
@@ -30,7 +31,9 @@ export const MapAnimation: React.FC<{
   const [initialHandle] = useState(() => delayRender('Booting Cinematic WebGL Engine'));
   const [extraData, setExtraData] = useState<any[]>([]);
 
-  // Physics safeguard to prevent React-MapLibre feedback loops
+  // High-Performance Geometry Cache
+  const pathCache = useRef<Record<string, { path: string, center: [number, number] | null, isLine: boolean }>>({});
+  const lastCameraHash = useRef<string>('');
   const isUserInteracting = useRef(false);
 
   const frame = useCurrentFrame();
@@ -95,6 +98,13 @@ export const MapAnimation: React.FC<{
     return keyframes[keyframes.length - 1];
   }, [keyframes, frame]);
 
+  // Cache Invalidation Engine - Instantly purges cached SVGs if the camera moves
+  const currentCameraHash = `${camera.lng.toFixed(4)}_${camera.lat.toFixed(4)}_${camera.zoom.toFixed(2)}_${camera.pitch.toFixed(1)}_${camera.bearing.toFixed(1)}`;
+  if (lastCameraHash.current !== currentCameraHash) {
+    pathCache.current = {};
+    lastCameraHash.current = currentCameraHash;
+  }
+
   const getStyleDef = (styleId: string): any => {
     const styles: Record<string, any> = {
       satellite: { version: 8, sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }] },
@@ -156,23 +166,25 @@ export const MapAnimation: React.FC<{
     let lock: number | null = null;
     if (isRendering) lock = delayRender(`Rendering map frame ${frame}`);
     
-    // Halt programmatic jumps if the user is physically interacting with MapLibre
     if (!isUserInteracting.current) {
-      map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing });
-    }
+  map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing });
+}
     
     if (lock !== null) {
       const release = () => setTimeout(() => continueRender(lock!), 40);
       if (map.areTilesLoaded()) release(); else map.once('idle', release);
     }
-  }, [camera, mapLoaded, isRendering, frame]);
+  }, [camera, mapLoaded, isRendering, isLiveEditMode, frame]);
+
+  
 
   const project = (coord: [number, number]) => {
     if (!mapRef.current) return null;
     try {
       const p = mapRef.current.project(coord as any);
       if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
-      if (p.x < -width * 4 || p.x > width * 5 || p.y < -height * 4 || p.y > height * 5) return null;
+      // We removed the aggressive manual bounds clipping here. 
+      // Chopping coordinates manually fractures LineStrings. Let the native SVG engine cull it.
       return p;
     } catch { return null; }
   };
@@ -180,10 +192,17 @@ export const MapAnimation: React.FC<{
   const geometryFor = (name: string) => {
     if (!name || !mapLoaded) return { path: '', center: null as [number, number] | null, isLine: false };
     const norm = String(name).trim().toLowerCase();
+    
+    // THE FIX: Only return from cache if it actually contains a valid, non-empty path.
+    if (pathCache.current[norm] && pathCache.current[norm].path !== '') {
+      return pathCache.current[norm];
+    }
+
     let geom: any = null;
     
+    // Robust fallback for India in case the GeoJSON structure varies
     if (['india', 'ind', 'bharat'].includes(norm)) {
-      geom = (indiaData as any).features?.[0]?.geometry || indiaData;
+      geom = (indiaData as any).geometry || (indiaData as any).features?.[0]?.geometry || indiaData;
     }
     
     if (!geom) {
@@ -195,14 +214,13 @@ export const MapAnimation: React.FC<{
         if (match) { geom = match.geometry; break; }
       }
     }
+    
+    // If we STILL don't have it (because the network fetch is pending), return empty BUT DO NOT CACHE IT.
     if (!geom) return { path: '', center: null, isLine: false };
 
     const lines: number[][][] = [];
     const extractCoords = (coords: any) => {
       if (!Array.isArray(coords)) return;
-      if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
-        return;
-      }
       if (typeof coords[0][0] === 'number') {
         lines.push(coords);
       } else {
@@ -210,9 +228,7 @@ export const MapAnimation: React.FC<{
       }
     };
     
-    if (geom.coordinates) {
-      extractCoords(geom.coordinates);
-    }
+    if (geom.coordinates) extractCoords(geom.coordinates);
 
     const isLine = geom.type.includes('Line');
     let path = '';
@@ -220,19 +236,34 @@ export const MapAnimation: React.FC<{
 
     for (const line of lines) {
       let first = true;
+      let lastPx = { x: -999, y: -999 };
+      
       for (const coord of line) {
         if (!coord || coord.length < 2) continue;
         sumLng += Number(coord[0]); sumLat += Number(coord[1]); pointCount++;
+        
         const p = project([Number(coord[0]), Number(coord[1])]);
         if (!p) { first = true; continue; }
-        path += `${first ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)} `;
+        
+        const dist = Math.hypot(p.x - lastPx.x, p.y - lastPx.y);
+        if (!first && dist < 1.5) continue;
+
+        path += `${first ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
         first = false;
+        lastPx = { x: p.x, y: p.y };
       }
       if (!isLine && path) path += 'Z ';
     }
     
     const center = pointCount > 0 ? [sumLng / pointCount, sumLat / pointCount] as [number, number] : null;
-    return { path, center, isLine };
+    const result = { path, center, isLine };
+    
+    // ONLY SAVE TO CACHE IF IT SUCCESSFULLY GENERATED A REAL PATH
+    if (path !== '') {
+      pathCache.current[norm] = result;
+    }
+    
+    return result;
   };
 
   const cssBlendModes = ['normal', 'multiply', 'screen', 'overlay', 'color-dodge'];
@@ -245,7 +276,6 @@ export const MapAnimation: React.FC<{
       
       {mapLoaded && (
         <>
-          {/* SVG DEFINITIONS */}
           <svg style={{ position: 'absolute', width: 0, height: 0 }}>
             <defs>
               <filter id="tactical-shadow" x="-40%" y="-40%" width="180%" height="180%">
@@ -270,11 +300,9 @@ export const MapAnimation: React.FC<{
             </defs>
           </svg>
 
-          {/* LAYERED BLEND MODE SVGS (Prevents Stacking Context Deadlock) */}
           {cssBlendModes.map(blendGroup => (
             <svg key={`blend-${blendGroup}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 20, pointerEvents: 'none', mixBlendMode: blendGroup as any }}>
               
-              {/* RENDER SHADOWS FIRST (Only on 'normal' pass to prevent duplicate shadows) */}
               {blendGroup === 'normal' && rawCountries.map((c: any, i: number) => {
                 const start = Number(c.startFrame ?? 0);
                 if (frame < start || c.dropShadow === false || ['screen', 'multiply'].includes(c.blendMode)) return null;
@@ -283,7 +311,6 @@ export const MapAnimation: React.FC<{
                 return <path key={`shadow-${i}`} d={path} fill="#000" opacity={0.6} transform="translate(0, 15)" style={{ filter: 'blur(15px)' }} />;
               })}
 
-              {/* RENDER COUNTRIES BELONGING TO THIS BLEND MODE */}
               {rawCountries.map((c: any, i: number) => {
                 const start = Number(c.startFrame ?? 0);
                 const end = Number(c.endFrame ?? totalFrames);
@@ -295,7 +322,7 @@ export const MapAnimation: React.FC<{
 
                 if (takeovers.some((t: any) => (t.target||'').toLowerCase() === c.name.toLowerCase() && frame >= t.startFrame + (t.duration||90))) return null;
 
-                const { path, isLine } = geometryFor(c.name);
+                const { path, isLine, center } = geometryFor(c.name);
                 if (!path) return null;
 
                 const t = revealEase(clamp((frame - start) / Number(c.fadeInDuration ?? 30)));
@@ -319,13 +346,16 @@ export const MapAnimation: React.FC<{
                   );
                 }
 
+                // Ink bleed logic requires the actual country center projected to screen
+                const centerProj = center ? project(center) : null;
+
                 return (
                   <g key={`entity-poly-${i}`} opacity={alpha}>
                     {c.revealStyle === 'ink' ? (
-  <mask id={`mask-ink-${i}`}>
-    <circle cx={width / 2} cy={height / 2} r={Math.max(width, height) * 1.5 * t} fill="white" style={{ filter: 'url(#ink-displacement)' }} />
-  </mask>
-) : null}
+                      <mask id={`mask-ink-${i}`}>
+                        <circle cx={centerProj?.x ?? width/2} cy={centerProj?.y ?? height/2} r={Math.max(width, height) * 1.5 * t} fill="white" style={{ filter: 'url(#ink-displacement)' }} />
+                      </mask>
+                    ) : null}
                     
                     <g mask={c.revealStyle === 'ink' ? `url(#mask-ink-${i})` : undefined}>
                       {c.enableGlow !== false && mode !== 'multiply' && (
@@ -338,7 +368,6 @@ export const MapAnimation: React.FC<{
                 );
               })}
 
-              {/* RENDER TAKEOVERS BELONGING TO THIS BLEND MODE */}
               {takeovers.map((t: any, i: number) => {
                 const start = Number(t.startFrame ?? 0);
                 if (frame < start) return null;
@@ -375,7 +404,6 @@ export const MapAnimation: React.FC<{
             </svg>
           ))}
 
-          {/* VECTORS, LABELS & ASSETS (Rendered on top of Blend Mode Layers) */}
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 30, pointerEvents: 'none', shapeRendering: 'geometricPrecision' }}>
             {arrows.map((arrow: any, i: number) => {
               const startF = arrow.startFrame || 0;

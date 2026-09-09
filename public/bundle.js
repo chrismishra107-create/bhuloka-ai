@@ -67102,8 +67102,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
   // src/MapAnimation.tsx
   var import_jsx_runtime59 = __toESM(require_jsx_runtime());
   var GEOJSON_RESOURCES = {
-    rivers: "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson",
-    states: "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson"
+    rivers: "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_rivers_lake_centerlines.geojson",
+    states: "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces.geojson"
   };
   var dynamicGeoCache = /* @__PURE__ */ new Map();
   var clamp = (v2, a4 = 0, b4 = 1) => Math.max(a4, Math.min(b4, v2));
@@ -67119,6 +67119,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [mapLoaded, setMapLoaded] = (0, import_react121.useState)(false);
     const [initialHandle] = (0, import_react121.useState)(() => delayRender("Booting Cinematic WebGL Engine"));
     const [extraData, setExtraData] = (0, import_react121.useState)([]);
+    const pathCache = (0, import_react121.useRef)({});
+    const lastCameraHash = (0, import_react121.useRef)("");
     const isUserInteracting = (0, import_react121.useRef)(false);
     const frame = useCurrentFrame();
     const { width, height } = useVideoConfig();
@@ -67176,6 +67178,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       }
       return keyframes[keyframes.length - 1];
     }, [keyframes, frame]);
+    const currentCameraHash = `${camera.lng.toFixed(4)}_${camera.lat.toFixed(4)}_${camera.zoom.toFixed(2)}_${camera.pitch.toFixed(1)}_${camera.bearing.toFixed(1)}`;
+    if (lastCameraHash.current !== currentCameraHash) {
+      pathCache.current = {};
+      lastCameraHash.current = currentCameraHash;
+    }
     const getStyleDef = (styleId) => {
       const styles = {
         satellite: { version: 8, sources: { r: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 } }, layers: [{ id: "b", type: "raster", source: "r", paint: { "raster-saturation": -0.15, "raster-contrast": 0.08 } }] },
@@ -67259,13 +67266,12 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         if (map.areTilesLoaded()) release();
         else map.once("idle", release);
       }
-    }, [camera, mapLoaded, isRendering, frame]);
+    }, [camera, mapLoaded, isRendering, isLiveEditMode, frame]);
     const project = (coord) => {
       if (!mapRef.current) return null;
       try {
         const p2 = mapRef.current.project(coord);
         if (!Number.isFinite(p2.x) || !Number.isFinite(p2.y)) return null;
-        if (p2.x < -width * 4 || p2.x > width * 5 || p2.y < -height * 4 || p2.y > height * 5) return null;
         return p2;
       } catch {
         return null;
@@ -67274,9 +67280,12 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const geometryFor = (name) => {
       if (!name || !mapLoaded) return { path: "", center: null, isLine: false };
       const norm = String(name).trim().toLowerCase();
+      if (pathCache.current[norm] && pathCache.current[norm].path !== "") {
+        return pathCache.current[norm];
+      }
       let geom = null;
       if (["india", "ind", "bharat"].includes(norm)) {
-        geom = india_default.features?.[0]?.geometry || india_default;
+        geom = india_default.geometry || india_default.features?.[0]?.geometry || india_default;
       }
       if (!geom) {
         for (const src of [world_default, ...extraData]) {
@@ -67294,23 +67303,19 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       const lines = [];
       const extractCoords = (coords) => {
         if (!Array.isArray(coords)) return;
-        if (typeof coords[0] === "number" && typeof coords[1] === "number") {
-          return;
-        }
         if (typeof coords[0][0] === "number") {
           lines.push(coords);
         } else {
           coords.forEach(extractCoords);
         }
       };
-      if (geom.coordinates) {
-        extractCoords(geom.coordinates);
-      }
+      if (geom.coordinates) extractCoords(geom.coordinates);
       const isLine = geom.type.includes("Line");
       let path = "";
       let sumLng = 0, sumLat = 0, pointCount = 0;
       for (const line of lines) {
         let first = true;
+        let lastPx = { x: -999, y: -999 };
         for (const coord of line) {
           if (!coord || coord.length < 2) continue;
           sumLng += Number(coord[0]);
@@ -67321,13 +67326,20 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             first = true;
             continue;
           }
-          path += `${first ? "M" : "L"} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} `;
+          const dist = Math.hypot(p2.x - lastPx.x, p2.y - lastPx.y);
+          if (!first && dist < 1.5) continue;
+          path += `${first ? "M" : "L"} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)} `;
           first = false;
+          lastPx = { x: p2.x, y: p2.y };
         }
         if (!isLine && path) path += "Z ";
       }
       const center = pointCount > 0 ? [sumLng / pointCount, sumLat / pointCount] : null;
-      return { path, center, isLine };
+      const result = { path, center, isLine };
+      if (path !== "") {
+        pathCache.current[norm] = result;
+      }
+      return result;
     };
     const cssBlendModes = ["normal", "multiply", "screen", "overlay", "color-dodge"];
     return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(AbsoluteFill, { style: { background: "#040711", overflow: "hidden" }, children: [
@@ -67378,7 +67390,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             const assignedBlend = mode === "color-dodge" ? "color-dodge" : mode;
             if (assignedBlend !== blendGroup) return null;
             if (takeovers.some((t4) => (t4.target || "").toLowerCase() === c4.name.toLowerCase() && frame >= t4.startFrame + (t4.duration || 90))) return null;
-            const { path, isLine } = geometryFor(c4.name);
+            const { path, isLine, center } = geometryFor(c4.name);
             if (!path) return null;
             const t3 = revealEase(clamp((frame - start) / Number(c4.fadeInDuration ?? 30)));
             const alpha = frame > end - 20 ? clamp((end - frame) / 20) : t3;
@@ -67394,8 +67406,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
               const trimT = revealEase(clamp((frame - start) / Number(c4.trimDuration ?? 45)));
               return /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("g", { opacity: alpha, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: "none", stroke: c4.color || "#3b82f6", strokeWidth: c4.strokeWidth || 4, strokeLinecap: "round", strokeLinejoin: "round", strokeDasharray: dashLength, strokeDashoffset: c4.revealStyle === "trim" ? dashLength * (1 - trimT) : 0, style: { filter: glowFilter } }) }, `entity-line-${i2}`);
             }
+            const centerProj = center ? project(center) : null;
             return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { opacity: alpha, children: [
-              c4.revealStyle === "ink" ? /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("mask", { id: `mask-ink-${i2}`, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: width / 2, cy: height / 2, r: Math.max(width, height) * 1.5 * t3, fill: "white", style: { filter: "url(#ink-displacement)" } }) }) : null,
+              c4.revealStyle === "ink" ? /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("mask", { id: `mask-ink-${i2}`, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: centerProj?.x ?? width / 2, cy: centerProj?.y ?? height / 2, r: Math.max(width, height) * 1.5 * t3, fill: "white", style: { filter: "url(#ink-displacement)" } }) }) : null,
               /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { mask: c4.revealStyle === "ink" ? `url(#mask-ink-${i2})` : void 0, children: [
                 c4.enableGlow !== false && mode !== "multiply" && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: c4.color || "#3b82f6", opacity: 0.5, style: { filter: `blur(${c4.glowIntensity || 20}px)` } }),
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: c4.color || "#3b82f6" }),
@@ -67563,6 +67576,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [newCountrySearch, setNewCountrySearch] = (0, import_react122.useState)("");
     const [allGeoNames, setAllGeoNames] = (0, import_react122.useState)([]);
     const [showSuggestions, setShowSuggestions] = (0, import_react122.useState)(false);
+    const [suggestionBox, setSuggestionBox] = (0, import_react122.useState)({ top: 0, left: 0, width: 0 });
     const [mapStyle, setMapStyle] = (0, import_react122.useState)("dark-documentary");
     const [labelText, setLabelText] = (0, import_react122.useState)("DMZ Border");
     const [labelColor, setLabelColor] = (0, import_react122.useState)("#ffffff");
@@ -67590,8 +67604,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       const loadExtras = async () => {
         try {
           const [rivRes, statRes] = await Promise.all([
-            fetch("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson"),
-            fetch("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson")
+            fetch("https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_rivers_lake_centerlines.geojson"),
+            fetch("https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces.geojson")
           ]);
           const rivData = await rivRes.json();
           const statData = await statRes.json();
@@ -67605,6 +67619,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           });
           setAllGeoNames(Array.from(names).filter(Boolean).sort());
         } catch (e64) {
+          console.error("GeoJSON Fetch Blocked:", e64);
         }
       };
       loadExtras();
@@ -67691,7 +67706,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
               setTimeout(resolve, 500);
             });
           }
-          await new Promise((r2) => requestAnimationFrame(() => requestAnimationFrame(() => r2())));
           ctx.globalCompositeOperation = "source-over";
           ctx.fillStyle = "#040711";
           ctx.fillRect(0, 0, exportWidth, exportHeight);
@@ -67811,16 +67825,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       });
       if (selectedEntity === name) setSelectedEntity(null);
     };
-    const deleteAsset = (id3) => {
-      setTimeline((prev) => {
-        const updated = { ...prev };
-        if (updated.assets) updated.assets = updated.assets.filter((a4) => a4.id !== id3);
-        if (updated.arrows) updated.arrows = updated.arrows.filter((a4) => a4.id !== id3);
-        if (updated.takeovers) updated.takeovers = updated.takeovers.filter((t3) => t3.id !== id3);
-        if (updated.labels) updated.labels = updated.labels.filter((l2) => l2.id !== id3);
-        return updated;
-      });
-    };
     const addCountryMap = (explicitName) => {
       const searchTarget = (explicitName ?? newCountrySearch).trim();
       if (!searchTarget) return;
@@ -67931,7 +67935,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                     setShowSuggestions(true);
                   },
                   onFocus: () => setShowSuggestions(true),
-                  onBlur: () => setTimeout(() => setShowSuggestions(false), 180),
+                  onBlur: () => setTimeout(() => setShowSuggestions(false), 200),
                   placeholder: "Search river, state, country...",
                   style: { width: "100%", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "11px", padding: "8px", borderRadius: "8px", outline: "none", boxSizing: "border-box" },
                   onKeyDown: (e64) => {
@@ -67939,27 +67943,14 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                   }
                 }
               ),
-              showSuggestions && filteredSuggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", inset: 0, zIndex: 10, width: "100%", height: "100%", pointerEvents: isLiveEdit ? "auto" : "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
-                Player,
-                {
-                  ref: playerRef,
-                  component: MapAnimation,
-                  inputProps: playerInputProps,
-                  durationInFrames: videoDuration,
-                  compositionWidth: 1080,
-                  compositionHeight: 1920,
-                  fps: 30,
-                  controls: false,
-                  clickToPlay: false,
-                  loop: true,
-                  autoPlay: true,
-                  style: { width: "100%", height: "100%", display: "block", pointerEvents: isLiveEdit ? "auto" : "none" }
-                }
-              ) })
+              showSuggestions && filteredSuggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", top: "100%", left: 0, right: 0, marginTop: "4px", background: "#111827", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", zIndex: 99999, maxHeight: "200px", overflowY: "auto", boxShadow: "0 15px 35px rgba(0,0,0,0.9)", boxSizing: "border-box" }, children: filteredSuggestions.map((s2) => /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onMouseDown: (e64) => {
+                e64.preventDefault();
+                addCountryMap(s2);
+              }, style: { padding: "10px 12px", fontSize: "11px", color: "#fff", cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.05)" }, children: s2 }, s2)) })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => addCountryMap(), style: { background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.3)", borderRadius: "8px", padding: "0 10px", fontWeight: "bold", cursor: "pointer" }, children: "+" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "500px", overflowY: "auto", overflowX: "hidden" }, children: timeline?.highlightCountries?.map((c4, idx) => {
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "500px", overflowY: "visible", overflowX: "hidden" }, children: timeline?.highlightCountries?.map((c4, idx) => {
             const name = c4.name || c4.country;
             const isSelected = selectedEntity === name;
             return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: isSelected ? "1px solid #38bdf8" : "1px solid rgba(255,255,255,0.08)" }, children: [
@@ -68060,7 +68051,10 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       ] })
     ] });
     const rightPanelJSX = /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", padding: "16px", boxSizing: "border-box" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleHDLocalExport, disabled: isPreloading || isExporting, style: { background: isExporting ? "#f59e0b" : "#10b981", color: "#000", border: "none", borderRadius: "10px", height: "42px", fontSize: "11px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer" }, children: isExporting ? `\u23F3 Exporting...` : "\u{1F3A5} Offline WebM (100% Tiles)" }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "10px" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleHDLocalExport, disabled: isPreloading || isExporting, style: { background: isExporting ? "#f59e0b" : "#3b82f6", color: "#fff", border: "none", borderRadius: "10px", height: "42px", fontSize: "11px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer" }, children: isExporting ? `\u23F3 Server Exporting...` : "\u{1F5A5}\uFE0F Server HD Export" }),
+        /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: handleDeterministicExport, disabled: isPreloading || isExporting, style: { background: isExporting ? "#f59e0b" : "#10b981", color: "#000", border: "none", borderRadius: "10px", height: "42px", fontSize: "11px", fontWeight: 800, cursor: isExporting ? "wait" : "pointer" }, children: isExporting ? `\u23F3 Exporting...` : "\u{1F3A5} Offline WebM (100% Tiles)" })
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.15em" }, children: "CAMERA ENGINE" }),
         isLiveEdit && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: () => setIsLiveEdit(false), style: { background: "transparent", color: "#8e8e93", border: "none", fontSize: "10px", cursor: "pointer" }, children: "\u2715 Close" })
@@ -68230,6 +68224,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
               controls: false,
               loop: true,
               autoPlay: true,
+              clickToPlay: false,
               style: { width: "100%", height: "100%", display: "block" }
             }
           ) }) })
