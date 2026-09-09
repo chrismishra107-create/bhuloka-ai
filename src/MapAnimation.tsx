@@ -77,8 +77,16 @@ export const MapAnimation: React.FC<{
   }, []);
 
   const getStyleDef = (styleId: string): any => {
-    if (styleId === 'street') return 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-    if (styleId === 'light') return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+    if (styleId === 'street') return {
+      version: 8,
+      sources: { r: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256 } },
+      layers: [{ id: 'b', type: 'raster', source: 'r' }]
+    };
+    if (styleId === 'light') return {
+      version: 8,
+      sources: { r: { type: 'raster', tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'], tileSize: 256 } },
+      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-brightness-max': 0.95 } }]
+    };
     if (styleId === 'natural-earth') return {
       version: 8,
       sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
@@ -89,7 +97,6 @@ export const MapAnimation: React.FC<{
       sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
       layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }]
     };
-    // Default Dark Documentary Cinematic Satellite
     return {
       version: 8,
       sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
@@ -187,7 +194,7 @@ export const MapAnimation: React.FC<{
     }
     
     if (lock !== null) {
-      const release = () => setTimeout(() => continueRender(lock!), 40);
+      const release = () => setTimeout(() => continueRender(lock!), 80);
       if (map.areTilesLoaded()) release(); else map.once('idle', release);
     }
   }, [camera, mapLoaded, isRendering, isLiveEditMode, frame]);
@@ -210,14 +217,14 @@ export const MapAnimation: React.FC<{
     let geom: any = null;
     if (['india', 'ind', 'bharat'].includes(norm)) geom = (indiaData as any).geometry || (indiaData as any).features?.[0]?.geometry || indiaData;
     
-    if (!geom && (norm.includes('ganges') || norm.includes('ganga'))) {
+    if (!geom && (norm.includes('ganges') || norm.includes('ganga') || norm.includes('brahmaputra') || norm.includes('yamuna') || norm.includes('indus'))) {
       const riverSource = extraData.find(src => src?.features?.some((f: any) => {
         const rName = String(f.properties?.name || f.properties?.NAME || '').toLowerCase();
-        return rName.includes('ganges') || rName.includes('ganga');
+        return rName.includes(norm);
       }));
       const match = (riverSource?.features || []).find((f: any) => {
         const rName = String(f.properties?.name || f.properties?.NAME || '').toLowerCase();
-        return rName.includes('ganges') || rName.includes('ganga');
+        return rName.includes(norm);
       });
       if (match) geom = match.geometry;
     }
@@ -225,8 +232,8 @@ export const MapAnimation: React.FC<{
     if (!geom) {
       for (const src of [worldData, ...extraData]) {
         const match = (src?.features || []).find((f: any) => {
-          const names = [f.properties?.ADMIN, f.properties?.admin, f.properties?.NAME, f.properties?.name, f.properties?.name_en].filter(Boolean).map(x => String(x).toLowerCase());
-          return names.includes(norm) || names.some(x => x.includes(norm) || norm.includes(x));
+          const names = [f.properties?.ADMIN, f.properties?.admin, f.properties?.NAME, f.properties?.name, f.properties?.name_en, f.properties?.district, f.properties?.DISTRICT].filter(Boolean).map(x => String(x).toLowerCase());
+          return names.includes(norm) || names.some(x => x === norm || x.includes(norm) || norm.includes(x));
         });
         if (match) { geom = match.geometry; break; }
       }
@@ -384,7 +391,7 @@ export const MapAnimation: React.FC<{
                         <path d={path} fill={c.color || '#3b82f6'} opacity={0.5} style={{ filter: `blur(${c.glowIntensity || 20}px)` }} />
                       )}
                       <path d={path} fill={c.color || '#3b82f6'} />
-                      {c.strokeWidth > 0 && <path d={path} fill="none" stroke={c.strokeColor || '#fff'} strokeWidth={c.strokeWidth} />}
+                      {(c.strokeWidth !== undefined ? c.strokeWidth : 2) > 0 && <path d={path} fill="none" stroke={c.strokeColor || '#fff'} strokeWidth={c.strokeWidth ?? 2} />}
                     </g>
                   </g>
                 );
@@ -516,30 +523,31 @@ export const MapAnimation: React.FC<{
               const color = l.color || '#ffffff';
               const bg = l.bg || '#f472b6';
               const font = l.font || 'sans-serif';
+              const style = l.style || 'geo-pin';
 
               return (
                 <g key={`lbl-${i}`} transform={`translate(${p.x}, ${p.y}) scale(${scale})`} opacity={alpha}>
-                  {l.style === 'callout' && (
+                  {style === 'callout' && (
                     <React.Fragment>
                       <circle cx="0" cy="0" r="6" fill={color} style={{ filter: l.glow !== false ? `drop-shadow(0 0 12px ${color})` : 'none' }} />
                       <path d={`M 0 0 L 30 -40 L ${30 + txt.length * (size*0.6)} -40`} fill="none" stroke={color} strokeWidth="3" strokeDasharray="500" strokeDashoffset={500 * (1 - intro)} />
                       {intro > 0.5 && <text x="40" y="-48" fill={color} fontSize={size} fontWeight="900" fontFamily={font}>{txt}</text>}
                     </React.Fragment>
                   )}
-                  {l.style === 'geo-pin' && (
+                  {style === 'geo-pin' && (
                     <g transform={`translate(-${(txt.length * (size*0.6) + 36)/2}, -${size + 28})`}>
                       <rect width={txt.length * (size*0.6) + 36} height={size + 16} rx="10" fill={bg} style={{ filter: l.glow !== false ? `drop-shadow(0 0 20px ${color})` : 'none' }} />
                       <path d={`M ${(txt.length * (size*0.6) + 36)/2 - 6} ${size + 16} L ${(txt.length * (size*0.6) + 36)/2} ${size + 24} L ${(txt.length * (size*0.6) + 36)/2 + 6} ${size + 16} Z`} fill={bg} />
                       <text x={(txt.length * (size*0.6) + 36)/2} y={(size + 16)/2 + 2} fill={color} fontSize={size} fontWeight="900" fontFamily={font} textAnchor="middle" dominantBaseline="middle">{txt}</text>
                     </g>
                   )}
-                  {l.style === 'pill' && (
+                  {style === 'pill' && (
                     <g transform={`translate(-${(txt.length * (size*0.6) + 40)/2}, -${(size + 16)/2})`}>
                       <rect width={txt.length * (size*0.6) + 40} height={size + 16} rx="8" fill={bg} style={{ filter: l.glow !== false ? `drop-shadow(0 0 20px ${color})` : 'none' }} />
                       <text x={(txt.length * (size*0.6) + 40)/2} y={(size + 16)/2 + 2} fill={color} fontSize={size} fontWeight="900" fontFamily={font} textAnchor="middle" dominantBaseline="middle">{txt}</text>
                     </g>
                   )}
-                  {l.style === 'minimal' && (
+                  {style === 'minimal' && (
                     <React.Fragment>
                       <circle cx="0" cy="0" r="6" fill={color} style={{ filter: l.glow !== false ? `drop-shadow(0 0 12px ${color})` : 'none' }} />
                       <text x="16" y="2" fill={color} fontSize={size} fontWeight="900" fontFamily={font} dominantBaseline="middle">{txt}</text>
