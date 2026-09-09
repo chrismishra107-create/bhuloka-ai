@@ -1,91 +1,395 @@
 {
-  "title": "North Korea vs South Korea (Manual)",
-  "totalFrames": 300,
-  "highlightCountries": [
+  "title": "States and Union Territories of India",
+  "totalFrames": 600,
+  "cameraKeyframes": [
     {
-      "name": "North Korea",
-      "country": "North Korea",
-      "color": "#ef4444",
-      "strokeColor": "#ffffff",
-      "strokeWidth": 2,
-      "enableGlow": true,
-      "glowTarget": "both",
-      "dropShadow": true,
-      "blendMode": "screen",
-      "isPrimary": true,
-      "startFrame": 0,
-      "revealStyle": "ink"
+      "frame": 0,
+      "lng": 78.9629,
+      "lat": 20.5937,
+      "zoom": 3.5,
+      "pitch": 15
     },
     {
-      "name": "South Korea",
-      "country": "South Korea",
-      "color": "#3b82f6",
-      "strokeColor": "#ffffff",
-      "strokeWidth": 2,
-      "enableGlow": true,
-      "glowTarget": "both",
-      "dropShadow": true,
-      "blendMode": "screen",
-      "isPrimary": false,
+      "frame": 600,
+      "lng": 78.9629,
+      "lat": 20.5937,
+      "zoom": 4.2,
+      "pitch": 35
+    }
+  ],
+  "highlightCountries": [
+    {
+      "name": "Andhra Pradesh",
       "startFrame": 0,
-      "revealStyle": "ink"
+      "endFrame": 40,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Arunachal Pradesh",
+      "startFrame": 12,
+      "endFrame": 52,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Assam",
+      "startFrame": 24,
+      "endFrame": 64,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Bihar",
+      "startFrame": 36,
+      "endFrame": 76,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Chhattisgarh",
+      "startFrame": 48,
+      "endFrame": 88,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Goa",
+      "startFrame": 60,
+      "endFrame": 100,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Gujarat",
+      "startFrame": 72,
+      "endFrame": 112,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Haryana",
+      "startFrame": 84,
+      "endFrame": 124,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Himachal Pradesh",
+      "startFrame": 96,
+      "endFrame": 136,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Jharkhand",
+      "startFrame": 108,
+      "endFrame": 148,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Karnataka",
+      "startFrame": 120,
+      "endFrame": 160,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Kerala",
+      "startFrame": 132,
+      "endFrame": 172,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Madhya Pradesh",
+      "startFrame": 144,
+      "endFrame": 184,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Maharashtra",
+      "startFrame": 156,
+      "endFrame": 196,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Manipur",
+      "startFrame": 168,
+      "endFrame": 208,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Meghalaya",
+      "startFrame": 180,
+      "endFrame": 220,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Mizoram",
+      "startFrame": 192,
+      "endFrame": 232,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Nagaland",
+      "startFrame": 204,
+      "endFrame": 244,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Odisha",
+      "startFrame": 216,
+      "endFrame": 256,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Punjab",
+      "startFrame": 228,
+      "endFrame": 268,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Rajasthan",
+      "startFrame": 240,
+      "endFrame": 280,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Sikkim",
+      "startFrame": 252,
+      "endFrame": 292,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Tamil Nadu",
+      "startFrame": 264,
+      "endFrame": 304,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Telangana",
+      "startFrame": 276,
+      "endFrame": 316,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Tripura",
+      "startFrame": 288,
+      "endFrame": 328,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Uttar Pradesh",
+      "startFrame": 300,
+      "endFrame": 340,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Uttarakhand",
+      "startFrame": 312,
+      "endFrame": 352,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "West Bengal",
+      "startFrame": 324,
+      "endFrame": 364,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Andaman and Nicobar Islands",
+      "startFrame": 336,
+      "endFrame": 376,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Chandigarh",
+      "startFrame": 348,
+      "endFrame": 388,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Dadra and Nagar Haveli and Daman and Diu",
+      "startFrame": 360,
+      "endFrame": 400,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Delhi",
+      "startFrame": 372,
+      "endFrame": 412,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Jammu and Kashmir",
+      "startFrame": 384,
+      "endFrame": 424,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Ladakh",
+      "startFrame": 396,
+      "endFrame": 436,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Lakshadweep",
+      "startFrame": 408,
+      "endFrame": 448,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
+    },
+    {
+      "name": "Puducherry",
+      "startFrame": 420,
+      "endFrame": 460,
+      "color": "#f59e0b",
+      "isPrimary": false,
+      "revealStyle": "fade",
+      "blendMode": "screen",
+      "enableGlow": true
     }
   ],
   "takeovers": [],
   "arrows": [],
-  "labels": [],
-  "cameraKeyframes": [
+  "labels": [
     {
-      "frame": 0,
-      "zoom": 1.2,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "pitch": 45,
-      "bearing": 0,
-      "easing": "easeInOut"
-    },
-    {
-      "frame": 42,
-      "zoom": 4.949999944120646,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "pitch": 19,
-      "bearing": -15
-    },
-    {
-      "frame": 101,
-      "zoom": 8.699999888241292,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "pitch": 60.5,
-      "bearing": 41
-    },
-    {
-      "frame": 154,
-      "zoom": 6.199999925494195,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "pitch": 62.5,
-      "bearing": 20
-    },
-    {
-      "frame": 196,
-      "lat": 38,
-      "lng": 127,
-      "latitude": 38,
-      "longitude": 127,
-      "zoom": 5.574999934807421,
-      "pitch": 19,
-      "bearing": 6
+      "text": "INDIA STATES & UTS",
+      "lat": 20.5937,
+      "lng": 78.9629,
+      "startFrame": 0,
+      "duration": 600,
+      "glow": true,
+      "pinned": true
     }
-  ],
-  "assets": []
+  ]
 }

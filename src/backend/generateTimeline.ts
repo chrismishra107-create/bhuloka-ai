@@ -68,6 +68,19 @@ export interface GeneratedTimeline {
   labels?: LabelEvent[];
 }
 
+function extractColor(prompt: string): string {
+  const p = prompt.toLowerCase();
+  if (p.includes('red') || p.includes('crimson')) return '#ef4444';
+  if (p.includes('blue') || p.includes('cyan')) return '#3b82f6';
+  if (p.includes('green') || p.includes('emerald')) return '#10b981';
+  if (p.includes('yellow') || p.includes('gold')) return '#f59e0b';
+  if (p.includes('purple') || p.includes('violet')) return '#8b5cf6';
+  if (p.includes('orange')) return '#f97316';
+  const hexMatch = p.match(/#[0-9a-f]{6}/i);
+  if (hexMatch) return hexMatch[0];
+  return '#3b82f6';
+}
+
 function getCountriesByContinent(continentName: string): string[] {
   try {
     const worldPath = path.resolve(__dirname, '..', 'world.json');
@@ -99,6 +112,52 @@ function getCountriesByContinent(continentName: string): string[] {
     ];
   }
   return [];
+}
+
+function getIndianStatesAndUTs(): string[] {
+  return [
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", 
+    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", 
+    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", 
+    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", 
+    "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+    "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", 
+    "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+  ];
+}
+
+function getDistrictsForState(stateName: string): string[] {
+  try {
+    const districtPath = path.resolve(__dirname, '..', 'public', 'india_districts.geojson');
+    if (fs.existsSync(districtPath)) {
+      const data = JSON.parse(fs.readFileSync(districtPath, 'utf8'));
+      const normState = stateName.toLowerCase();
+      const matches: string[] = [];
+      data.features.forEach((f: any) => {
+        const p = f.properties || {};
+        const s = String(p.STATE || p.state || p.ST_NM || '').toLowerCase();
+        const d = p.DISTRICT || p.district || p.DIST || p.name;
+        if (s.includes(normState) && d && !matches.includes(d)) {
+          matches.push(d);
+        }
+      });
+      if (matches.length > 0) return matches;
+    }
+  } catch (e) {
+    console.error('[District Engine] Failed to read districts geojson:', e);
+  }
+  
+  const norm = stateName.toLowerCase();
+  if (norm.includes('uttar pradesh') || norm.includes('up')) {
+    return ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj", "Meerut", "Noida", "Ghaziabad", "Bareilly", "Aligarh", "Moradabad", "Gorakhpur", "Ayodhya", "Jhansi", "Mathura"];
+  }
+  if (norm.includes('bihar')) {
+    return ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Purnia", "Darbhanga", "Bihar Sharif", "Arrah", "Begusarai", "Katihar", "Munger", "Chhapra"];
+  }
+  if (norm.includes('karnataka')) {
+    return ["Bengaluru Urban", "Mysuru", "Hubballi-Dharwad", "Mangaluru", "Belagavi", "Kalaburagi", "Davanagere", "Ballari", "Vijayapura", "Shivamogga", "Tumakuru"];
+  }
+  return ["District 1", "District 2", "District 3", "District 4", "District 5"];
 }
 
 function getDynamicCountryCenter(countryName: string): [number, number] {
@@ -134,6 +193,79 @@ function getDynamicCountryCenter(countryName: string): [number, number] {
 
 export async function parseSrtWithGemini(inputContent: string): Promise<GeneratedTimeline> {
   const promptLower = inputContent.toLowerCase().trim();
+  const customColor = extractColor(inputContent);
+
+  if (promptLower.includes('district') || promptLower.includes('districts')) {
+    let targetState = 'uttar pradesh';
+    if (promptLower.includes('bihar')) targetState = 'bihar';
+    else if (promptLower.includes('karnataka')) targetState = 'karnataka';
+    else if (promptLower.includes('maharashtra')) targetState = 'maharashtra';
+    else if (promptLower.includes('gujarat')) targetState = 'gujarat';
+
+    const districts = getDistrictsForState(targetState);
+    console.log(`\n[PROGRAMMATIC ENGINE] Detected districts query for '${targetState}'. Generating ${districts.length} entities via code loop.`);
+    
+    const totalFrames = Math.max(300, districts.length * 15);
+    const highlightCountries = districts.map((district, index) => {
+      const startFrame = index * 12;
+      return {
+        name: district,
+        startFrame: startFrame,
+        endFrame: startFrame + 40,
+        color: customColor,
+        isPrimary: false,
+        revealStyle: "fade" as const,
+        blendMode: "screen",
+        enableGlow: true
+      };
+    });
+
+    return {
+      title: `Districts of ${targetState.toUpperCase()}`,
+      totalFrames: totalFrames,
+      cameraKeyframes: [
+        { frame: 0, lng: 78.9629, lat: 20.5937, zoom: 4.0, pitch: 15 },
+        { frame: totalFrames, lng: 78.9629, lat: 20.5937, zoom: 5.2, pitch: 35 }
+      ],
+      highlightCountries,
+      takeovers: [],
+      arrows: [],
+      labels: [{ text: `${targetState.toUpperCase()} DISTRICTS`, lat: 20.5937, lng: 78.9629, startFrame: 0, duration: totalFrames, glow: true, pinned: true }]
+    };
+  }
+
+  if (promptLower.includes('state') || promptLower.includes('union territory') || promptLower.includes('india states')) {
+    const states = getIndianStatesAndUTs();
+    console.log(`\n[PROGRAMMATIC ENGINE] Detected India states query. Generating ${states.length} entities via code loop.`);
+    
+    const totalFrames = Math.max(600, states.length * 15);
+    const highlightCountries = states.map((state, index) => {
+      const startFrame = index * 12;
+      return {
+        name: state,
+        startFrame: startFrame,
+        endFrame: startFrame + 40,
+        color: customColor,
+        isPrimary: false,
+        revealStyle: "fade" as const,
+        blendMode: "screen",
+        enableGlow: true
+      };
+    });
+
+    return {
+      title: "States and Union Territories of India",
+      totalFrames: totalFrames,
+      cameraKeyframes: [
+        { frame: 0, lng: 78.9629, lat: 20.5937, zoom: 3.5, pitch: 15 },
+        { frame: totalFrames, lng: 78.9629, lat: 20.5937, zoom: 4.2, pitch: 35 }
+      ],
+      highlightCountries,
+      takeovers: [],
+      arrows: [],
+      labels: [{ text: "INDIA STATES & UTS", lat: 20.5937, lng: 78.9629, startFrame: 0, duration: totalFrames, glow: true, pinned: true }]
+    };
+  }
 
   if (promptLower.includes('all countries') || promptLower.includes('countries of') || promptLower.includes('countries in')) {
     let targetContinent = 'asia';
@@ -152,7 +284,7 @@ export async function parseSrtWithGemini(inputContent: string): Promise<Generate
           name: country,
           startFrame: startFrame,
           endFrame: startFrame + 40,
-          color: index % 2 === 0 ? "#3b82f6" : "#ef4444",
+          color: customColor,
           isPrimary: false,
           revealStyle: "fade" as const,
           blendMode: "screen",
@@ -190,11 +322,11 @@ export async function parseSrtWithGemini(inputContent: string): Promise<Generate
         { frame: 300, lng: centerLng, lat: centerLat, zoom: 4.8, pitch: 45 }
       ],
       highlightCountries: [
-        { name: invader, startFrame: 0, endFrame: 300, color: "#ef4444", isPrimary: true, revealStyle: "ink", blendMode: "screen", enableGlow: true },
+        { name: invader, startFrame: 0, endFrame: 300, color: customColor, isPrimary: true, revealStyle: "ink", blendMode: "screen", enableGlow: true },
         { name: target, startFrame: 0, endFrame: 300, color: "#3b82f6", isPrimary: false, revealStyle: "fade", blendMode: "screen", enableGlow: true }
       ],
       takeovers: [
-        { invader: invader, target: target, startFrame: 45, duration: 180, color: "#ef4444", origin: [centerLng, centerLat] }
+        { invader: invader, target: target, startFrame: 45, duration: 180, color: customColor, origin: [centerLng, centerLat] }
       ],
       arrows: [],
       labels: [{ text: "Conflict Zone", lat: centerLat, lng: centerLng, startFrame: 30, duration: 250, glow: true, pinned: true }]
