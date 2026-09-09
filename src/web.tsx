@@ -4,29 +4,28 @@ import { Player, PlayerRef } from '@remotion/player';
 import { MapAnimation } from './MapAnimation';
 import worldData from './world.json';
 import './index.css';
-import { Muxer, ArrayBufferTarget } from 'webm-muxer';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 
-const BUILD_STORIES = [
-  "Conquering the 15MB Natural Earth River GeoJSON bottleneck...",
-  "Debugging WebGL black void and camera autopilot locks...",
-  "Bypassing Gemini token limits for mass-district rendering...",
-  "Optimizing ink-bleed displacement maps for cinematic transitions...",
-  "Syncing SVG coordinates with MapLibre camera matrix..."
+const CINEMATIC_BUILD_LORE = [
+  "Initializing cinematic satellite projection matrices...",
+  "Calibrating high-speed WebGL tile cache memory...",
+  "Rendering geopolitical vector boundaries & administrative layers...",
+  "Synthesizing high-end motion graphics & ink-bleed shaders...",
+  "Locking camera focal paths and keyframe interpolations..."
 ];
 
 const CinematicLoader: React.FC = () => {
-  const [storyIndex, setStoryIndex] = useState(0);
+  const [loreIndex, setLoreIndex] = useState(0);
   useEffect(() => {
-    const interval = setInterval(() => { setStoryIndex(prev => (prev + 1) % BUILD_STORIES.length); }, 2500);
+    const interval = setInterval(() => { setLoreIndex(prev => (prev + 1) % CINEMATIC_BUILD_LORE.length); }, 2200);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', background: '#040711', padding: '40px', borderRadius: '24px', border: '1px solid rgba(56,189,248,0.3)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', background: '#040711', padding: '40px', borderRadius: '24px', border: '1px solid rgba(56,189,248,0.3)', boxShadow: '0 25px 60px rgba(0,0,0,0.8)' }}>
       <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '4px solid rgba(56,189,248,0.2)', borderTopColor: '#38bdf8', animation: 'spin 1s linear infinite' }} />
-      <div style={{ fontSize: '14px', letterSpacing: '0.2em', color: '#38bdf8', fontWeight: 800 }}>BHULOKA ENGINE INITIALIZING</div>
-      <div style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '300px', textAlign: 'center', fontFamily: 'monospace' }}>{BUILD_STORIES[storyIndex]}</div>
+      <div style={{ fontSize: '14px', letterSpacing: '0.2em', color: '#38bdf8', fontWeight: 800 }}>BUILDING CINEMATIC TIMELINE</div>
+      <div style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '320px', textAlign: 'center', fontFamily: 'monospace', height: '32px' }}>{CINEMATIC_BUILD_LORE[loreIndex]}</div>
       <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -44,7 +43,6 @@ const WebApp: React.FC = () => {
   
   const [timeline, setTimeline] = useState<any | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(300);
-  const [isTimelineOpen, setIsTimelineOpen] = useState<boolean>(true);
 
   const [isDesktop, setIsDesktop] = useState<boolean>(true);
   useEffect(() => {
@@ -62,7 +60,6 @@ const WebApp: React.FC = () => {
   
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<string>('');
-  const [isPreloading, setIsPreloading] = useState<boolean>(false);
   
   const [targetLat, setTargetLat] = useState<number>(38.0);
   const [targetLng, setTargetLng] = useState<number>(127.0);
@@ -88,8 +85,12 @@ const WebApp: React.FC = () => {
   const [labelGlow, setLabelGlow] = useState<boolean>(true);
   const [labelPinned, setLabelPinned] = useState<boolean>(true);
 
+  const [arrowSource, setArrowSource] = useState<string>('North Korea');
+  const [arrowTarget, setArrowTarget] = useState<string>('South Korea');
+  const [arrowColor, setArrowColor] = useState<string>('#ef4444');
+
   const [openBranches, setOpenBranches] = useState<Record<string, boolean>>({
-    entities: true, typography: false, mapStyle: false, vectors: false
+    entities: true, typography: false, mapStyle: false, vectors: true
   });
   const toggleBranch = (key: string) => setOpenBranches(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -149,7 +150,7 @@ const WebApp: React.FC = () => {
 
   const handleDeterministicExport = async () => {
     if (typeof VideoEncoder === 'undefined') { alert('Browser does not support WebCodecs.'); return; }
-    setIsExporting(true); setExportProgress('Initializing encoder...');
+    setIsExporting(true); setExportProgress('Initializing encoder & locking tile cache...');
     playerRef.current?.pause(); setIsPlaying(false);
     try {
       const exportWidth = 1080, exportHeight = 1920, fps = 30;
@@ -161,7 +162,7 @@ const WebApp: React.FC = () => {
       }
       const muxer = new MuxerModule.Muxer({ target: new MuxerModule.ArrayBufferTarget(), video: { codec: 'V_VP8', width: exportWidth, height: exportHeight, frameRate: fps } });
       const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (err) => console.error('VideoEncoder:', err) });
-      encoder.configure({ codec: 'vp8', width: exportWidth, height: exportHeight, bitrate: 10_000_000, framerate: fps });
+      encoder.configure({ codec: 'vp8', width: exportWidth, height: exportHeight, bitrate: 12_000_000, framerate: fps });
 
       const canvas = document.createElement('canvas');
       canvas.width = exportWidth; canvas.height = exportHeight;
@@ -171,23 +172,28 @@ const WebApp: React.FC = () => {
       const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
       for (let f = 0; f < videoDuration; f++) {
-        setExportProgress(`Exporting frame ${f + 1}/${videoDuration}`);
+        setExportProgress(`Exporting frame ${f + 1}/${videoDuration} (Syncing WebGL Idle)`);
         setCurrentFrame(f);
         playerRef.current?.seekTo(f);
-        await wait(50);
+        await wait(60);
 
         const map = (window as any).__mapInstance as MapLibreMap | null;
         if (map) {
           map.resize(); map.triggerRepaint();
           let tries = 0;
-          while (!map.areTilesLoaded() && tries++ < 30) await wait(50);
-          await new Promise<void>(resolve => { map.once('idle', () => resolve()); map.triggerRepaint(); setTimeout(resolve, 300); });
+          while ((!map.areTilesLoaded() || map.isMoving()) && tries++ < 40) await wait(40);
+          await new Promise<void>(resolve => {
+            map.once('idle', () => setTimeout(resolve, 80));
+            map.triggerRepaint();
+          });
         }
         
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = '#040711'; ctx.fillRect(0, 0, exportWidth, exportHeight);
         const mapCanvas = map?.getCanvas() || null;
-        if (mapCanvas && mapCanvas.width > 0 && mapCanvas.height > 0) ctx.drawImage(mapCanvas, 0, 0, mapCanvas.width, mapCanvas.height, 0, 0, exportWidth, exportHeight);
+        if (mapCanvas && mapCanvas.width > 0 && mapCanvas.height > 0) {
+          ctx.drawImage(mapCanvas, 0, 0, mapCanvas.width, mapCanvas.height, 0, 0, exportWidth, exportHeight);
+        }
 
         const svgs = document.querySelectorAll('svg');
         for (let i = 0; i < svgs.length; i++) {
@@ -206,7 +212,7 @@ const WebApp: React.FC = () => {
         vf.close();
         if (encoder.encodeQueueSize > 3) await encoder.flush();
       }
-      setExportProgress('Finalizing video...');
+      setExportProgress('Finalizing video container...');
       await encoder.flush(); encoder.close(); muxer.finalize();
       const blob = new Blob([muxer.target.buffer], { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
@@ -277,6 +283,15 @@ const WebApp: React.FC = () => {
     setTimeline((prev: any) => {
       const updated = { ...prev };
       updated.labels = [...(prev.labels || []), { id: Math.random().toString(36).substr(2, 9), text: labelText, lat: targetLat, lng: targetLng, startFrame: currentFrame, duration: 300, color: labelColor, bg: labelBg, size: labelSize, glow: labelGlow, pinned: labelPinned, style: labelStyle }];
+      return updated;
+    });
+  };
+
+  const addArrowPath = () => {
+    if (!arrowSource || !arrowTarget) return;
+    setTimeline((prev: any) => {
+      const updated = { ...prev };
+      updated.arrows = [...(updated.arrows || []), { id: Math.random().toString(36).substr(2, 9), type: 'arrow', sourceName: arrowSource, targetName: arrowTarget, startFrame: currentFrame, duration: 60, color: arrowColor }];
       return updated;
     });
   };
@@ -369,15 +384,6 @@ const WebApp: React.FC = () => {
         <BranchHeader title="🌍 SCENE ENTITIES" branchKey="entities" />
         {openBranches.entities && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', gap: '6px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <button onClick={() => {
-                setTimeline((prev: any) => ({
-                  ...prev,
-                  highlightCountries: (prev.highlightCountries || []).map((c: any) => ({ ...c, color: '#3b82f6', enableGlow: true, strokeWidth: 1 }))
-                }));
-              }} style={{ flex: 1, background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.4)', borderRadius: '6px', padding: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}>⚡ Select All / Reset Blue</button>
-            </div>
-
             <div style={{ display: 'flex', gap: '6px', position: 'relative', width: '100%' }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <input
@@ -437,6 +443,22 @@ const WebApp: React.FC = () => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <BranchHeader title="✍️ GEO-VECTORS & ARROWS" branchKey="vectors" />
+        {openBranches.vectors && (
+          <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '10px', color: '#8e8e93' }}>Connect two entities with a cinematic animated vector arrow:</div>
+            <input type="text" value={arrowSource} onChange={(e) => setArrowSource(e.target.value)} placeholder="From Entity (e.g. North Korea)" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none', boxSizing: 'border-box' }} />
+            <input type="text" value={arrowTarget} onChange={(e) => setArrowTarget(e.target.value)} placeholder="To Entity (e.g. South Korea)" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none', boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+              <span style={{ color: '#8e8e93' }}>Arrow Color</span>
+              <input type="color" value={arrowColor} onChange={(e) => setArrowColor(e.target.value)} style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+            </div>
+            <button onClick={addArrowPath} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>➕ Draw Animated Arrow</button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <BranchHeader title="📝 TYPOGRAPHY & LABELS" branchKey="typography" />
         {openBranches.typography && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -471,14 +493,110 @@ const WebApp: React.FC = () => {
 
   const rightPanelJSX = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', boxSizing: 'border-box' }}>
-      <button onClick={handleHDLocalExport} disabled={isPreloading || isExporting} style={{ background: isExporting ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '42px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+      <button onClick={handleHDLocalExport} disabled={isExporting} style={{ background: isExporting ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '42px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
         {isExporting ? `⏳ Server Exporting...` : '🖥️ Server HD Export'}
       </button>
-      <button onClick={handleDeterministicExport} disabled={isPreloading || isExporting} style={{ background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '42px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+      <button onClick={handleDeterministicExport} disabled={isExporting} style={{ background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '42px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
         {isExporting ? `⏳ Exporting...` : '🎥 Offline WebM (100% Tiles)'}
       </button>
+
+      <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', marginTop: '10px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>CAMERA ENGINE</div>
+      {!isLiveEdit ? (
+        <button onClick={() => setIsLiveEdit(true)} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '4px' }}>🎯 Enter Live Canvas Edit</button>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+          <button onClick={() => setIsLiveEdit(false)} style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '8px', padding: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🔒 Lock Map Interactions</button>
+          <button onClick={dropKeyframeLive} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>📍 Save Keyframe Here</button>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
+            <span style={{ color: '#8e8e93' }}>PITCH TILT</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetPitch)}°</span>
+          </div>
+          <input type="range" min="0" max="85" step="1" value={targetPitch} onChange={(e) => {
+            const p = Number(e.target.value); setTargetPitch(p);
+            if ((window as any).__mapInstance) (window as any).__mapInstance.setPitch(p);
+          }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '2px' }}>
+            <span style={{ color: '#8e8e93' }}>BEARING ROTATION</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetBearing)}°</span>
+          </div>
+          <input type="range" min="-180" max="180" step="1" value={targetBearing} onChange={(e) => {
+            const b = Number(e.target.value); setTargetBearing(b);
+            if ((window as any).__mapInstance) (window as any).__mapInstance.setBearing(b);
+          }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
+        </div>
+      )}
     </div>
   );
+
+  const handleDragEdge = (e: React.PointerEvent, index: number, isStart: boolean) => {
+    e.stopPropagation();
+    const track = trackContainerRef.current?.getBoundingClientRect();
+    if (!track) return;
+    const onMove = (moveEvent: PointerEvent) => {
+      const px = moveEvent.clientX - track.left;
+      const pct = Math.max(0, Math.min(1, px / track.width));
+      const frame = Math.round(pct * videoDuration);
+      setTimeline((prev: any) => {
+        const u = { ...prev, highlightCountries: [...prev.highlightCountries] };
+        const entity = u.highlightCountries[index];
+        if (isStart) entity.startFrame = Math.min(frame, (entity.endFrame || videoDuration) - 5);
+        else entity.endFrame = Math.max(frame, (entity.startFrame || 0) + 5);
+        return u;
+      });
+    };
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('mouseup', onUp);
+  };
+
+  const handleDragClip = (e: React.PointerEvent, index: number) => {
+    e.stopPropagation();
+    setSelectedEntity(timeline.highlightCountries[index].name);
+    const track = trackContainerRef.current?.getBoundingClientRect();
+    if (!track) return;
+    const startX = e.clientX;
+    const initialStartFrame = timeline.highlightCountries[index].startFrame || 0;
+    const initialEndFrame = timeline.highlightCountries[index].endFrame || videoDuration;
+    const onMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const frameShift = Math.round((dx / track.width) * videoDuration);
+      setTimeline((prev: any) => {
+        const u = { ...prev, highlightCountries: [...prev.highlightCountries] };
+        const entity = u.highlightCountries[index];
+        let newStart = initialStartFrame + frameShift;
+        let newEnd = initialEndFrame + frameShift;
+        if (newStart < 0) { newEnd -= newStart; newStart = 0; }
+        if (newEnd > videoDuration) { newStart -= (newEnd - videoDuration); newEnd = videoDuration; }
+        entity.startFrame = newStart; entity.endFrame = newEnd;
+        return u;
+      });
+    };
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('mouseup', onUp);
+  };
+
+  const handleDragKeyframe = (e: React.PointerEvent, kfIndex: number) => {
+    e.preventDefault();
+    const track = trackContainerRef.current?.getBoundingClientRect();
+    if (!track || !timeline?.cameraKeyframes?.[kfIndex]) return;
+    const originalFrame = Number(timeline.cameraKeyframes[kfIndex].frame);
+    const onMove = (ev: PointerEvent) => {
+      const pct = Math.max(0, Math.min(1, (ev.clientX - track.left) / track.width));
+      const nextFrame = Math.round(pct * videoDuration);
+      setTimeline((prev: any) => {
+        if (!prev) return prev;
+        const kfs = [...(prev.cameraKeyframes || [])];
+        const idx = kfs.findIndex((k: any) => Number(k.frame) === originalFrame);
+        if (idx < 0) return prev;
+        const collision = kfs.some((k: any, i: number) => i !== idx && Math.abs(Number(k.frame) - nextFrame) < 8);
+        if (collision) return prev;
+        kfs[idx] = { ...kfs[idx], frame: nextFrame };
+        kfs.sort((a: any, b: any) => a.frame - b.frame);
+        return { ...prev, cameraKeyframes: kfs };
+      });
+    };
+    const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    window.addEventListener('pointermove', onMove); window.addEventListener('mouseup', onUp);
+  };
 
   return (
     <div style={{ backgroundColor: '#000', width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', color: '#fff', overflow: 'hidden' }}>
@@ -487,10 +605,22 @@ const WebApp: React.FC = () => {
         {status !== 'editor' && status !== 'generating' && (
           <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '680px', padding: '16px', boxSizing: 'border-box' }}>
             <h1 style={{ fontSize: isDesktop ? '42px' : '28px', fontWeight: 700, letterSpacing: '-0.04em', marginBottom: '24px', textAlign: 'center' }}>Cinematic Timeline Studio</h1>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '16px', boxSizing: 'border-box' }}>
-              <textarea placeholder="e.g., generate all states of India in red..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontSize: '16px', outline: 'none', resize: 'none', boxSizing: 'border-box' }} required />
-              <button type="submit" style={{ background: '#fff', color: '#000', border: 'none', borderRadius: '16px', padding: '12px 24px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-end' }}>Generate ✦</button>
-            </form>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(255,255,255,0.06)', padding: '6px', borderRadius: '18px', width: '100%', maxWidth: '320px', boxSizing: 'border-box' }}>
+              <button onClick={() => setManualMode(false)} style={{ flex: 1, background: !manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: !manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>AI Directive</button>
+              <button onClick={() => setManualMode(true)} style={{ background: manualMode ? 'rgba(255,255,255,0.15)' : 'transparent', color: manualMode ? '#fff' : '#8e8e93', border: 'none', borderRadius: '12px', padding: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Manual Builder</button>
+            </div>
+            {!manualMode ? (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '16px', boxSizing: 'border-box' }}>
+                <textarea placeholder="e.g., generate all states of India in red..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontSize: '16px', outline: 'none', resize: 'none', boxSizing: 'border-box' }} required />
+                <button type="submit" style={{ background: '#fff', color: '#000', border: 'none', borderRadius: '16px', padding: '12px 24px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-end' }}>Generate ✦</button>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '16px', boxSizing: 'border-box' }}>
+                <input type="text" value={entityA} onChange={(e) => setEntityA(e.target.value)} placeholder="Primary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                <input type="text" value={entityB} onChange={(e) => setEntityB(e.target.value)} placeholder="Secondary Entity" style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                <button onClick={initializeManualScene} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '16px', padding: '14px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>Launch Empty Studio 🚀</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -507,7 +637,7 @@ const WebApp: React.FC = () => {
               <div style={{ ...panelStyle, width: '300px', maxHeight: '75vh', borderRight: 'none', borderRadius: '16px 0 0 16px', overflowY: 'auto', overflowX: 'visible' }}>{rightPanelJSX}</div>
             </div>
             <div style={{ height: '100%', maxHeight: '100%', aspectRatio: '9/16', borderRadius: isDesktop ? '24px' : '0px', border: isDesktop ? '2px solid #1a1a1a' : 'none', boxShadow: isLiveEdit ? '0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)' : '0 0 40px rgba(0,0,0,0.8)', position: 'relative', overflow: 'hidden', background: '#040711', zIndex: 10 }}>
-              <div style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%', pointerEvents: 'none' }}>
+              <div style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%', pointerEvents: isLiveEdit ? 'auto' : 'none' }}>
                 <Player
                   ref={playerRef} component={MapAnimation} inputProps={playerInputProps} 
                   durationInFrames={videoDuration} 
@@ -525,8 +655,58 @@ const WebApp: React.FC = () => {
       {status === 'editor' && dynamicTimeline && (
         <div style={{ position: 'fixed', bottom: isDesktop ? '20px' : '15px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120, padding: '0 16px', boxSizing: 'border-box' }}>
           <div style={{ ...panelStyle, width: '100%', maxWidth: '950px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '24px', padding: '14px 24px', height: '160px', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0, width: '80px' }}>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0, width: '90px' }}>
               <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '42px', height: '42px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{isPlaying ? '❚❚' : '▶'}</button>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 'bold' }}>DURATION (SEC)</span>
+                <input 
+                  type="number" min="1" max="60" 
+                  value={Math.round(videoDuration / 30)} 
+                  onChange={(e) => {
+                    const secs = Math.max(1, Number(e.target.value));
+                    setVideoDuration(secs * 30);
+                  }} 
+                  style={{ width: '100%', background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px', fontSize: '11px', outline: 'none', boxSizing: 'border-box' }} 
+                />
+              </div>
+            </div>
+
+            <div style={{ flex: 1, height: '100%', overflowY: 'auto', paddingRight: '8px', position: 'relative' }}>
+              <div ref={trackContainerRef} style={{ position: 'relative', minHeight: '120px' }}>
+                <div style={{ position: 'sticky', top: 0, height: '26px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', zIndex: 5 }}>
+                  <input type="range" min="0" max={videoDuration} step="1" value={currentFrame} onChange={(e) => { const tf = Number(e.target.value); setCurrentFrame(tf); playerRef.current?.seekTo(tf); }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer', margin: 0, height: '100%', opacity: 0.3 }} />
+                </div>
+                {timeline?.cameraKeyframes && timeline.cameraKeyframes.map((kf: any, i: number) => {
+                  const leftPercent = (kf.frame / videoDuration) * 100;
+                  return (
+                    <div key={`kf-drawer-${i}`} style={{ position: 'absolute', left: `${Math.min(Math.max(leftPercent, 0), 100)}%`, top: '8px', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 30 }}>
+                      <div onPointerDown={(e) => handleDragKeyframe(e, i)} style={{ width: '12px', height: '12px', backgroundColor: '#a855f7', border: '2px solid #ffffff', cursor: 'ew-resize', transform: 'rotate(45deg)', boxShadow: '0 2px 8px rgba(0,0,0,0.8)' }} />
+                      <button onClick={() => { if (confirm(`Delete keyframe at frame ${kf.frame}?`)) deleteSpecificKeyframe(kf.frame); }} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '14px', height: '14px', fontSize: '8px', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    </div>
+                  );
+                })}
+                {timeline?.highlightCountries && timeline.highlightCountries.map((c: any, i: number) => {
+                  const startPct = ((c.startFrame || 0) / videoDuration) * 100;
+                  const endPct = ((c.endFrame || videoDuration) / videoDuration) * 100;
+                  const widthPct = endPct - startPct;
+                  return (
+                    <div key={`hc-drawer-${i}`} style={{ position: 'absolute', left: `${startPct}%`, width: `${widthPct}%`, top: `${36 + (i * 30)}px`, height: '24px', background: c.color || '#3b82f6', opacity: 0.85, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', zIndex: 16, boxShadow: '0 2px 6px rgba(0,0,0,0.8)' }}>
+                      <div onPointerDown={(e) => handleDragEdge(e, i, true)} style={{ width: '16px', height: '100%', background: 'rgba(255,255,255,0.4)', borderRadius: '4px 0 0 4px', cursor: 'ew-resize' }} />
+                      <div onPointerDown={(e) => handleDragClip(e, i)} style={{ flex: 1, height: '100%', cursor: 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '10px', color: '#fff', fontWeight: 600, pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{c.name}</span>
+                      </div>
+                      <div onPointerDown={(e) => handleDragEdge(e, i, false)} style={{ width: '16px', height: '100%', background: 'rgba(255,255,255,0.4)', borderRadius: '0 4px 4px 0', cursor: 'ew-resize' }} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', alignSelf: 'flex-start', flexShrink: 0 }}>
+              <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                {(currentFrame / 30).toFixed(1)}s / {(videoDuration / 30).toFixed(1)}s
+              </span>
             </div>
           </div>
         </div>

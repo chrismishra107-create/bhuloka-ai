@@ -80,12 +80,12 @@ export const MapAnimation: React.FC<{
     if (styleId === 'street') return {
       version: 8,
       sources: { r: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256 } },
-      layers: [{ id: 'b', type: 'raster', source: 'r' }]
+      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.3, 'raster-contrast': 0.1 } }]
     };
     if (styleId === 'light') return {
       version: 8,
-      sources: { r: { type: 'raster', tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'], tileSize: 256 } },
-      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-brightness-max': 0.95 } }]
+      sources: { r: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png'], tileSize: 256 } },
+      layers: [{ id: 'b', type: 'raster', source: 'r' }]
     };
     if (styleId === 'natural-earth') return {
       version: 8,
@@ -97,10 +97,11 @@ export const MapAnimation: React.FC<{
       sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
       layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }]
     };
+    // Perfect Low-Key Dark Documentary Matte Style matching After Effects reference
     return {
       version: 8,
       sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
-      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-brightness-max': 0.25, 'raster-saturation': -0.7, 'raster-contrast': 0.15 } }]
+      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-brightness-max': 0.08, 'raster-saturation': -1.0, 'raster-contrast': 0.45 } }]
     };
   };
 
@@ -149,7 +150,7 @@ export const MapAnimation: React.FC<{
       container: mapContainer.current,
       style: getStyleDef(mapStyle),
       center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing,
-      interactive: true, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
+      interactive: isLiveEditMode, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
       pixelRatio: (typeof window !== 'undefined' && window.innerWidth < 1024) ? 1 : (isRendering ? 2 : 1), maxTileCacheSize: 10000, preserveDrawingBuffer: true
     } as any);
 
@@ -176,6 +177,16 @@ export const MapAnimation: React.FC<{
   }, []); 
 
   useLayoutEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (isLiveEditMode) {
+      map.boxZoom.enable(); map.dragPan.enable(); map.dragRotate.enable(); map.keyboard.enable(); map.doubleClickZoom.enable(); map.touchZoomRotate.enable();
+    } else {
+      map.boxZoom.disable(); map.dragPan.disable(); map.dragRotate.disable(); map.keyboard.disable(); map.doubleClickZoom.disable(); map.touchZoomRotate.disable();
+    }
+  }, [isLiveEditMode]);
+
+  useLayoutEffect(() => {
     if (mapRef.current && mapLoaded) mapRef.current.setStyle(getStyleDef(mapStyle));
   }, [mapStyle, mapLoaded]);
 
@@ -194,7 +205,7 @@ export const MapAnimation: React.FC<{
     }
     
     if (lock !== null) {
-      const release = () => setTimeout(() => continueRender(lock!), 80);
+      const release = () => setTimeout(() => continueRender(lock!), 100);
       if (map.areTilesLoaded()) release(); else map.once('idle', release);
     }
   }, [camera, mapLoaded, isRendering, isLiveEditMode, frame]);
