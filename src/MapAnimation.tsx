@@ -31,10 +31,10 @@ export const MapAnimation: React.FC<{
   const [initialHandle] = useState(() => delayRender('Booting Cinematic WebGL Engine'));
   const [extraData, setExtraData] = useState<any[]>([]);
 
-  // High-Performance Geometry Cache
   const pathCache = useRef<Record<string, { path: string, center: [number, number] | null, isLine: boolean }>>({});
   const lastCameraHash = useRef<string>('');
   const isUserInteracting = useRef(false);
+  const lastFrame = useRef(0);
 
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
@@ -51,16 +51,51 @@ export const MapAnimation: React.FC<{
 
   useEffect(() => {
     let alive = true;
-    Promise.all([
-      dynamicGeoCache.has('states') ? dynamicGeoCache.get('states') : fetch(GEOJSON_RESOURCES.states).then(r => r.json()),
-      dynamicGeoCache.has('rivers') ? dynamicGeoCache.get('rivers') : fetch(GEOJSON_RESOURCES.rivers).then(r => r.json())
-    ]).then(([states, rivers]) => {
-      dynamicGeoCache.set('states', states);
-      dynamicGeoCache.set('rivers', rivers);
-      if (alive) setExtraData([states, rivers]);
-    }).catch(err => console.error("GeoJSON Load Error:", err));
+    const fetchGeoData = async () => {
+      const data: any[] = [];
+      try {
+        if (!dynamicGeoCache.has('states')) {
+          const res = await fetch(GEOJSON_RESOURCES.states);
+          if (res.ok) dynamicGeoCache.set('states', await res.json());
+        }
+        if (dynamicGeoCache.has('states')) data.push(dynamicGeoCache.get('states'));
+      } catch (e) { console.warn("States fetch failed"); }
+
+      try {
+        if (!dynamicGeoCache.has('rivers')) {
+          const res = await fetch(GEOJSON_RESOURCES.rivers);
+          if (res.ok) dynamicGeoCache.set('rivers', await res.json());
+        }
+        if (dynamicGeoCache.has('rivers')) data.push(dynamicGeoCache.get('rivers'));
+      } catch (e) { console.warn("Rivers fetch failed"); }
+
+      if (alive) setExtraData(data);
+    };
+
+    fetchGeoData();
     return () => { alive = false; };
   }, []);
+
+  const getStyleDef = (styleId: string): any => {
+    if (styleId === 'street') return 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+    if (styleId === 'light') return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+    if (styleId === 'natural-earth') return {
+      version: 8,
+      sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
+      layers: [{ id: 'b', type: 'raster', source: 'r' }]
+    };
+    if (styleId === 'satellite') return {
+      version: 8,
+      sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
+      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }]
+    };
+    // Default Dark Documentary Cinematic Satellite
+    return {
+      version: 8,
+      sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
+      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-brightness-max': 0.25, 'raster-saturation': -0.7, 'raster-contrast': 0.15 } }]
+    };
+  };
 
   const validKeyframes = useMemo(() => (timeline?.cameraKeyframes || [])
     .filter((k: any) => k && Number.isFinite(Number(k.frame)))
@@ -71,8 +106,7 @@ export const MapAnimation: React.FC<{
       zoom: Number(k.zoom ?? 1.2),
       pitch: clamp(Number(k.pitch ?? 0), 0, 85),
       bearing: normalizeBearing(Number(k.bearing ?? 0)),
-    }))
-    .sort((a: any, b: any) => a.frame - b.frame), [timeline?.cameraKeyframes]);
+    })).sort((a: any, b: any) => a.frame - b.frame), [timeline?.cameraKeyframes]);
 
   const keyframes = validKeyframes.length ? validKeyframes : [
     { frame: 0, lng: 79, lat: 22, zoom: 4.2, pitch: 15, bearing: 0 },
@@ -87,10 +121,8 @@ export const MapAnimation: React.FC<{
       if (frame >= a.frame && frame <= b.frame) {
         const p = ease(clamp((frame - a.frame) / Math.max(1, b.frame - a.frame)));
         return {
-          lng: a.lng + (b.lng - a.lng) * p,
-          lat: a.lat + (b.lat - a.lat) * p,
-          zoom: a.zoom + (b.zoom - a.zoom) * p,
-          pitch: a.pitch + (b.pitch - a.pitch) * p,
+          lng: a.lng + (b.lng - a.lng) * p, lat: a.lat + (b.lat - a.lat) * p,
+          zoom: a.zoom + (b.zoom - a.zoom) * p, pitch: a.pitch + (b.pitch - a.pitch) * p,
           bearing: interpolateBearing(a.bearing, b.bearing, p),
         };
       }
@@ -98,52 +130,29 @@ export const MapAnimation: React.FC<{
     return keyframes[keyframes.length - 1];
   }, [keyframes, frame]);
 
-  // Cache Invalidation Engine - Instantly purges cached SVGs if the camera moves
   const currentCameraHash = `${camera.lng.toFixed(4)}_${camera.lat.toFixed(4)}_${camera.zoom.toFixed(2)}_${camera.pitch.toFixed(1)}_${camera.bearing.toFixed(1)}`;
   if (lastCameraHash.current !== currentCameraHash) {
     pathCache.current = {};
     lastCameraHash.current = currentCameraHash;
   }
 
-  const getStyleDef = (styleId: string): any => {
-    const styles: Record<string, any> = {
-      satellite: { version: 8, sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }] },
-      'natural-earth': { version: 8, sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r' }] },
-      light: { version: 8, sources: { r: { type: 'raster', tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-contrast': 0.05 } }] },
-      'dark-documentary': { version: 8, sources: { r: { type: 'raster', tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } }, layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-contrast': 0.2, 'raster-brightness-max': 0.82 } }] },
-    };
-    return styles[styleId] || styles['dark-documentary'];
-  };
-
   useLayoutEffect(() => {
     if (!mapContainer.current) return;
-    const mobile = typeof window !== 'undefined' && window.innerWidth < 1024;
-    
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: getStyleDef(mapStyle),
       center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing,
-      interactive: isLiveEditMode, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
-      pixelRatio: mobile ? 1 : (isRendering ? 2 : 1), maxTileCacheSize: 10000, preserveDrawingBuffer: true
+      interactive: true, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
+      pixelRatio: (typeof window !== 'undefined' && window.innerWidth < 1024) ? 1 : (isRendering ? 2 : 1), maxTileCacheSize: 10000, preserveDrawingBuffer: true
     } as any);
 
-    if (isLiveEditMode) {
-      map.on('dragstart', () => { isUserInteracting.current = true; });
-      map.on('zoomstart', () => { isUserInteracting.current = true; });
-      map.on('pitchstart', () => { isUserInteracting.current = true; });
-      map.on('rotatestart', () => { isUserInteracting.current = true; });
-      
-      map.on('dragend', () => { isUserInteracting.current = false; });
-      map.on('zoomend', () => { isUserInteracting.current = false; });
-      map.on('pitchend', () => { isUserInteracting.current = false; });
-      map.on('rotateend', () => { isUserInteracting.current = false; });
-
-      map.on('move', () => {
-        if (onCameraChangeRef.current) {
-          onCameraChangeRef.current({ lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: normalizeBearing(map.getBearing()) });
-        }
-      });
-    }
+    const lockInteractions = () => { isUserInteracting.current = true; };
+    const unlockInteractions = () => { isUserInteracting.current = false; };
+    map.on('dragstart', lockInteractions); map.on('zoomstart', lockInteractions); map.on('pitchstart', lockInteractions); map.on('rotatestart', lockInteractions);
+    map.on('dragend', unlockInteractions); map.on('zoomend', unlockInteractions); map.on('pitchend', unlockInteractions); map.on('rotateend', unlockInteractions);
+    map.on('move', () => {
+      if (onCameraChangeRef.current) onCameraChangeRef.current({ lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: normalizeBearing(map.getBearing()) });
+    });
 
     map.on('load', () => { 
       mapRef.current = map; 
@@ -157,7 +166,11 @@ export const MapAnimation: React.FC<{
       map.remove(); 
       mapRef.current = null; 
     };
-  }, [mapStyle, isLiveEditMode]);
+  }, []); 
+
+  useLayoutEffect(() => {
+    if (mapRef.current && mapLoaded) mapRef.current.setStyle(getStyleDef(mapStyle));
+  }, [mapStyle, mapLoaded]);
 
   useLayoutEffect(() => {
     const map = mapRef.current;
@@ -166,9 +179,12 @@ export const MapAnimation: React.FC<{
     let lock: number | null = null;
     if (isRendering) lock = delayRender(`Rendering map frame ${frame}`);
     
-    if (!isUserInteracting.current) {
-  map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing });
-}
+    const isPlaying = lastFrame.current !== frame;
+    lastFrame.current = frame;
+    
+    if ((isPlaying || isRendering) && !isUserInteracting.current) {
+      map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing });
+    }
     
     if (lock !== null) {
       const release = () => setTimeout(() => continueRender(lock!), 40);
@@ -176,15 +192,11 @@ export const MapAnimation: React.FC<{
     }
   }, [camera, mapLoaded, isRendering, isLiveEditMode, frame]);
 
-  
-
   const project = (coord: [number, number]) => {
     if (!mapRef.current) return null;
     try {
       const p = mapRef.current.project(coord as any);
       if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
-      // We removed the aggressive manual bounds clipping here. 
-      // Chopping coordinates manually fractures LineStrings. Let the native SVG engine cull it.
       return p;
     } catch { return null; }
   };
@@ -193,18 +205,23 @@ export const MapAnimation: React.FC<{
     if (!name || !mapLoaded) return { path: '', center: null as [number, number] | null, isLine: false };
     const norm = String(name).trim().toLowerCase();
     
-    // THE FIX: Only return from cache if it actually contains a valid, non-empty path.
-    if (pathCache.current[norm] && pathCache.current[norm].path !== '') {
-      return pathCache.current[norm];
-    }
+    if (pathCache.current[norm] && pathCache.current[norm].path !== '') return pathCache.current[norm];
 
     let geom: any = null;
+    if (['india', 'ind', 'bharat'].includes(norm)) geom = (indiaData as any).geometry || (indiaData as any).features?.[0]?.geometry || indiaData;
     
-    // Robust fallback for India in case the GeoJSON structure varies
-    if (['india', 'ind', 'bharat'].includes(norm)) {
-      geom = (indiaData as any).geometry || (indiaData as any).features?.[0]?.geometry || indiaData;
+    if (!geom && (norm.includes('ganges') || norm.includes('ganga'))) {
+      const riverSource = extraData.find(src => src?.features?.some((f: any) => {
+        const rName = String(f.properties?.name || f.properties?.NAME || '').toLowerCase();
+        return rName.includes('ganges') || rName.includes('ganga');
+      }));
+      const match = (riverSource?.features || []).find((f: any) => {
+        const rName = String(f.properties?.name || f.properties?.NAME || '').toLowerCase();
+        return rName.includes('ganges') || rName.includes('ganga');
+      });
+      if (match) geom = match.geometry;
     }
-    
+
     if (!geom) {
       for (const src of [worldData, ...extraData]) {
         const match = (src?.features || []).find((f: any) => {
@@ -215,17 +232,13 @@ export const MapAnimation: React.FC<{
       }
     }
     
-    // If we STILL don't have it (because the network fetch is pending), return empty BUT DO NOT CACHE IT.
     if (!geom) return { path: '', center: null, isLine: false };
 
     const lines: number[][][] = [];
     const extractCoords = (coords: any) => {
       if (!Array.isArray(coords)) return;
-      if (typeof coords[0][0] === 'number') {
-        lines.push(coords);
-      } else {
-        coords.forEach(extractCoords);
-      }
+      if (typeof coords[0][0] === 'number') lines.push(coords);
+      else coords.forEach(extractCoords);
     };
     
     if (geom.coordinates) extractCoords(geom.coordinates);
@@ -235,9 +248,7 @@ export const MapAnimation: React.FC<{
     let sumLng = 0, sumLat = 0, pointCount = 0;
 
     for (const line of lines) {
-      let first = true;
-      let lastPx = { x: -999, y: -999 };
-      
+      let first = true, lastPx = { x: -999, y: -999 };
       for (const coord of line) {
         if (!coord || coord.length < 2) continue;
         sumLng += Number(coord[0]); sumLat += Number(coord[1]); pointCount++;
@@ -249,20 +260,14 @@ export const MapAnimation: React.FC<{
         if (!first && dist < 1.5) continue;
 
         path += `${first ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
-        first = false;
-        lastPx = { x: p.x, y: p.y };
+        first = false; lastPx = { x: p.x, y: p.y };
       }
       if (!isLine && path) path += 'Z ';
     }
     
     const center = pointCount > 0 ? [sumLng / pointCount, sumLat / pointCount] as [number, number] : null;
     const result = { path, center, isLine };
-    
-    // ONLY SAVE TO CACHE IF IT SUCCESSFULLY GENERATED A REAL PATH
-    if (path !== '') {
-      pathCache.current[norm] = result;
-    }
-    
+    if (path !== '') pathCache.current[norm] = result;
     return result;
   };
 
@@ -270,9 +275,7 @@ export const MapAnimation: React.FC<{
 
   return (
     <AbsoluteFill style={{ background: '#040711', overflow: 'hidden' }}>
-      
       <div ref={mapContainer} style={{ position: 'absolute', inset: 0, width, height, pointerEvents: 'auto' }} />
-      <div style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', background: 'radial-gradient(circle at center, transparent 38%, rgba(4,7,17, 0.9) 100%)' }} />
       
       {mapLoaded && (
         <>
@@ -324,10 +327,11 @@ export const MapAnimation: React.FC<{
 
                 const { path, isLine, center } = geometryFor(c.name);
                 if (!path) return null;
-
+                
+                const centerProj = center ? project(center) : null;
                 const t = revealEase(clamp((frame - start) / Number(c.fadeInDuration ?? 30)));
-                const alpha = frame > end - 20 ? clamp((end - frame) / 20) : t;
-
+                const alpha = t; 
+                
                 let glowFilter = 'none';
                 if (c.enableGlow !== false) {
                   const gi = c.glowIntensity ?? 20;
@@ -337,26 +341,44 @@ export const MapAnimation: React.FC<{
                 }
 
                 if (isLine || c.noFill) {
-                  const dashLength = Math.max(width, height) * 4;
                   const trimT = revealEase(clamp((frame - start) / Number(c.trimDuration ?? 45)));
                   return (
                     <g key={`entity-line-${i}`} opacity={alpha}>
-                      <path d={path} fill="none" stroke={c.color || '#3b82f6'} strokeWidth={c.strokeWidth || 4} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dashLength} strokeDashoffset={c.revealStyle === 'trim' ? dashLength * (1 - trimT) : 0} style={{ filter: glowFilter }} />
+                      {c.revealStyle === 'ink' ? (
+                        <mask id={`mask-ink-line-${i}`}>
+                          <radialGradient id={`ink-fade-line-${i}`}>
+                            <stop offset="0%" stopColor="white" />
+                            <stop offset="70%" stopColor="white" />
+                            <stop offset="100%" stopColor="black" />
+                          </radialGradient>
+                          <circle cx={centerProj?.x ?? width/2} cy={centerProj?.y ?? height/2} r={Math.max(width, height) * 1.5 * t} fill={`url(#ink-fade-line-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
+                        </mask>
+                      ) : null}
+                      <g mask={c.revealStyle === 'ink' ? `url(#mask-ink-line-${i})` : undefined}>
+                        <path 
+                          d={path} fill="none" stroke={c.color || '#3b82f6'} strokeWidth={c.strokeWidth || 4} 
+                          strokeLinecap="round" strokeLinejoin="round" pathLength="100" 
+                          strokeDasharray={c.revealStyle === 'trim' ? "100" : "none"} 
+                          strokeDashoffset={c.revealStyle === 'trim' ? 100 * (1 - trimT) : 0} 
+                          style={{ filter: glowFilter !== 'none' ? glowFilter : undefined }} 
+                        />
+                      </g>
                     </g>
                   );
                 }
-
-                // Ink bleed logic requires the actual country center projected to screen
-                const centerProj = center ? project(center) : null;
 
                 return (
                   <g key={`entity-poly-${i}`} opacity={alpha}>
                     {c.revealStyle === 'ink' ? (
                       <mask id={`mask-ink-${i}`}>
-                        <circle cx={centerProj?.x ?? width/2} cy={centerProj?.y ?? height/2} r={Math.max(width, height) * 1.5 * t} fill="white" style={{ filter: 'url(#ink-displacement)' }} />
+                        <radialGradient id={`ink-fade-${i}`}>
+                          <stop offset="0%" stopColor="white" />
+                          <stop offset="70%" stopColor="white" />
+                          <stop offset="100%" stopColor="black" />
+                        </radialGradient>
+                        <circle cx={centerProj?.x ?? width/2} cy={centerProj?.y ?? height/2} r={Math.max(width, height) * 1.5 * t} fill={`url(#ink-fade-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
                       </mask>
                     ) : null}
-                    
                     <g mask={c.revealStyle === 'ink' ? `url(#mask-ink-${i})` : undefined}>
                       {c.enableGlow !== false && mode !== 'multiply' && (
                         <path d={path} fill={c.color || '#3b82f6'} opacity={0.5} style={{ filter: `blur(${c.glowIntensity || 20}px)` }} />
@@ -374,7 +396,6 @@ export const MapAnimation: React.FC<{
                 
                 const targetData = rawCountries.find((c: any) => c.name === t.target) || {};
                 const invaderData = rawCountries.find((c: any) => c.name === t.attacker) || {};
-                
                 const tBlend = targetData.blendMode || 'normal';
                 const iBlend = invaderData.blendMode || 'screen';
 
@@ -387,13 +408,16 @@ export const MapAnimation: React.FC<{
                 
                 return (
                   <g key={`takeover-${i}`}>
-                     {tBlend === blendGroup && (
-                       <path d={targetGeo.path} fill={targetData.color || '#1e3a8a'} opacity={0.85} />
-                     )}
+                     {tBlend === blendGroup && <path d={targetGeo.path} fill={targetData.color || '#1e3a8a'} opacity={0.85} />}
                      {iBlend === blendGroup && (
                        <React.Fragment>
                          <mask id={`takeover-mask-${i}`}>
-                           <circle cx={p?.x ?? width/2} cy={p?.y ?? height/2} r={radius} fill="white" style={{ filter: 'url(#ink-displacement)' }} />
+                           <radialGradient id={`takeover-fade-${i}`}>
+                             <stop offset="0%" stopColor="white" />
+                             <stop offset="70%" stopColor="white" />
+                             <stop offset="100%" stopColor="black" />
+                           </radialGradient>
+                           <circle cx={p?.x ?? width/2} cy={p?.y ?? height/2} r={radius} fill={`url(#takeover-fade-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
                          </mask>
                          <path d={targetGeo.path} fill={invaderData.color || t.color || '#ef4444'} mask={`url(#takeover-mask-${i})`} opacity={0.95} />
                        </React.Fragment>
@@ -405,6 +429,17 @@ export const MapAnimation: React.FC<{
           ))}
 
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 30, pointerEvents: 'none', shapeRendering: 'geometricPrecision' }}>
+            <defs>
+              <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+                <stop offset="70%" stopColor="#ffffff" />
+                <stop offset="100%" stopColor="#ef4444" />
+              </linearGradient>
+              <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M 0 0 L 6 3 L 0 6 z" fill="#ef4444" />
+              </marker>
+            </defs>
+
             {arrows.map((arrow: any, i: number) => {
               const startF = arrow.startFrame || 0;
               if (frame < startF) return null;
@@ -423,31 +458,13 @@ export const MapAnimation: React.FC<{
               const mx = (p1.x + p2.x) / 2 - (dy / dist) * (dist * 0.38);
               const my = (p1.y + p2.y) / 2 + (dx / dist) * (dist * 0.38);
               const d = `M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`;
-              
               const t = revealEase(clamp((frame - startF) / Number(arrow.duration ?? 45)));
-              
-              if (arrow.type === 'missile') {
-                const hx = Math.pow(1-t,2)*p1.x + 2*(1-t)*t*mx + Math.pow(t,2)*p2.x;
-                const hy = Math.pow(1-t,2)*p1.y + 2*(1-t)*t*my + Math.pow(t,2)*p2.y;
-                return (
-                  <g key={`arr-${i}`}>
-                    <path d={d} fill="none" stroke="#ef4444" strokeWidth="8" opacity={0.3} strokeLinecap="round" strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} style={{ filter: 'blur(6px)' }} />
-                    <path d={d} fill="none" stroke="#ffffff" strokeWidth="3" opacity={0.9} strokeLinecap="round" strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} />
-                    {t < 1 && (
-                      <g transform={`translate(${hx}, ${hy})`}>
-                        <circle cx="0" cy="0" r="14" fill="#ef4444" opacity={0.6} style={{ filter: 'blur(8px)' }} />
-                        <circle cx="0" cy="0" r="5" fill="#ffffff" />
-                      </g>
-                    )}
-                  </g>
-                );
-              }
-              
               const sourceColor = rawCountries.find((c: any) => c.name === arrow.sourceName)?.color || '#ef4444';
+              
               return (
                 <g key={`arr-${i}`} filter="url(#tactical-shadow)">
-                  <path d={d} fill="none" stroke={sourceColor} strokeWidth="6" strokeLinecap="round" strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} />
-                  <path d={d} fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} />
+                  <path d={d} fill="none" stroke={sourceColor} strokeWidth="8" strokeLinecap="round" opacity={0.4} style={{ filter: 'blur(8px)' }} strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} />
+                  <path d={d} fill="none" stroke="url(#arrowGrad)" strokeWidth="4" strokeLinecap="round" markerEnd={t > 0.95 ? "url(#arrowhead)" : ""} strokeDasharray={dist*2} strokeDashoffset={dist*2*(1-t)} />
                 </g>
               );
             })}
@@ -503,11 +520,11 @@ export const MapAnimation: React.FC<{
               return (
                 <g key={`lbl-${i}`} transform={`translate(${p.x}, ${p.y}) scale(${scale})`} opacity={alpha}>
                   {l.style === 'callout' && (
-                    <>
+                    <React.Fragment>
                       <circle cx="0" cy="0" r="6" fill={color} style={{ filter: l.glow !== false ? `drop-shadow(0 0 12px ${color})` : 'none' }} />
                       <path d={`M 0 0 L 30 -40 L ${30 + txt.length * (size*0.6)} -40`} fill="none" stroke={color} strokeWidth="3" strokeDasharray="500" strokeDashoffset={500 * (1 - intro)} />
                       {intro > 0.5 && <text x="40" y="-48" fill={color} fontSize={size} fontWeight="900" fontFamily={font}>{txt}</text>}
-                    </>
+                    </React.Fragment>
                   )}
                   {l.style === 'geo-pin' && (
                     <g transform={`translate(-${(txt.length * (size*0.6) + 36)/2}, -${size + 28})`}>
@@ -523,10 +540,10 @@ export const MapAnimation: React.FC<{
                     </g>
                   )}
                   {l.style === 'minimal' && (
-                    <>
+                    <React.Fragment>
                       <circle cx="0" cy="0" r="6" fill={color} style={{ filter: l.glow !== false ? `drop-shadow(0 0 12px ${color})` : 'none' }} />
                       <text x="16" y="2" fill={color} fontSize={size} fontWeight="900" fontFamily={font} dominantBaseline="middle">{txt}</text>
-                    </>
+                    </React.Fragment>
                   )}
                 </g>
               );

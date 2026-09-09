@@ -60,7 +60,7 @@ const WebApp: React.FC = () => {
   const [suggestionBox, setSuggestionBox] = useState<{top:number; left:number; width:number}>({top:0,left:0,width:0});
 
   const [mapStyle, setMapStyle] = useState<string>('dark-documentary');
-
+  const [previewQuality, setPreviewQuality] = useState<number>(1); // 1 = Full, 0.5 = Half, 0.25 = Quarter
   const [labelText, setLabelText] = useState<string>('DMZ Border');
   const [labelColor, setLabelColor] = useState<string>('#ffffff');
   const [labelBg, setLabelBg] = useState<string>('#f472b6');
@@ -477,7 +477,7 @@ const WebApp: React.FC = () => {
         <BranchHeader title="🎨 MAP STYLE" branchKey="mapStyle" />
         {openBranches.mapStyle && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {['dark-documentary', 'satellite', 'natural-earth', 'light'].map(style => (
+            {['dark-documentary', 'satellite', 'natural-earth', 'light', 'street'].map(style => (
               <button key={style} onClick={() => setMapStyle(style)} style={{ flex: '1 1 45%', background: mapStyle === style ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255,255,255,0.05)', color: '#fff', border: mapStyle === style ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px', fontSize: '10px', cursor: 'pointer', textTransform: 'capitalize' }}>
                 {style.replace('-', ' ')}
               </button>
@@ -665,7 +665,11 @@ const WebApp: React.FC = () => {
               {/* Native DOM pass-through for WebGL controls */}
               <div style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%', pointerEvents: isLiveEdit ? 'none' : 'none' }}>
                 <Player
-                  ref={playerRef} component={MapAnimation} inputProps={playerInputProps} durationInFrames={videoDuration} compositionWidth={1080} compositionHeight={1920} fps={30} controls={false} loop autoPlay clickToPlay={false}
+                  ref={playerRef} component={MapAnimation} inputProps={playerInputProps} 
+                  durationInFrames={videoDuration} 
+                  compositionWidth={Math.round(1080 * previewQuality)} 
+                  compositionHeight={Math.round(1920 * previewQuality)} 
+                  fps={30} controls={false} loop autoPlay clickToPlay={false}
                   style={{ width: '100%', height: '100%', display: 'block' }}
                 />
               </div>
@@ -678,7 +682,27 @@ const WebApp: React.FC = () => {
       {status === 'editor' && dynamicTimeline && (
         <div style={{ position: 'fixed', bottom: isDesktop ? '20px' : '15px', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 120, padding: '0 16px', boxSizing: 'border-box' }}>
           <div style={{ ...panelStyle, width: '100%', maxWidth: '950px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '24px', padding: '14px 24px', height: '160px', boxSizing: 'border-box' }}>
-            <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '42px', height: '42px', flexShrink: 0, cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', alignSelf: 'flex-start' }}>{isPlaying ? '❚❚' : '▶'}</button>
+            
+            {/* 1. Left Controls: Play, Duration, Quality */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0, width: '80px' }}>
+              <button onClick={togglePlay} style={{ background: '#ffffff', color: '#000', border: 'none', borderRadius: '50%', width: '42px', height: '42px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{isPlaying ? '❚❚' : '▶'}</button>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 'bold' }}>DURATION</span>
+                <input type="number" value={videoDuration} onChange={(e) => setVideoDuration(Number(e.target.value))} style={{ width: '100%', background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px', fontSize: '11px', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '9px', color: '#8e8e93', fontWeight: 'bold' }}>QUALITY</span>
+                <select value={previewQuality} onChange={(e) => setPreviewQuality(Number(e.target.value))} style={{ width: '100%', background: 'rgba(0,0,0,0.5)', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px', fontSize: '11px', outline: 'none', boxSizing: 'border-box' }}>
+                  <option value={1}>Full</option>
+                  <option value={0.5}>1/2</option>
+                  <option value={0.25}>1/4</option>
+                </select>
+              </div>
+            </div>
+
+            {/* 2. Middle: Timeline Tracks */}
             <div style={{ flex: 1, height: '100%', overflowY: 'auto', paddingRight: '8px', position: 'relative' }}>
               <div ref={trackContainerRef} style={{ position: 'relative', minHeight: '120px' }}>
                 <div style={{ position: 'sticky', top: 0, height: '26px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', zIndex: 5 }}>
@@ -709,8 +733,10 @@ const WebApp: React.FC = () => {
                 })}
               </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', alignSelf: 'flex-start' }}>
-              <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em', flexShrink: 0 }}>
+
+            {/* 3. Right Time Display */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', alignSelf: 'flex-start', flexShrink: 0 }}>
+              <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
                 {(currentFrame / 30).toFixed(1)}s / {(videoDuration / 30).toFixed(1)}s
               </span>
             </div>
