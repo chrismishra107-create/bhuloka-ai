@@ -67165,16 +67165,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       };
     }, []);
     const getStyleDef = (styleId) => {
-      if (styleId === "street") return {
-        version: 8,
-        sources: { r: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256 } },
-        layers: [{ id: "b", type: "raster", source: "r", paint: { "raster-saturation": -0.3, "raster-contrast": 0.1 } }]
-      };
-      if (styleId === "light") return {
-        version: 8,
-        sources: { r: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png"], tileSize: 256 } },
-        layers: [{ id: "b", type: "raster", source: "r" }]
-      };
+      if (styleId === "street") return "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+      if (styleId === "light") return "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
       if (styleId === "natural-earth") return {
         version: 8,
         sources: { r: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 } },
@@ -67185,11 +67177,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         sources: { r: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 } },
         layers: [{ id: "b", type: "raster", source: "r", paint: { "raster-saturation": -0.15, "raster-contrast": 0.08 } }]
       };
-      return {
-        version: 8,
-        sources: { r: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 } },
-        layers: [{ id: "b", type: "raster", source: "r", paint: { "raster-brightness-max": 0.08, "raster-saturation": -1, "raster-contrast": 0.45 } }]
-      };
+      return "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
     };
     const validKeyframes = (0, import_react121.useMemo)(() => (timeline?.cameraKeyframes || []).filter((k2) => k2 && Number.isFinite(Number(k2.frame))).map((k2) => ({
       frame: Number(k2.frame),
@@ -67235,13 +67223,22 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         zoom: camera.zoom,
         pitch: camera.pitch,
         bearing: camera.bearing,
-        interactive: isLiveEditMode,
+        interactive: true,
         attributionControl: false,
         fadeDuration: 0,
         renderWorldCopies: false,
         pixelRatio: typeof window !== "undefined" && window.innerWidth < 1024 ? 1 : isRendering ? 2 : 1,
         maxTileCacheSize: 1e4,
         preserveDrawingBuffer: true
+      });
+      map.on("styledata", () => {
+        const style2 = map.getStyle();
+        if (!style2 || !style2.layers) return;
+        style2.layers.forEach((layer) => {
+          if (layer.id && (layer.id.toLowerCase().includes("watermark") || layer.id.toLowerCase().includes("api"))) {
+            if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+          }
+        });
       });
       const lockInteractions = () => {
         isUserInteracting.current = true;
@@ -67282,6 +67279,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         map.keyboard.enable();
         map.doubleClickZoom.enable();
         map.touchZoomRotate.enable();
+        map.scrollZoom.enable();
       } else {
         map.boxZoom.disable();
         map.dragPan.disable();
@@ -67289,6 +67287,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         map.keyboard.disable();
         map.doubleClickZoom.disable();
         map.touchZoomRotate.disable();
+        map.scrollZoom.disable();
       }
     }, [isLiveEditMode]);
     (0, import_react121.useLayoutEffect)(() => {
@@ -67301,7 +67300,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       if (isRendering) lock = delayRender(`Rendering map frame ${frame}`);
       const isPlaying = lastFrame.current !== frame;
       lastFrame.current = frame;
-      if ((isPlaying || isRendering) && !isUserInteracting.current) {
+      if (!isLiveEditMode && (isPlaying || isRendering) && !isUserInteracting.current) {
         map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing });
       }
       if (lock !== null) {
@@ -67414,7 +67413,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("filter", { id: "ink-displacement", x: "-20%", y: "-20%", width: "140%", height: "140%", children: [
             /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feTurbulence", { type: "fractalNoise", baseFrequency: "0.04", numOctaves: "3", result: "noise" }),
-            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feDisplacementMap", { in: "SourceGraphic", in2: "noise", scale: "40", xChannelSelector: "R", yChannelSelector: "G" })
+            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feDisplacementMap", { in: "SourceGraphic", in2: "noise", scale: "60", xChannelSelector: "R", yChannelSelector: "G" })
           ] })
         ] }) }),
         cssBlendModes.map((blendGroup) => /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 20, pointerEvents: "none", mixBlendMode: blendGroup }, children: [
@@ -67657,6 +67656,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [leftPanelOpen, setLeftPanelOpen] = (0, import_react122.useState)(false);
     const [rightPanelOpen, setRightPanelOpen] = (0, import_react122.useState)(false);
     const [selectedEntity, setSelectedEntity] = (0, import_react122.useState)(null);
+    const [bulkSelection, setBulkSelection] = (0, import_react122.useState)([]);
     const [isLiveEdit, setIsLiveEdit] = (0, import_react122.useState)(false);
     const [isExporting, setIsExporting] = (0, import_react122.useState)(false);
     const [exportProgress, setExportProgress] = (0, import_react122.useState)("");
@@ -67782,7 +67782,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         const canvas = document.createElement("canvas");
         canvas.width = exportWidth;
         canvas.height = exportHeight;
-        const ctx = canvas.getContext("2d", { alpha: false });
+        const ctx = canvas.getContext("2d", { alpha: false, willReadFrequently: true });
         if (!ctx) throw new Error("Could not create export canvas");
         const frameDurationUs = Math.round(1e6 / fps);
         const wait = (ms3) => new Promise((r2) => setTimeout(r2, ms3));
@@ -67798,7 +67798,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             let tries = 0;
             while ((!map.areTilesLoaded() || map.isMoving()) && tries++ < 40) await wait(40);
             await new Promise((resolve) => {
-              map.once("idle", () => setTimeout(resolve, 80));
+              map.once("idle", () => setTimeout(resolve, 100));
               map.triggerRepaint();
             });
           }
@@ -67975,6 +67975,25 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         return updated;
       });
     };
+    const applyToSelectedEntities = (key, value) => {
+      if (bulkSelection.length === 0) return;
+      setTimeline((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          highlightCountries: (prev.highlightCountries || []).map(
+            (c4) => bulkSelection.includes(c4.name || c4.country) ? { ...c4, [key]: value } : c4
+          )
+        };
+      });
+    };
+    const toggleSelectAll = () => {
+      if (bulkSelection.length === timeline?.highlightCountries?.length) {
+        setBulkSelection([]);
+      } else {
+        setBulkSelection(timeline?.highlightCountries?.map((c4) => c4.name || c4.country) || []);
+      }
+    };
     const updateLabelText = (id3, text) => {
       setTimeline((prev) => {
         if (!prev) return prev;
@@ -68029,6 +68048,41 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "4px" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(BranchHeader, { title: "\u{1F30D} SCENE ENTITIES", branchKey: "entities" }),
         openBranches.entities && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { padding: "8px", background: "rgba(0,0,0,0.3)", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "6px" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "6px", paddingBottom: "8px", borderBottom: "1px solid rgba(255,255,255,0.1)" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { fontSize: "10px", color: "#8e8e93", fontWeight: 700, letterSpacing: "0.05em" }, children: "BULK EDIT SELECTED" }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: toggleSelectAll, style: { background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: "9px", padding: "2px 6px", borderRadius: "4px", cursor: "pointer" }, children: bulkSelection.length === timeline?.highlightCountries?.length ? "Deselect All" : "Select All" })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "4px", fontSize: "10px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#fff" }, children: "Fill" }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "color", onChange: (e64) => applyToSelectedEntities("color", e64.target.value), style: { width: "20px", height: "20px", border: "none", background: "transparent", cursor: "pointer" } })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "4px", fontSize: "10px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#fff" }, children: "Stroke" }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "10", step: "0.5", onChange: (e64) => applyToSelectedEntities("strokeWidth", Number(e64.target.value)), style: { width: "40px", accentColor: "#38bdf8" } })
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "4px" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "4px", fontSize: "10px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#fff" }, children: "Style" }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { onChange: (e64) => applyToSelectedEntities("revealStyle", e64.target.value), style: { background: "#111", color: "#38bdf8", border: "none", fontSize: "9px", outline: "none" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "fade", children: "Fade In" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "ink", children: "Ink Bleed" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "trim", children: "River Trim" })
+                ] })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: "4px", fontSize: "10px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#fff" }, children: "Blend" }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { onChange: (e64) => applyToSelectedEntities("blendMode", e64.target.value), style: { background: "#111", color: "#38bdf8", border: "none", fontSize: "9px", outline: "none" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "normal", children: "Normal" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "screen", children: "Screen" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "multiply", children: "Multiply" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "overlay", children: "Overlay" })
+                ] })
+              ] })
+            ] })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", gap: "6px", position: "relative", width: "100%" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { position: "relative", flex: 1 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
@@ -68059,9 +68113,22 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "500px", overflowY: "visible", overflowX: "hidden" }, children: timeline?.highlightCountries?.map((c4, idx) => {
             const name = c4.name || c4.country;
             const isSelected = selectedEntity === name;
+            const isChecked = bulkSelection.includes(name);
             return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: isSelected ? "1px solid #38bdf8" : "1px solid rgba(255,255,255,0.08)" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", padding: "8px", gap: "6px" }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("button", { onClick: () => setSelectedEntity(isSelected ? null : name), style: { flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "11px", textAlign: "left", cursor: "pointer", fontWeight: 600 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", padding: "8px", gap: "8px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+                  "input",
+                  {
+                    type: "checkbox",
+                    checked: isChecked,
+                    onChange: (e64) => {
+                      if (e64.target.checked) setBulkSelection((prev) => [...prev, name]);
+                      else setBulkSelection((prev) => prev.filter((n2) => n2 !== name));
+                    },
+                    style: { cursor: "pointer", accentColor: "#38bdf8" }
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("button", { onClick: () => setSelectedEntity(isSelected ? null : name), style: { flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "11px", textAlign: "left", cursor: "pointer", fontWeight: 600, padding: 0 }, children: [
                   isSelected ? "\u25BC" : "\u25B6",
                   " ",
                   name
@@ -68084,6 +68151,15 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                 /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px" }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "Stroke Width" }),
                   /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("input", { type: "range", min: "0", max: "10", step: "0.5", value: c4.strokeWidth !== void 0 ? c4.strokeWidth : 2, onChange: (e64) => updateEntityStyle(name, "strokeWidth", Number(e64.target.value)), style: { width: "70px", accentColor: "#38bdf8" } })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("span", { style: { color: "#8e8e93" }, children: "Blend Mode" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("select", { value: c4.blendMode || "normal", onChange: (e64) => updateEntityStyle(name, "blendMode", e64.target.value), style: { background: "#111", color: "#38bdf8", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "4px", fontSize: "10px", padding: "4px", outline: "none" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "normal", children: "Normal (Solid)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "screen", children: "Screen" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "multiply", children: "Multiply" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("option", { value: "overlay", children: "Overlay" })
+                  ] })
                 ] })
               ] })
             ] }, idx);

@@ -77,16 +77,8 @@ export const MapAnimation: React.FC<{
   }, []);
 
   const getStyleDef = (styleId: string): any => {
-    if (styleId === 'street') return {
-      version: 8,
-      sources: { r: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256 } },
-      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.3, 'raster-contrast': 0.1 } }]
-    };
-    if (styleId === 'light') return {
-      version: 8,
-      sources: { r: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png'], tileSize: 256 } },
-      layers: [{ id: 'b', type: 'raster', source: 'r' }]
-    };
+    if (styleId === 'street') return 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+    if (styleId === 'light') return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
     if (styleId === 'natural-earth') return {
       version: 8,
       sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
@@ -97,12 +89,7 @@ export const MapAnimation: React.FC<{
       sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
       layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }]
     };
-    // Perfect Low-Key Dark Documentary Matte Style matching After Effects reference
-    return {
-      version: 8,
-      sources: { r: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256 } },
-      layers: [{ id: 'b', type: 'raster', source: 'r', paint: { 'raster-brightness-max': 0.08, 'raster-saturation': -1.0, 'raster-contrast': 0.45 } }]
-    };
+    return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   };
 
   const validKeyframes = useMemo(() => (timeline?.cameraKeyframes || [])
@@ -150,9 +137,20 @@ export const MapAnimation: React.FC<{
       container: mapContainer.current,
       style: getStyleDef(mapStyle),
       center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing,
-      interactive: isLiveEditMode, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
+      interactive: true, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
       pixelRatio: (typeof window !== 'undefined' && window.innerWidth < 1024) ? 1 : (isRendering ? 2 : 1), maxTileCacheSize: 10000, preserveDrawingBuffer: true
     } as any);
+
+    // Dynamic style interceptor to brutally delete the API watermark layer
+    map.on('styledata', () => {
+      const style = map.getStyle();
+      if (!style || !style.layers) return;
+      style.layers.forEach((layer: any) => {
+        if (layer.id && (layer.id.toLowerCase().includes('watermark') || layer.id.toLowerCase().includes('api'))) {
+          if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+        }
+      });
+    });
 
     const lockInteractions = () => { isUserInteracting.current = true; };
     const unlockInteractions = () => { isUserInteracting.current = false; };
@@ -176,13 +174,14 @@ export const MapAnimation: React.FC<{
     };
   }, []); 
 
+  // Fixed Deep Scroll Zooming
   useLayoutEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (isLiveEditMode) {
-      map.boxZoom.enable(); map.dragPan.enable(); map.dragRotate.enable(); map.keyboard.enable(); map.doubleClickZoom.enable(); map.touchZoomRotate.enable();
+      map.boxZoom.enable(); map.dragPan.enable(); map.dragRotate.enable(); map.keyboard.enable(); map.doubleClickZoom.enable(); map.touchZoomRotate.enable(); map.scrollZoom.enable();
     } else {
-      map.boxZoom.disable(); map.dragPan.disable(); map.dragRotate.disable(); map.keyboard.disable(); map.doubleClickZoom.disable(); map.touchZoomRotate.disable();
+      map.boxZoom.disable(); map.dragPan.disable(); map.dragRotate.disable(); map.keyboard.disable(); map.doubleClickZoom.disable(); map.touchZoomRotate.disable(); map.scrollZoom.disable();
     }
   }, [isLiveEditMode]);
 
@@ -200,7 +199,7 @@ export const MapAnimation: React.FC<{
     const isPlaying = lastFrame.current !== frame;
     lastFrame.current = frame;
     
-    if ((isPlaying || isRendering) && !isUserInteracting.current) {
+    if (!isLiveEditMode && (isPlaying || isRendering) && !isUserInteracting.current) {
       map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing });
     }
     
@@ -316,7 +315,7 @@ export const MapAnimation: React.FC<{
               </filter>
               <filter id="ink-displacement" x="-20%" y="-20%" width="140%" height="140%">
                 <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
-                <feDisplacementMap in="SourceGraphic" in2="noise" scale="40" xChannelSelector="R" yChannelSelector="G" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="60" xChannelSelector="R" yChannelSelector="G" />
               </filter>
             </defs>
           </svg>

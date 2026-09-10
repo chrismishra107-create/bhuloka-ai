@@ -56,6 +56,7 @@ const WebApp: React.FC = () => {
   const [rightPanelOpen, setRightPanelOpen] = useState<boolean>(false);
 
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
+  const [bulkSelection, setBulkSelection] = useState<string[]>([]);
   const [isLiveEdit, setIsLiveEdit] = useState<boolean>(false);
   
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -166,7 +167,7 @@ const WebApp: React.FC = () => {
 
       const canvas = document.createElement('canvas');
       canvas.width = exportWidth; canvas.height = exportHeight;
-      const ctx = canvas.getContext('2d', { alpha: false });
+      const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
       if (!ctx) throw new Error('Could not create export canvas');
       const frameDurationUs = Math.round(1_000_000 / fps);
       const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -182,14 +183,15 @@ const WebApp: React.FC = () => {
           map.resize(); map.triggerRepaint();
           let tries = 0;
           while ((!map.areTilesLoaded() || map.isMoving()) && tries++ < 40) await wait(40);
-          await new Promise<void>(resolve => {
-            map.once('idle', () => setTimeout(resolve, 80));
+          await new Promise<void>((resolve) => {
+            map.once('idle', () => setTimeout(resolve, 100));
             map.triggerRepaint();
           });
         }
         
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = '#040711'; ctx.fillRect(0, 0, exportWidth, exportHeight);
+        
         const mapCanvas = map?.getCanvas() || null;
         if (mapCanvas && mapCanvas.width > 0 && mapCanvas.height > 0) {
           ctx.drawImage(mapCanvas, 0, 0, mapCanvas.width, mapCanvas.height, 0, 0, exportWidth, exportHeight);
@@ -339,6 +341,27 @@ const WebApp: React.FC = () => {
     });
   };
 
+  const applyToSelectedEntities = (key: string, value: any) => {
+    if (bulkSelection.length === 0) return;
+    setTimeline((prev: any) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        highlightCountries: (prev.highlightCountries || []).map((c: any) => 
+          bulkSelection.includes(c.name || c.country) ? { ...c, [key]: value } : c
+        )
+      };
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (bulkSelection.length === timeline?.highlightCountries?.length) {
+      setBulkSelection([]);
+    } else {
+      setBulkSelection(timeline?.highlightCountries?.map((c: any) => c.name || c.country) || []);
+    }
+  };
+
   const updateLabelText = (id: string, text: string) => {
     setTimeline((prev: any) => {
       if (!prev) return prev;
@@ -384,6 +407,40 @@ const WebApp: React.FC = () => {
         <BranchHeader title="🌍 SCENE ENTITIES" branchKey="entities" />
         {openBranches.entities && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.05em' }}>BULK EDIT SELECTED</span>
+                <button onClick={toggleSelectAll} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer' }}>
+                  {bulkSelection.length === timeline?.highlightCountries?.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px', fontSize: '10px' }}>
+                  <span style={{ color: '#fff' }}>Fill</span>
+                  <input type="color" onChange={(e) => applyToSelectedEntities('color', e.target.value)} style={{ width: '20px', height: '20px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+                </div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px', fontSize: '10px' }}>
+                  <span style={{ color: '#fff' }}>Stroke</span>
+                  <input type="range" min="0" max="10" step="0.5" onChange={(e) => applyToSelectedEntities('strokeWidth', Number(e.target.value))} style={{ width: '40px', accentColor: '#38bdf8' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px', fontSize: '10px' }}>
+                  <span style={{ color: '#fff' }}>Style</span>
+                  <select onChange={(e) => applyToSelectedEntities('revealStyle', e.target.value)} style={{ background: '#111', color: '#38bdf8', border: 'none', fontSize: '9px', outline: 'none' }}>
+                    <option value="fade">Fade In</option><option value="ink">Ink Bleed</option><option value="trim">River Trim</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px', fontSize: '10px' }}>
+                  <span style={{ color: '#fff' }}>Blend</span>
+                  <select onChange={(e) => applyToSelectedEntities('blendMode', e.target.value)} style={{ background: '#111', color: '#38bdf8', border: 'none', fontSize: '9px', outline: 'none' }}>
+                    <option value="normal">Normal</option><option value="screen">Screen</option><option value="multiply">Multiply</option><option value="overlay">Overlay</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', gap: '6px', position: 'relative', width: '100%' }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <input
@@ -410,10 +467,21 @@ const WebApp: React.FC = () => {
               {timeline?.highlightCountries?.map((c: any, idx: number) => {
                 const name = c.name || c.country;
                 const isSelected = selectedEntity === name;
+                const isChecked = bulkSelection.includes(name);
+
                 return (
                   <div key={idx} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', padding: '8px', gap: '6px' }}>
-                      <button onClick={() => setSelectedEntity(isSelected ? null : name)} style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', fontSize: '11px', textAlign: 'left', cursor: 'pointer', fontWeight: 600 }}>{isSelected ? '▼' : '▶'} {name}</button>
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '8px', gap: '8px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) setBulkSelection(prev => [...prev, name]);
+                          else setBulkSelection(prev => prev.filter(n => n !== name));
+                        }}
+                        style={{ cursor: 'pointer', accentColor: '#38bdf8' }}
+                      />
+                      <button onClick={() => setSelectedEntity(isSelected ? null : name)} style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', fontSize: '11px', textAlign: 'left', cursor: 'pointer', fontWeight: 600, padding: 0 }}>{isSelected ? '▼' : '▶'} {name}</button>
                       <button onClick={(e) => cutEntity(e, name)} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '6px', border: 'none', padding: '4px 8px', fontSize: '10px', cursor: 'pointer' }}>✕</button>
                     </div>
                     {isSelected && (
@@ -431,6 +499,12 @@ const WebApp: React.FC = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
                           <span style={{ color: '#8e8e93' }}>Stroke Width</span>
                           <input type="range" min="0" max="10" step="0.5" value={c.strokeWidth !== undefined ? c.strokeWidth : 2} onChange={(e) => updateEntityStyle(name, 'strokeWidth', Number(e.target.value))} style={{ width: '70px', accentColor: '#38bdf8' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+                          <span style={{ color: '#8e8e93' }}>Blend Mode</span>
+                          <select value={c.blendMode || 'normal'} onChange={(e) => updateEntityStyle(name, 'blendMode', e.target.value)} style={{ background: '#111', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', fontSize: '10px', padding: '4px', outline: 'none' }}>
+                            <option value="normal">Normal (Solid)</option><option value="screen">Screen</option><option value="multiply">Multiply</option><option value="overlay">Overlay</option>
+                          </select>
                         </div>
                       </div>
                     )}
