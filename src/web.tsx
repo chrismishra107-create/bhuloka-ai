@@ -65,7 +65,9 @@ const WebApp: React.FC = () => {
   const [targetLat, setTargetLat] = useState<number>(38.0);
   const [targetLng, setTargetLng] = useState<number>(127.0);
   const [targetZoom, setTargetZoom] = useState<number>(1.2);
-  const [targetPitch, setTargetPitch] = useState<number>(20);
+  
+  // FIX: Forced default pitch to 0 to eliminate 3D zoom perspective tearing
+  const [targetPitch, setTargetPitch] = useState<number>(0);
   const [targetBearing, setTargetBearing] = useState<number>(0);
 
   const [manualMode, setManualMode] = useState<boolean>(false);
@@ -183,18 +185,27 @@ const WebApp: React.FC = () => {
           map.resize(); map.triggerRepaint();
           let tries = 0;
           while ((!map.areTilesLoaded() || map.isMoving()) && tries++ < 40) await wait(40);
+          
+          // FIX: Export layer sync fallback so map is never black
           await new Promise<void>((resolve) => {
-            map.once('idle', () => setTimeout(resolve, 100));
+            let captured = false;
+            const capture = () => {
+              if (captured) return;
+              captured = true;
+              try {
+                const mapCanvas = map.getCanvas();
+                if (mapCanvas && mapCanvas.width > 0 && mapCanvas.height > 0) {
+                  ctx.fillStyle = '#040711';
+                  ctx.fillRect(0, 0, exportWidth, exportHeight);
+                  ctx.drawImage(mapCanvas, 0, 0, mapCanvas.width, mapCanvas.height, 0, 0, exportWidth, exportHeight);
+                }
+              } catch (e) {}
+              resolve();
+            };
+            map.once('render', capture);
             map.triggerRepaint();
+            setTimeout(capture, 150);
           });
-        }
-        
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = '#040711'; ctx.fillRect(0, 0, exportWidth, exportHeight);
-        
-        const mapCanvas = map?.getCanvas() || null;
-        if (mapCanvas && mapCanvas.width > 0 && mapCanvas.height > 0) {
-          ctx.drawImage(mapCanvas, 0, 0, mapCanvas.width, mapCanvas.height, 0, 0, exportWidth, exportHeight);
         }
 
         const svgs = document.querySelectorAll('svg');
@@ -250,14 +261,14 @@ const WebApp: React.FC = () => {
   };
 
   const initializeManualScene = () => {
-    setTimeline({ title: `${entityA} vs ${entityB}`, totalFrames: 300, highlightCountries: [ { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'normal', isPrimary: true, startFrame: 0, endFrame: 300, revealStyle: 'ink' }, { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'normal', isPrimary: false, startFrame: 0, endFrame: 300, revealStyle: 'ink' } ], takeovers: [], arrows: [], labels: [], cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, pitch: 45, bearing: 0 }], assets: [] });
+    setTimeline({ title: `${entityA} vs ${entityB}`, totalFrames: 300, highlightCountries: [ { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'normal', isPrimary: true, startFrame: 0, endFrame: 300, revealStyle: 'ink' }, { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'normal', isPrimary: false, startFrame: 0, endFrame: 300, revealStyle: 'ink' } ], takeovers: [], arrows: [], labels: [], cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, pitch: 0, bearing: 0 }], assets: [] });
     setVideoDuration(300); setStatus('editor');
   };
 
   const startLiveEdit = () => {
     playerRef.current?.pause(); setIsPlaying(false);
     const pastKfs = timeline?.cameraKeyframes?.filter((kf: any) => kf.frame <= currentFrame) || [];
-    const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 45, bearing: 0 };
+    const baseKf: any = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38.0, lng: 127.0, zoom: 1.2, pitch: 0, bearing: 0 };
     setTargetLat(baseKf.lat); setTargetLng(baseKf.lng); setTargetZoom(baseKf.zoom); setTargetPitch(baseKf.pitch); setTargetBearing(baseKf.bearing);
     setIsLiveEdit(true);
   };
@@ -471,7 +482,8 @@ const WebApp: React.FC = () => {
 
                 return (
                   <div key={idx} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', padding: '8px', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '8px', gap: '6px' }}>
+                      <button onClick={() => setSelectedEntity(isSelected ? null : name)} style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', fontSize: '11px', textAlign: 'left', cursor: 'pointer', fontWeight: 600, padding: 0 }}>{isSelected ? '▼' : '▶'} {name}</button>
                       <input 
                         type="checkbox" 
                         checked={isChecked}
@@ -479,9 +491,8 @@ const WebApp: React.FC = () => {
                           if (e.target.checked) setBulkSelection(prev => [...prev, name]);
                           else setBulkSelection(prev => prev.filter(n => n !== name));
                         }}
-                        style={{ cursor: 'pointer', accentColor: '#38bdf8' }}
+                        style={{ cursor: 'pointer', accentColor: '#38bdf8', width: '14px', height: '14px', margin: '0 4px' }}
                       />
-                      <button onClick={() => setSelectedEntity(isSelected ? null : name)} style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', fontSize: '11px', textAlign: 'left', cursor: 'pointer', fontWeight: 600, padding: 0 }}>{isSelected ? '▼' : '▶'} {name}</button>
                       <button onClick={(e) => cutEntity(e, name)} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '6px', border: 'none', padding: '4px 8px', fontSize: '10px', cursor: 'pointer' }}>✕</button>
                     </div>
                     {isSelected && (
@@ -669,7 +680,7 @@ const WebApp: React.FC = () => {
       });
     };
     const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
-    window.addEventListener('pointermove', onMove); window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
   };
 
   return (
@@ -711,7 +722,7 @@ const WebApp: React.FC = () => {
               <div style={{ ...panelStyle, width: '300px', maxHeight: '75vh', borderRight: 'none', borderRadius: '16px 0 0 16px', overflowY: 'auto', overflowX: 'visible' }}>{rightPanelJSX}</div>
             </div>
             <div style={{ height: '100%', maxHeight: '100%', aspectRatio: '9/16', borderRadius: isDesktop ? '24px' : '0px', border: isDesktop ? '2px solid #1a1a1a' : 'none', boxShadow: isLiveEdit ? '0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)' : '0 0 40px rgba(0,0,0,0.8)', position: 'relative', overflow: 'hidden', background: '#040711', zIndex: 10 }}>
-              <div style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%', pointerEvents: isLiveEdit ? 'auto' : 'none' }}>
+              <div style={{ position: 'absolute', inset: 0, zIndex: 10, width: '100%', height: '100%', pointerEvents: 'none' }}>
                 <Player
                   ref={playerRef} component={MapAnimation} inputProps={playerInputProps} 
                   durationInFrames={videoDuration} 

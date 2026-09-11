@@ -67110,8 +67110,29 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
   var normalizeBearing = (b4) => (b4 % 360 + 360) % 360;
   var shortestBearingDelta = (a4, b4) => (b4 - a4 + 540) % 360 - 180;
   var interpolateBearing = (a4, b4, t3) => normalizeBearing(a4 + shortestBearingDelta(a4, b4) * t3);
-  var ease = Easing.bezier(0.25, 0.1, 0.25, 1);
+  var ease = Easing.inOut(Easing.quad);
   var revealEase = Easing.bezier(0.22, 1, 0.36, 1);
+  var fetchCleanStyle = async (styleInput) => {
+    if (typeof styleInput !== "string") return styleInput;
+    try {
+      const res = await fetch(styleInput);
+      const styleJson = await res.json();
+      if (styleJson.layers) {
+        styleJson.layers = styleJson.layers.filter((layer) => {
+          const id3 = (layer.id || "").toLowerCase();
+          const text = layer.layout?.["text-field"] || "";
+          const textStr = String(text).toLowerCase();
+          if (id3.includes("watermark") || id3.includes("apikey") || textStr.includes("api key") || textStr.includes("api-key")) {
+            return false;
+          }
+          return true;
+        });
+      }
+      return styleJson;
+    } catch (e64) {
+      return styleInput;
+    }
+  };
   var MapAnimation = ({ timeline, isLiveEditMode = false, mapStyle = "dark-documentary", onCameraChange }) => {
     const mapContainer = (0, import_react121.useRef)(null);
     const mapRef = (0, import_react121.useRef)(null);
@@ -67146,7 +67167,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           }
           if (dynamicGeoCache.has("states")) data.push(dynamicGeoCache.get("states"));
         } catch (e64) {
-          console.warn("States fetch failed");
         }
         try {
           if (!dynamicGeoCache.has("rivers")) {
@@ -67155,7 +67175,6 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           }
           if (dynamicGeoCache.has("rivers")) data.push(dynamicGeoCache.get("rivers"));
         } catch (e64) {
-          console.warn("Rivers fetch failed");
         }
         if (alive) setExtraData(data);
       };
@@ -67216,56 +67235,60 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     }
     (0, import_react121.useLayoutEffect)(() => {
       if (!mapContainer.current) return;
-      const map = new Tm2({
-        container: mapContainer.current,
-        style: getStyleDef(mapStyle),
-        center: [camera.lng, camera.lat],
-        zoom: camera.zoom,
-        pitch: camera.pitch,
-        bearing: camera.bearing,
-        interactive: true,
-        attributionControl: false,
-        fadeDuration: 0,
-        renderWorldCopies: false,
-        pixelRatio: typeof window !== "undefined" && window.innerWidth < 1024 ? 1 : isRendering ? 2 : 1,
-        maxTileCacheSize: 1e4,
-        preserveDrawingBuffer: true
-      });
-      map.on("styledata", () => {
-        const style2 = map.getStyle();
-        if (!style2 || !style2.layers) return;
-        style2.layers.forEach((layer) => {
-          if (layer.id && (layer.id.toLowerCase().includes("watermark") || layer.id.toLowerCase().includes("api"))) {
-            if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+      let map = null;
+      let isSubscribed = true;
+      fetchCleanStyle(getStyleDef(mapStyle)).then((cleanStyle) => {
+        if (!isSubscribed || !mapContainer.current) return;
+        const m2 = new Tm2({
+          container: mapContainer.current,
+          style: cleanStyle,
+          center: [camera.lng, camera.lat],
+          zoom: camera.zoom,
+          pitch: camera.pitch,
+          bearing: camera.bearing,
+          interactive: isLiveEditMode,
+          attributionControl: false,
+          fadeDuration: 0,
+          renderWorldCopies: false,
+          pixelRatio: typeof window !== "undefined" && window.innerWidth < 1024 ? 1 : isRendering ? 2 : 1,
+          maxTileCacheSize: 1e4,
+          preserveDrawingBuffer: true,
+          dragPan: { inertia: false },
+          dragRotate: { inertia: false }
+        });
+        map = m2;
+        const lockInteractions = () => {
+          isUserInteracting.current = true;
+        };
+        const unlockInteractions = () => {
+          isUserInteracting.current = false;
+        };
+        m2.on("dragstart", lockInteractions);
+        m2.on("zoomstart", lockInteractions);
+        m2.on("pitchstart", lockInteractions);
+        m2.on("rotatestart", lockInteractions);
+        m2.on("dragend", unlockInteractions);
+        m2.on("zoomend", unlockInteractions);
+        m2.on("pitchend", unlockInteractions);
+        m2.on("rotateend", unlockInteractions);
+        m2.on("move", () => {
+          if (onCameraChangeRef.current) {
+            onCameraChangeRef.current({ lat: m2.getCenter().lat, lng: m2.getCenter().lng, zoom: m2.getZoom(), pitch: m2.getPitch(), bearing: normalizeBearing(m2.getBearing()) });
           }
         });
-      });
-      const lockInteractions = () => {
-        isUserInteracting.current = true;
-      };
-      const unlockInteractions = () => {
-        isUserInteracting.current = false;
-      };
-      map.on("dragstart", lockInteractions);
-      map.on("zoomstart", lockInteractions);
-      map.on("pitchstart", lockInteractions);
-      map.on("rotatestart", lockInteractions);
-      map.on("dragend", unlockInteractions);
-      map.on("zoomend", unlockInteractions);
-      map.on("pitchend", unlockInteractions);
-      map.on("rotateend", unlockInteractions);
-      map.on("move", () => {
-        if (onCameraChangeRef.current) onCameraChangeRef.current({ lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: normalizeBearing(map.getBearing()) });
-      });
-      map.on("load", () => {
-        mapRef.current = map;
-        window.__mapInstance = map;
-        setMapLoaded(true);
-        continueRender(initialHandle);
+        m2.on("load", () => {
+          mapRef.current = m2;
+          window.__mapInstance = m2;
+          setMapLoaded(true);
+          continueRender(initialHandle);
+        });
       });
       return () => {
-        if (window.__mapInstance === map) window.__mapInstance = null;
-        map.remove();
+        isSubscribed = false;
+        if (map) {
+          if (window.__mapInstance === map) window.__mapInstance = null;
+          map.remove();
+        }
         mapRef.current = null;
       };
     }, []);
@@ -67291,7 +67314,11 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       }
     }, [isLiveEditMode]);
     (0, import_react121.useLayoutEffect)(() => {
-      if (mapRef.current && mapLoaded) mapRef.current.setStyle(getStyleDef(mapStyle));
+      if (mapRef.current && mapLoaded) {
+        fetchCleanStyle(getStyleDef(mapStyle)).then((cleanStyle) => {
+          if (mapRef.current) mapRef.current.setStyle(cleanStyle);
+        });
+      }
     }, [mapStyle, mapLoaded]);
     (0, import_react121.useLayoutEffect)(() => {
       const map = mapRef.current;
@@ -67304,8 +67331,8 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing });
       }
       if (lock !== null) {
-        const release = () => setTimeout(() => continueRender(lock), 100);
-        if (map.areTilesLoaded()) release();
+        const release = () => setTimeout(() => continueRender(lock), 40);
+        if (map.areTilesLoaded() && !map.isMoving()) release();
         else map.once("idle", release);
       }
     }, [camera, mapLoaded, isRendering, isLiveEditMode, frame]);
@@ -67386,7 +67413,15 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     };
     const cssBlendModes = ["normal", "multiply", "screen", "overlay", "color-dodge"];
     return /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(AbsoluteFill, { style: { background: "#040711", overflow: "hidden" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("div", { ref: mapContainer, style: { position: "absolute", inset: 0, width, height, pointerEvents: "auto" } }),
+      /* @__PURE__ */ (0, import_jsx_runtime59.jsx)(
+        "div",
+        {
+          ref: mapContainer,
+          style: { position: "absolute", inset: 0, width, height, pointerEvents: "auto" },
+          onWheel: (e64) => e64.stopPropagation(),
+          onPointerDown: (e64) => e64.stopPropagation()
+        }
+      ),
       mapLoaded && /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)(import_jsx_runtime59.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("svg", { style: { position: "absolute", width: 0, height: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("defs", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("filter", { id: "tactical-shadow", x: "-40%", y: "-40%", width: "180%", height: "180%", children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feDropShadow", { dx: "0", dy: "12", stdDeviation: "16", floodColor: "#000000", floodOpacity: "0.85" }) }),
@@ -67413,7 +67448,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("filter", { id: "ink-displacement", x: "-20%", y: "-20%", width: "140%", height: "140%", children: [
             /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feTurbulence", { type: "fractalNoise", baseFrequency: "0.04", numOctaves: "3", result: "noise" }),
-            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feDisplacementMap", { in: "SourceGraphic", in2: "noise", scale: "60", xChannelSelector: "R", yChannelSelector: "G" })
+            /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("feDisplacementMap", { in: "SourceGraphic", in2: "noise", scale: "40", xChannelSelector: "R", yChannelSelector: "G" })
           ] })
         ] }) }),
         cssBlendModes.map((blendGroup) => /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("svg", { style: { position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 20, pointerEvents: "none", mixBlendMode: blendGroup }, children: [
@@ -67453,7 +67488,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                     /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("stop", { offset: "70%", stopColor: "white" }),
                     /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("stop", { offset: "100%", stopColor: "black" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: centerProj?.x ?? width / 2, cy: centerProj?.y ?? height / 2, r: Math.max(width, height) * 1.5 * t3, fill: `url(#ink-fade-line-${i2})`, style: { filter: "url(#ink-displacement)" } })
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: centerProj?.x ?? width / 2, cy: centerProj?.y ?? height / 2, r: Math.max(0.1, Math.max(width, height) * 1.5 * t3), fill: `url(#ink-fade-line-${i2})`, style: { filter: "url(#ink-displacement)" } })
                 ] }) : null,
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("g", { mask: c4.revealStyle === "ink" ? `url(#mask-ink-line-${i2})` : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime59.jsx)(
                   "path",
@@ -67479,7 +67514,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                   /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("stop", { offset: "70%", stopColor: "white" }),
                   /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("stop", { offset: "100%", stopColor: "black" })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: centerProj?.x ?? width / 2, cy: centerProj?.y ?? height / 2, r: Math.max(width, height) * 1.5 * t3, fill: `url(#ink-fade-${i2})`, style: { filter: "url(#ink-displacement)" } })
+                /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: centerProj?.x ?? width / 2, cy: centerProj?.y ?? height / 2, r: Math.max(0.1, Math.max(width, height) * 1.5 * t3), fill: `url(#ink-fade-${i2})`, style: { filter: "url(#ink-displacement)" } })
               ] }) : null,
               /* @__PURE__ */ (0, import_jsx_runtime59.jsxs)("g", { mask: c4.revealStyle === "ink" ? `url(#mask-ink-${i2})` : void 0, children: [
                 c4.enableGlow !== false && mode !== "multiply" && /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: path, fill: c4.color || "#3b82f6", opacity: 0.5, style: { filter: `blur(${c4.glowIntensity || 20}px)` } }),
@@ -67509,7 +67544,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                     /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("stop", { offset: "70%", stopColor: "white" }),
                     /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("stop", { offset: "100%", stopColor: "black" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: p2?.x ?? width / 2, cy: p2?.y ?? height / 2, r: radius, fill: `url(#takeover-fade-${i2})`, style: { filter: "url(#ink-displacement)" } })
+                  /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("circle", { cx: p2?.x ?? width / 2, cy: p2?.y ?? height / 2, r: Math.max(0.1, radius), fill: `url(#takeover-fade-${i2})`, style: { filter: "url(#ink-displacement)" } })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime59.jsx)("path", { d: targetGeo.path, fill: invaderData.color || t3.color || "#ef4444", mask: `url(#takeover-mask-${i2})`, opacity: 0.95 })
               ] })
@@ -67663,7 +67698,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
     const [targetLat, setTargetLat] = (0, import_react122.useState)(38);
     const [targetLng, setTargetLng] = (0, import_react122.useState)(127);
     const [targetZoom, setTargetZoom] = (0, import_react122.useState)(1.2);
-    const [targetPitch, setTargetPitch] = (0, import_react122.useState)(20);
+    const [targetPitch, setTargetPitch] = (0, import_react122.useState)(0);
     const [targetBearing, setTargetBearing] = (0, import_react122.useState)(0);
     const [manualMode, setManualMode] = (0, import_react122.useState)(false);
     const [entityA, setEntityA] = (0, import_react122.useState)("North Korea");
@@ -67798,16 +67833,25 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             let tries = 0;
             while ((!map.areTilesLoaded() || map.isMoving()) && tries++ < 40) await wait(40);
             await new Promise((resolve) => {
-              map.once("idle", () => setTimeout(resolve, 100));
+              let captured = false;
+              const capture = () => {
+                if (captured) return;
+                captured = true;
+                try {
+                  const mapCanvas = map.getCanvas();
+                  if (mapCanvas && mapCanvas.width > 0 && mapCanvas.height > 0) {
+                    ctx.fillStyle = "#040711";
+                    ctx.fillRect(0, 0, exportWidth, exportHeight);
+                    ctx.drawImage(mapCanvas, 0, 0, mapCanvas.width, mapCanvas.height, 0, 0, exportWidth, exportHeight);
+                  }
+                } catch (e64) {
+                }
+                resolve();
+              };
+              map.once("render", capture);
               map.triggerRepaint();
+              setTimeout(capture, 150);
             });
-          }
-          ctx.globalCompositeOperation = "source-over";
-          ctx.fillStyle = "#040711";
-          ctx.fillRect(0, 0, exportWidth, exportHeight);
-          const mapCanvas = map?.getCanvas() || null;
-          if (mapCanvas && mapCanvas.width > 0 && mapCanvas.height > 0) {
-            ctx.drawImage(mapCanvas, 0, 0, mapCanvas.width, mapCanvas.height, 0, 0, exportWidth, exportHeight);
           }
           const svgs = document.querySelectorAll("svg");
           for (let i2 = 0; i2 < svgs.length; i2++) {
@@ -67874,7 +67918,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       setIsExporting(false);
     };
     const initializeManualScene = () => {
-      setTimeline({ title: `${entityA} vs ${entityB}`, totalFrames: 300, highlightCountries: [{ name: entityA, country: entityA, color: "#ef4444", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, blendMode: "normal", isPrimary: true, startFrame: 0, endFrame: 300, revealStyle: "ink" }, { name: entityB, country: entityB, color: "#3b82f6", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, blendMode: "normal", isPrimary: false, startFrame: 0, endFrame: 300, revealStyle: "ink" }], takeovers: [], arrows: [], labels: [], cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38, lng: 127, pitch: 45, bearing: 0 }], assets: [] });
+      setTimeline({ title: `${entityA} vs ${entityB}`, totalFrames: 300, highlightCountries: [{ name: entityA, country: entityA, color: "#ef4444", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, blendMode: "normal", isPrimary: true, startFrame: 0, endFrame: 300, revealStyle: "ink" }, { name: entityB, country: entityB, color: "#3b82f6", strokeColor: "#ffffff", strokeWidth: 2, enableGlow: true, blendMode: "normal", isPrimary: false, startFrame: 0, endFrame: 300, revealStyle: "ink" }], takeovers: [], arrows: [], labels: [], cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38, lng: 127, pitch: 0, bearing: 0 }], assets: [] });
       setVideoDuration(300);
       setStatus("editor");
     };
@@ -67882,7 +67926,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
       playerRef.current?.pause();
       setIsPlaying(false);
       const pastKfs = timeline?.cameraKeyframes?.filter((kf3) => kf3.frame <= currentFrame) || [];
-      const baseKf = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38, lng: 127, zoom: 1.2, pitch: 45, bearing: 0 };
+      const baseKf = pastKfs[pastKfs.length - 1] || timeline?.cameraKeyframes?.[0] || { lat: 38, lng: 127, zoom: 1.2, pitch: 0, bearing: 0 };
       setTargetLat(baseKf.lat);
       setTargetLng(baseKf.lng);
       setTargetZoom(baseKf.zoom);
@@ -68115,7 +68159,12 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             const isSelected = selectedEntity === name;
             const isChecked = bulkSelection.includes(name);
             return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: isSelected ? "1px solid #38bdf8" : "1px solid rgba(255,255,255,0.08)" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", padding: "8px", gap: "8px" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", alignItems: "center", padding: "8px", gap: "6px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("button", { onClick: () => setSelectedEntity(isSelected ? null : name), style: { flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "11px", textAlign: "left", cursor: "pointer", fontWeight: 600, padding: 0 }, children: [
+                  isSelected ? "\u25BC" : "\u25B6",
+                  " ",
+                  name
+                ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
                   "input",
                   {
@@ -68125,14 +68174,9 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
                       if (e64.target.checked) setBulkSelection((prev) => [...prev, name]);
                       else setBulkSelection((prev) => prev.filter((n2) => n2 !== name));
                     },
-                    style: { cursor: "pointer", accentColor: "#38bdf8" }
+                    style: { cursor: "pointer", accentColor: "#38bdf8", width: "14px", height: "14px", margin: "0 4px" }
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("button", { onClick: () => setSelectedEntity(isSelected ? null : name), style: { flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "11px", textAlign: "left", cursor: "pointer", fontWeight: 600, padding: 0 }, children: [
-                  isSelected ? "\u25BC" : "\u25B6",
-                  " ",
-                  name
-                ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("button", { onClick: (e64) => cutEntity(e64, name), style: { background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", borderRadius: "6px", border: "none", padding: "4px 8px", fontSize: "10px", cursor: "pointer" }, children: "\u2715" })
               ] }),
               isSelected && /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px", padding: "8px 10px 12px 10px", background: "rgba(0,0,0,0.4)", borderTop: "1px solid rgba(255,255,255,0.08)", borderRadius: "0 0 8px 8px" }, children: [
@@ -68319,7 +68363,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
         window.removeEventListener("pointerup", onUp);
       };
       window.addEventListener("pointermove", onMove);
-      window.addEventListener("mouseup", onUp);
+      window.addEventListener("pointerup", onUp);
     };
     return /* @__PURE__ */ (0, import_jsx_runtime60.jsxs)("div", { style: { backgroundColor: "#000", width: "100vw", height: "100vh", display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", color: "#fff", overflow: "hidden" }, children: [
       isExporting && /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 1e3, background: "rgba(10,10,14,.94)", border: "1px solid rgba(56,189,248,.45)", borderRadius: 12, padding: "10px 16px", color: "#38bdf8", fontSize: 12, fontWeight: 700, boxShadow: "0 12px 40px rgba(0,0,0,.6)" }, children: exportProgress || "Preparing export\u2026" }),
@@ -68349,7 +68393,7 @@ ${s2.shaderPreludeCode.vertexSource}`, define: s2.shaderDefine }, defaultProject
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { onClick: () => setRightPanelOpen(!rightPanelOpen), style: { ...panelStyle, width: "36px", height: "72px", borderRight: "none", borderRadius: "12px 0 0 12px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#a855f7", fontSize: "14px", marginRight: "-1px" }, children: rightPanelOpen ? "\u25B6" : "\u25C0" }),
             /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { ...panelStyle, width: "300px", maxHeight: "75vh", borderRight: "none", borderRadius: "16px 0 0 16px", overflowY: "auto", overflowX: "visible" }, children: rightPanelJSX })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { height: "100%", maxHeight: "100%", aspectRatio: "9/16", borderRadius: isDesktop ? "24px" : "0px", border: isDesktop ? "2px solid #1a1a1a" : "none", boxShadow: isLiveEdit ? "0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)" : "0 0 40px rgba(0,0,0,0.8)", position: "relative", overflow: "hidden", background: "#040711", zIndex: 10 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", inset: 0, zIndex: 10, width: "100%", height: "100%", pointerEvents: isLiveEdit ? "auto" : "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { height: "100%", maxHeight: "100%", aspectRatio: "9/16", borderRadius: isDesktop ? "24px" : "0px", border: isDesktop ? "2px solid #1a1a1a" : "none", boxShadow: isLiveEdit ? "0 0 0 4px #38bdf8, 0 30px 90px rgba(56,189,248,0.4)" : "0 0 40px rgba(0,0,0,0.8)", position: "relative", overflow: "hidden", background: "#040711", zIndex: 10 }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)("div", { style: { position: "absolute", inset: 0, zIndex: 10, width: "100%", height: "100%", pointerEvents: "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime60.jsx)(
             Player,
             {
               ref: playerRef,

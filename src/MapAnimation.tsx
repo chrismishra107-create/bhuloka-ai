@@ -15,8 +15,33 @@ const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const normalizeBearing = (b: number) => ((b % 360) + 360) % 360;
 const shortestBearingDelta = (a: number, b: number) => ((b - a + 540) % 360) - 180;
 const interpolateBearing = (a: number, b: number, t: number) => normalizeBearing(a + shortestBearingDelta(a, b) * t);
-const ease = Easing.bezier(0.25, 0.1, 0.25, 1);
+
+// Strict After Effects style keyframe easing. Removes the "gliding" feel.
+const ease = Easing.inOut(Easing.quad);
 const revealEase = Easing.bezier(0.22, 1, 0.36, 1);
+
+// STEALTH INTERCEPTOR: Downloads the vector style and strips the API Key watermark BEFORE MapLibre renders it.
+const fetchCleanStyle = async (styleInput: any) => {
+  if (typeof styleInput !== 'string') return styleInput;
+  try {
+    const res = await fetch(styleInput);
+    const styleJson = await res.json();
+    if (styleJson.layers) {
+      styleJson.layers = styleJson.layers.filter((layer: any) => {
+        const id = (layer.id || '').toLowerCase();
+        const text = layer.layout?.['text-field'] || '';
+        const textStr = String(text).toLowerCase();
+        if (id.includes('watermark') || id.includes('apikey') || textStr.includes('api key') || textStr.includes('api-key')) {
+          return false; 
+        }
+        return true;
+      });
+    }
+    return styleJson;
+  } catch (e) {
+    return styleInput;
+  }
+};
 
 export const MapAnimation: React.FC<{
   timeline: any;
@@ -59,7 +84,7 @@ export const MapAnimation: React.FC<{
           if (res.ok) dynamicGeoCache.set('states', await res.json());
         }
         if (dynamicGeoCache.has('states')) data.push(dynamicGeoCache.get('states'));
-      } catch (e) { console.warn("States fetch failed"); }
+      } catch (e) { }
 
       try {
         if (!dynamicGeoCache.has('rivers')) {
@@ -67,7 +92,7 @@ export const MapAnimation: React.FC<{
           if (res.ok) dynamicGeoCache.set('rivers', await res.json());
         }
         if (dynamicGeoCache.has('rivers')) data.push(dynamicGeoCache.get('rivers'));
-      } catch (e) { console.warn("Rivers fetch failed"); }
+      } catch (e) { }
 
       if (alive) setExtraData(data);
     };
@@ -133,48 +158,55 @@ export const MapAnimation: React.FC<{
 
   useLayoutEffect(() => {
     if (!mapContainer.current) return;
-    const map = new maplibregl.Map({
-      container: mapContainer.current,
-      style: getStyleDef(mapStyle),
-      center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing,
-      interactive: true, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
-      pixelRatio: (typeof window !== 'undefined' && window.innerWidth < 1024) ? 1 : (isRendering ? 2 : 1), maxTileCacheSize: 10000, preserveDrawingBuffer: true
-    } as any);
+    let map: maplibregl.Map | null = null;
+    let isSubscribed = true;
 
-    // Dynamic style interceptor to brutally delete the API watermark layer
-    map.on('styledata', () => {
-      const style = map.getStyle();
-      if (!style || !style.layers) return;
-      style.layers.forEach((layer: any) => {
-        if (layer.id && (layer.id.toLowerCase().includes('watermark') || layer.id.toLowerCase().includes('api'))) {
-          if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+    fetchCleanStyle(getStyleDef(mapStyle)).then((cleanStyle) => {
+      if (!isSubscribed || !mapContainer.current) return;
+
+      const m = new maplibregl.Map({
+        container: mapContainer.current,
+        style: cleanStyle,
+        center: [camera.lng, camera.lat], zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing,
+        interactive: isLiveEditMode, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
+        pixelRatio: (typeof window !== 'undefined' && window.innerWidth < 1024) ? 1 : (isRendering ? 2 : 1), 
+        maxTileCacheSize: 10000, preserveDrawingBuffer: true,
+        dragPan: { inertia: false },    
+        dragRotate: { inertia: false }
+      } as any);
+
+      map = m;
+
+      const lockInteractions = () => { isUserInteracting.current = true; };
+      const unlockInteractions = () => { isUserInteracting.current = false; };
+      m.on('dragstart', lockInteractions); m.on('zoomstart', lockInteractions); m.on('pitchstart', lockInteractions); m.on('rotatestart', lockInteractions);
+      m.on('dragend', unlockInteractions); m.on('zoomend', unlockInteractions); m.on('pitchend', unlockInteractions); m.on('rotateend', unlockInteractions);
+      
+      // FIX: Strict TypeScript typing using the local strict instance 'm' instead of mutable 'map'
+      m.on('move', () => {
+        if (onCameraChangeRef.current) {
+          onCameraChangeRef.current({ lat: m.getCenter().lat, lng: m.getCenter().lng, zoom: m.getZoom(), pitch: m.getPitch(), bearing: normalizeBearing(m.getBearing()) });
         }
+      });
+
+      m.on('load', () => { 
+        mapRef.current = m; 
+        (window as any).__mapInstance = m;
+        setMapLoaded(true); 
+        continueRender(initialHandle); 
       });
     });
 
-    const lockInteractions = () => { isUserInteracting.current = true; };
-    const unlockInteractions = () => { isUserInteracting.current = false; };
-    map.on('dragstart', lockInteractions); map.on('zoomstart', lockInteractions); map.on('pitchstart', lockInteractions); map.on('rotatestart', lockInteractions);
-    map.on('dragend', unlockInteractions); map.on('zoomend', unlockInteractions); map.on('pitchend', unlockInteractions); map.on('rotateend', unlockInteractions);
-    map.on('move', () => {
-      if (onCameraChangeRef.current) onCameraChangeRef.current({ lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(), pitch: map.getPitch(), bearing: normalizeBearing(map.getBearing()) });
-    });
-
-    map.on('load', () => { 
-      mapRef.current = map; 
-      (window as any).__mapInstance = map;
-      setMapLoaded(true); 
-      continueRender(initialHandle); 
-    });
-
     return () => { 
-      if ((window as any).__mapInstance === map) (window as any).__mapInstance = null;
-      map.remove(); 
+      isSubscribed = false;
+      if (map) {
+        if ((window as any).__mapInstance === map) (window as any).__mapInstance = null;
+        map.remove(); 
+      }
       mapRef.current = null; 
     };
   }, []); 
 
-  // Fixed Deep Scroll Zooming
   useLayoutEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -186,7 +218,11 @@ export const MapAnimation: React.FC<{
   }, [isLiveEditMode]);
 
   useLayoutEffect(() => {
-    if (mapRef.current && mapLoaded) mapRef.current.setStyle(getStyleDef(mapStyle));
+    if (mapRef.current && mapLoaded) {
+      fetchCleanStyle(getStyleDef(mapStyle)).then(cleanStyle => {
+        if (mapRef.current) mapRef.current.setStyle(cleanStyle);
+      });
+    }
   }, [mapStyle, mapLoaded]);
 
   useLayoutEffect(() => {
@@ -204,8 +240,9 @@ export const MapAnimation: React.FC<{
     }
     
     if (lock !== null) {
-      const release = () => setTimeout(() => continueRender(lock!), 100);
-      if (map.areTilesLoaded()) release(); else map.once('idle', release);
+      const release = () => setTimeout(() => continueRender(lock!), 40);
+      if (map.areTilesLoaded() && !map.isMoving()) release(); 
+      else map.once('idle', release);
     }
   }, [camera, mapLoaded, isRendering, isLiveEditMode, frame]);
 
@@ -292,7 +329,12 @@ export const MapAnimation: React.FC<{
 
   return (
     <AbsoluteFill style={{ background: '#040711', overflow: 'hidden' }}>
-      <div ref={mapContainer} style={{ position: 'absolute', inset: 0, width, height, pointerEvents: 'auto' }} />
+      <div 
+        ref={mapContainer} 
+        style={{ position: 'absolute', inset: 0, width, height, pointerEvents: 'auto' }} 
+        onWheel={(e) => e.stopPropagation()} 
+        onPointerDown={(e) => e.stopPropagation()}
+      />
       
       {mapLoaded && (
         <>
@@ -315,7 +357,7 @@ export const MapAnimation: React.FC<{
               </filter>
               <filter id="ink-displacement" x="-20%" y="-20%" width="140%" height="140%">
                 <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
-                <feDisplacementMap in="SourceGraphic" in2="noise" scale="60" xChannelSelector="R" yChannelSelector="G" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="40" xChannelSelector="R" yChannelSelector="G" />
               </filter>
             </defs>
           </svg>
@@ -368,7 +410,7 @@ export const MapAnimation: React.FC<{
                             <stop offset="70%" stopColor="white" />
                             <stop offset="100%" stopColor="black" />
                           </radialGradient>
-                          <circle cx={centerProj?.x ?? width/2} cy={centerProj?.y ?? height/2} r={Math.max(width, height) * 1.5 * t} fill={`url(#ink-fade-line-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
+                          <circle cx={centerProj?.x ?? width/2} cy={centerProj?.y ?? height/2} r={Math.max(0.1, Math.max(width, height) * 1.5 * t)} fill={`url(#ink-fade-line-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
                         </mask>
                       ) : null}
                       <g mask={c.revealStyle === 'ink' ? `url(#mask-ink-line-${i})` : undefined}>
@@ -393,7 +435,7 @@ export const MapAnimation: React.FC<{
                           <stop offset="70%" stopColor="white" />
                           <stop offset="100%" stopColor="black" />
                         </radialGradient>
-                        <circle cx={centerProj?.x ?? width/2} cy={centerProj?.y ?? height/2} r={Math.max(width, height) * 1.5 * t} fill={`url(#ink-fade-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
+                        <circle cx={centerProj?.x ?? width/2} cy={centerProj?.y ?? height/2} r={Math.max(0.1, Math.max(width, height) * 1.5 * t)} fill={`url(#ink-fade-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
                       </mask>
                     ) : null}
                     <g mask={c.revealStyle === 'ink' ? `url(#mask-ink-${i})` : undefined}>
@@ -434,7 +476,7 @@ export const MapAnimation: React.FC<{
                              <stop offset="70%" stopColor="white" />
                              <stop offset="100%" stopColor="black" />
                            </radialGradient>
-                           <circle cx={p?.x ?? width/2} cy={p?.y ?? height/2} r={radius} fill={`url(#takeover-fade-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
+                           <circle cx={p?.x ?? width/2} cy={p?.y ?? height/2} r={Math.max(0.1, radius)} fill={`url(#takeover-fade-${i})`} style={{ filter: 'url(#ink-displacement)' }} />
                          </mask>
                          <path d={targetGeo.path} fill={invaderData.color || t.color || '#ef4444'} mask={`url(#takeover-mask-${i})`} opacity={0.95} />
                        </React.Fragment>
