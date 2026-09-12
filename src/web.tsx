@@ -61,12 +61,11 @@ const WebApp: React.FC = () => {
   
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<string>('');
+  const [isPreloading, setIsPreloading] = useState<boolean>(false);
   
   const [targetLat, setTargetLat] = useState<number>(38.0);
   const [targetLng, setTargetLng] = useState<number>(127.0);
   const [targetZoom, setTargetZoom] = useState<number>(1.2);
-  
-  // FIX: Forced default pitch to 0 to eliminate 3D zoom perspective tearing
   const [targetPitch, setTargetPitch] = useState<number>(0);
   const [targetBearing, setTargetBearing] = useState<number>(0);
 
@@ -78,8 +77,11 @@ const WebApp: React.FC = () => {
   const [allGeoNames, setAllGeoNames] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
-  const [mapStyle, setMapStyle] = useState<string>('dark-documentary');
+  const [mapStyle, setMapStyle] = useState<string>('satellite');
+  const [mapProjection, setMapProjection] = useState<'mercator' | 'globe'>('mercator');
+  const [showGrid, setShowGrid] = useState<boolean>(true);
   const [previewQuality, setPreviewQuality] = useState<number>(1);
+
   const [labelText, setLabelText] = useState<string>('DMZ Border');
   const [labelColor, setLabelColor] = useState<string>('#ffffff');
   const [labelBg, setLabelBg] = useState<string>('#f472b6');
@@ -88,12 +90,13 @@ const WebApp: React.FC = () => {
   const [labelGlow, setLabelGlow] = useState<boolean>(true);
   const [labelPinned, setLabelPinned] = useState<boolean>(true);
 
-  const [arrowSource, setArrowSource] = useState<string>('North Korea');
-  const [arrowTarget, setArrowTarget] = useState<string>('South Korea');
+  const [arrowSource, setArrowSource] = useState<string>('United States');
+  const [arrowTarget, setArrowTarget] = useState<string>('France');
   const [arrowColor, setArrowColor] = useState<string>('#ef4444');
+  const [isFlight, setIsFlight] = useState<boolean>(true);
 
   const [openBranches, setOpenBranches] = useState<Record<string, boolean>>({
-    entities: true, typography: false, mapStyle: false, vectors: true
+    entities: true, typography: false, mapStyle: false, vectors: false
   });
   const toggleBranch = (key: string) => setOpenBranches(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -153,8 +156,12 @@ const WebApp: React.FC = () => {
 
   const handleDeterministicExport = async () => {
     if (typeof VideoEncoder === 'undefined') { alert('Browser does not support WebCodecs.'); return; }
-    setIsExporting(true); setExportProgress('Initializing encoder & locking tile cache...');
+    
+    setIsExporting(true); 
+    setIsLiveEdit(false); // CRITICAL FIX: Forces map camera to snap back to the timeline
+    setExportProgress('Initializing encoder & locking tile cache...');
     playerRef.current?.pause(); setIsPlaying(false);
+    
     try {
       const exportWidth = 1080, exportHeight = 1920, fps = 30;
       let MuxerModule: any;
@@ -174,19 +181,34 @@ const WebApp: React.FC = () => {
       const frameDurationUs = Math.round(1_000_000 / fps);
       const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
+      await wait(200); // Give React 1 tick to fully disable Live Edit mode before loop starts
+
       for (let f = 0; f < videoDuration; f++) {
         setExportProgress(`Exporting frame ${f + 1}/${videoDuration} (Syncing WebGL Idle)`);
         setCurrentFrame(f);
         playerRef.current?.seekTo(f);
-        await wait(60);
+        await wait(50);
 
         const map = (window as any).__mapInstance as MapLibreMap | null;
         if (map) {
           map.resize(); map.triggerRepaint();
-          let tries = 0;
-          while ((!map.areTilesLoaded() || map.isMoving()) && tries++ < 40) await wait(40);
           
-          // FIX: Export layer sync fallback so map is never black
+          // BULLETPROOF IDLE WAIT FOR SLOW CONNECTIONS
+          await new Promise<void>((resolve) => {
+            let checks = 0;
+            const checkIdle = () => {
+              checks++;
+              if (map.isStyleLoaded() && map.areTilesLoaded() && !map.isMoving()) {
+                resolve();
+              } else if (checks < 150) { // Will wait up to 7.5 seconds strictly for map tiles per frame
+                setTimeout(checkIdle, 50);
+              } else {
+                resolve(); // Fallback to avoid infinite hang
+              }
+            };
+            checkIdle();
+          });
+          
           await new Promise<void>((resolve) => {
             let captured = false;
             const capture = () => {
@@ -261,8 +283,46 @@ const WebApp: React.FC = () => {
   };
 
   const initializeManualScene = () => {
-    setTimeline({ title: `${entityA} vs ${entityB}`, totalFrames: 300, highlightCountries: [ { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'normal', isPrimary: true, startFrame: 0, endFrame: 300, revealStyle: 'ink' }, { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'normal', isPrimary: false, startFrame: 0, endFrame: 300, revealStyle: 'ink' } ], takeovers: [], arrows: [], labels: [], cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, pitch: 0, bearing: 0 }], assets: [] });
+    setTimeline({ title: `${entityA} vs ${entityB}`, totalFrames: 300, highlightCountries: [ { name: entityA, country: entityA, color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'normal', isPrimary: true, startFrame: 0, endFrame: 300, revealStyle: 'ink' }, { name: entityB, country: entityB, color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, enableGlow: true, blendMode: 'normal', isPrimary: false, startFrame: 0, endFrame: 300, revealStyle: 'ink' } ], takeovers: [], arrows: [], labels: [], shakes: [], cameraKeyframes: [{ frame: 0, zoom: 1.2, lat: 38.0, lng: 127.0, pitch: 0, bearing: 0 }], assets: [] });
     setVideoDuration(300); setStatus('editor');
+  };
+
+  const loadFlightSequence = () => {
+    setTimeline({
+      title: "Texas to France to Delhi",
+      totalFrames: 450,
+      highlightCountries: [
+        { name: 'United States', color: '#1e3a8a', strokeColor: '#ffffff', strokeWidth: 2, blendMode: 'normal', startFrame: 0, endFrame: 120, revealStyle: 'fade' },
+        { name: 'Texas', color: '#3b82f6', strokeColor: '#ffffff', strokeWidth: 2, blendMode: 'normal', startFrame: 30, endFrame: 180, revealStyle: 'ink' },
+        { name: 'France', color: '#ef4444', strokeColor: '#ffffff', strokeWidth: 2, blendMode: 'normal', startFrame: 120, endFrame: 270, revealStyle: 'ink' },
+        { name: 'India', color: '#10b981', strokeColor: '#ffffff', strokeWidth: 2, blendMode: 'normal', startFrame: 240, endFrame: 450, revealStyle: 'ink' },
+        { name: 'Delhi', color: '#f59e0b', strokeColor: '#ffffff', strokeWidth: 2, blendMode: 'normal', startFrame: 270, endFrame: 450, revealStyle: 'ink' }
+      ],
+      takeovers: [],
+      arrows: [
+        { sourceName: 'Texas', targetName: 'France', startFrame: 90, duration: 60, color: '#ffffff', isFlight: true },
+        { sourceName: 'France', targetName: 'Delhi', startFrame: 210, duration: 60, color: '#ffffff', isFlight: true }
+      ],
+      labels: [
+        { id: 'l1', text: 'TEXAS DEPARTURE', lng: -99, lat: 31, startFrame: 60, duration: 90, color: '#fff', bg: '#3b82f6', size: 24, style: 'geo-pin', pinned: true },
+        { id: 'l2', text: 'PARIS CONNECTION', lng: 2.3, lat: 48.8, startFrame: 180, duration: 90, color: '#fff', bg: '#ef4444', size: 24, style: 'geo-pin', pinned: true },
+        { id: 'l3', text: 'DELHI ARRIVAL', lng: 77.2, lat: 28.6, startFrame: 300, duration: 150, color: '#000', bg: '#10b981', size: 24, style: 'callout', pinned: true }
+      ],
+      shakes: [],
+      cameraKeyframes: [
+        { frame: 0, zoom: 2.5, lat: 38, lng: -95, pitch: 0, bearing: 0 },
+        { frame: 60, zoom: 4.5, lat: 31, lng: -99, pitch: 45, bearing: -15 },
+        { frame: 120, zoom: 3.5, lat: 45, lng: -40, pitch: 0, bearing: 0 },
+        { frame: 180, zoom: 5.0, lat: 46, lng: 2, pitch: 60, bearing: 20 },
+        { frame: 240, zoom: 3.0, lat: 40, lng: 40, pitch: 0, bearing: 0 },
+        { frame: 300, zoom: 5.5, lat: 25, lng: 80, pitch: 50, bearing: -25 },
+        { frame: 450, zoom: 6.5, lat: 28.6, lng: 77.2, pitch: 60, bearing: -40 }
+      ],
+      assets: []
+    });
+    setVideoDuration(450);
+    setMapProjection('globe');
+    setStatus('editor');
   };
 
   const startLiveEdit = () => {
@@ -304,7 +364,7 @@ const WebApp: React.FC = () => {
     if (!arrowSource || !arrowTarget) return;
     setTimeline((prev: any) => {
       const updated = { ...prev };
-      updated.arrows = [...(updated.arrows || []), { id: Math.random().toString(36).substr(2, 9), type: 'arrow', sourceName: arrowSource, targetName: arrowTarget, startFrame: currentFrame, duration: 60, color: arrowColor }];
+      updated.arrows = [...(updated.arrows || []), { id: Math.random().toString(36).substr(2, 9), type: 'arrow', sourceName: arrowSource, targetName: arrowTarget, startFrame: currentFrame, duration: 60, color: arrowColor, isFlight }];
       return updated;
     });
   };
@@ -398,9 +458,10 @@ const WebApp: React.FC = () => {
   }, [timeline, videoDuration, isLiveEdit, targetLat, targetLng, targetZoom, targetPitch, targetBearing, currentFrame, isPlaying]);
 
   const playerInputProps = useMemo(() => ({
-    timeline: dynamicTimeline, isLiveEditMode: isLiveEdit, mapStyle: mapStyle,
+    // CRITICAL: Disables Live Edit logic strictly during the export to ensure proper timeline tracking
+    timeline: dynamicTimeline, isLiveEditMode: isLiveEdit && !isExporting, mapStyle: mapStyle, mapProjection, showGrid,
     onCameraChange: (cam: any) => { setTargetLat(cam.lat); setTargetLng(cam.lng); setTargetZoom(cam.zoom); setTargetPitch(cam.pitch); setTargetBearing(cam.bearing); }
-  }), [dynamicTimeline, isLiveEdit, mapStyle]);
+  }), [dynamicTimeline, isLiveEdit, isExporting, mapStyle, mapProjection, showGrid]);
 
   const panelStyle: React.CSSProperties = {
     background: 'rgba(20, 20, 24, 0.75)', backdropFilter: 'blur(40px) saturate(200%)', WebkitBackdropFilter: 'blur(40px) saturate(200%)', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 30px 60px rgba(0,0,0,0.6)', borderRadius: '24px'
@@ -532,11 +593,15 @@ const WebApp: React.FC = () => {
         {openBranches.vectors && (
           <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontSize: '10px', color: '#8e8e93' }}>Connect two entities with a cinematic animated vector arrow:</div>
-            <input type="text" value={arrowSource} onChange={(e) => setArrowSource(e.target.value)} placeholder="From Entity (e.g. North Korea)" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none', boxSizing: 'border-box' }} />
-            <input type="text" value={arrowTarget} onChange={(e) => setArrowTarget(e.target.value)} placeholder="To Entity (e.g. South Korea)" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none', boxSizing: 'border-box' }} />
+            <input type="text" value={arrowSource} onChange={(e) => setArrowSource(e.target.value)} placeholder="From Entity (e.g. United States)" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none', boxSizing: 'border-box' }} />
+            <input type="text" value={arrowTarget} onChange={(e) => setArrowTarget(e.target.value)} placeholder="To Entity (e.g. France)" style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '8px', borderRadius: '8px', outline: 'none', boxSizing: 'border-box' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
               <span style={{ color: '#8e8e93' }}>Arrow Color</span>
               <input type="color" value={arrowColor} onChange={(e) => setArrowColor(e.target.value)} style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+              <span style={{ color: '#8e8e93' }}>Draw Airplane?</span>
+              <button onClick={() => setIsFlight(!isFlight)} style={{ background: isFlight ? '#38bdf8' : 'transparent', color: isFlight ? '#000' : '#8e8e93', border: isFlight ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{isFlight ? 'YES' : 'NO'}</button>
             </div>
             <button onClick={addArrowPath} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '8px', padding: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>➕ Draw Animated Arrow</button>
           </div>
@@ -564,12 +629,39 @@ const WebApp: React.FC = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <BranchHeader title="🎨 MAP STYLE" branchKey="mapStyle" />
         {openBranches.mapStyle && (
-          <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {['dark-documentary', 'satellite', 'natural-earth', 'light', 'street'].map(style => (
-              <button key={style} onClick={() => setMapStyle(style)} style={{ flex: '1 1 45%', background: mapStyle === style ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255,255,255,0.05)', color: '#fff', border: mapStyle === style ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px', fontSize: '10px', cursor: 'pointer', textTransform: 'capitalize' }}>
-                {style.replace('-', ' ')}
-              </button>
-            ))}
+          <div style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {['satellite', 'natural-earth', 'light', 'street'].map(style => (
+                <button key={style} onClick={() => setMapStyle(style)} style={{ flex: '1 1 45%', background: mapStyle === style ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255,255,255,0.05)', color: '#fff', border: mapStyle === style ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px', fontSize: '10px', cursor: 'pointer', textTransform: 'capitalize' }}>
+                  {style.replace('-', ' ')}
+                </button>
+              ))}
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
+              <span style={{ color: '#8e8e93', fontWeight: 600 }}>PROJECTION</span>
+              <select value={mapProjection} onChange={(e) => {
+                const val = e.target.value as any;
+                setMapProjection(val);
+                if (val === 'mercator') {
+                  setTargetPitch(0);
+                  if ((window as any).__mapInstance) {
+                    (window as any).__mapInstance.setPitch(0);
+                    (window as any).__mapInstance.setProjection({ type: 'mercator' });
+                  }
+                } else {
+                   if ((window as any).__mapInstance) (window as any).__mapInstance.setProjection({ type: 'globe' });
+                }
+              }} style={{ background: '#111', color: '#38bdf8', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', fontSize: '10px', padding: '4px', outline: 'none' }}>
+                <option value="mercator">Flat Paper (Mercator)</option>
+                <option value="globe">3D Earth (Globe)</option>
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '4px' }}>
+              <span style={{ color: '#8e8e93', fontWeight: 600 }}>TACTICAL GRID</span>
+              <button onClick={() => setShowGrid(!showGrid)} style={{ background: showGrid ? '#38bdf8' : 'transparent', color: showGrid ? '#000' : '#8e8e93', border: showGrid ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}>{showGrid ? 'ON' : 'OFF'}</button>
+            </div>
           </div>
         )}
       </div>
@@ -578,26 +670,35 @@ const WebApp: React.FC = () => {
 
   const rightPanelJSX = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', boxSizing: 'border-box' }}>
-      <button onClick={handleHDLocalExport} disabled={isExporting} style={{ background: isExporting ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', height: '42px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
-        {isExporting ? `⏳ Server Exporting...` : '🖥️ Server HD Export'}
-      </button>
-      <button onClick={handleDeterministicExport} disabled={isExporting} style={{ background: isExporting ? '#f59e0b' : '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '42px', fontSize: '11px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
-        {isExporting ? `⏳ Exporting...` : '🎥 Offline WebM (100% Tiles)'}
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+        <button onClick={loadFlightSequence} style={{ background: '#10b981', color: '#000', border: 'none', borderRadius: '10px', height: '42px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>✈️ Load Flight Demo Sequence</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleHDLocalExport} disabled={isPreloading || isExporting} style={{ flex: 1, background: isExporting ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', height: '36px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+            {isExporting ? `⏳ Server Exporting...` : '🖥️ HD Export'}
+          </button>
+          <button onClick={handleDeterministicExport} disabled={isPreloading || isExporting} style={{ flex: 1, background: isExporting ? '#f59e0b' : 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', height: '36px', fontSize: '10px', fontWeight: 800, cursor: isExporting ? 'wait' : 'pointer' }}>
+            {isExporting ? `⏳ Exporting...` : '🎥 Local WebM'}
+          </button>
+        </div>
+      </div>
 
-      <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', marginTop: '10px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>CAMERA ENGINE</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em' }}>CAMERA ENGINE</div>
+        {isLiveEdit && <button onClick={() => setIsLiveEdit(false)} style={{ background: 'transparent', color: '#8e8e93', border: 'none', fontSize: '10px', cursor: 'pointer' }}>✕ Close</button>}
+      </div>
+
       {!isLiveEdit ? (
-        <button onClick={() => setIsLiveEdit(true)} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '4px' }}>🎯 Enter Live Canvas Edit</button>
+        <button onClick={startLiveEdit} style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '10px', width: '100%', height: '38px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '10px' }}>🎯 Enter Live Canvas Edit</button>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-          <button onClick={() => setIsLiveEdit(false)} style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '8px', padding: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>🔒 Lock Map Interactions</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
           <button onClick={dropKeyframeLive} style={{ background: '#38bdf8', color: '#000', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>📍 Save Keyframe Here</button>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '8px' }}>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', marginTop: '12px' }}>
             <span style={{ color: '#8e8e93' }}>PITCH TILT</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetPitch)}°</span>
           </div>
           <input type="range" min="0" max="85" step="1" value={targetPitch} onChange={(e) => {
-            const p = Number(e.target.value); setTargetPitch(p);
+            const p = Number(e.target.value);
+            setTargetPitch(p);
             if ((window as any).__mapInstance) (window as any).__mapInstance.setPitch(p);
           }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
           
@@ -605,10 +706,25 @@ const WebApp: React.FC = () => {
             <span style={{ color: '#8e8e93' }}>BEARING ROTATION</span><span style={{ color: '#38bdf8', fontWeight: 600 }}>{Math.round(targetBearing)}°</span>
           </div>
           <input type="range" min="-180" max="180" step="1" value={targetBearing} onChange={(e) => {
-            const b = Number(e.target.value); setTargetBearing(b);
+            const b = Number(e.target.value);
+            setTargetBearing(b);
             if ((window as any).__mapInstance) (window as any).__mapInstance.setBearing(b);
           }} style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }} />
         </div>
+      )}
+
+      {((timeline as any)?.labels?.length > 0) && (
+        <React.Fragment>
+          <div style={{ fontSize: '10px', color: '#8e8e93', fontWeight: 700, letterSpacing: '0.15em', width: '100%', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginTop: '10px' }}>ACTIVE LABELS</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {(timeline as any).labels?.map((l: any) => (
+              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '6px' }}>
+                <input type="text" value={l.text} onChange={(e) => updateLabelText(l.id, e.target.value)} style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '11px', flex: 1, outline: 'none' }} />
+                <button onClick={() => setTimeline((prev: any) => ({ ...prev, labels: prev.labels.filter((lb: any) => lb.id !== l.id) }))} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>✕</button>
+              </div>
+            ))}
+          </div>
+        </React.Fragment>
       )}
     </div>
   );
@@ -696,7 +812,7 @@ const WebApp: React.FC = () => {
             </div>
             {!manualMode ? (
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '16px', boxSizing: 'border-box' }}>
-                <textarea placeholder="e.g., generate all states of India in red..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontSize: '16px', outline: 'none', resize: 'none', boxSizing: 'border-box' }} required />
+                <textarea placeholder="e.g., North Korea and South Korea relations..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} style={{ width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontSize: '16px', outline: 'none', resize: 'none', boxSizing: 'border-box' }} required />
                 <button type="submit" style={{ background: '#fff', color: '#000', border: 'none', borderRadius: '16px', padding: '12px 24px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-end' }}>Generate ✦</button>
               </form>
             ) : (

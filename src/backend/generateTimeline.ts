@@ -44,6 +44,7 @@ export interface ArrowEvent {
   startFrame: number;
   duration: number;
   color: string;
+  isFlight?: boolean;
 }
 
 export interface LabelEvent {
@@ -95,16 +96,11 @@ function getCountriesByContinent(continentName: string): string[] {
         const p = f.properties || {};
         const cont = String(p.CONTINENT || p.continent || p.REGION || p.region || '').toLowerCase();
         const name = p.ADMIN || p.admin || p.NAME || p.name;
-        
-        if (cont.includes(norm) && name) {
-          matches.push(name);
-        }
+        if (cont.includes(norm) && name) matches.push(name);
       });
       if (matches.length > 0) return matches;
     }
-  } catch (e) {
-    console.error('[Region Engine] Failed to read world.json:', e);
-  }
+  } catch (e) { console.error('[Region Engine] Failed to read world.json:', e); }
 
   if (continentName.toLowerCase().includes('asia')) {
     return [
@@ -155,9 +151,7 @@ function getDistrictsForState(stateQuery: string): string[] {
       });
       if (matches.length > 0) return matches;
     }
-  } catch (e) {
-    console.error('[District Engine] Failed to read districts geojson:', e);
-  }
+  } catch (e) { }
   return ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj", "Meerut", "Noida", "Ghaziabad", "Gorakhpur", "Jhansi"];
 }
 
@@ -165,12 +159,18 @@ function getRiversForCountry(countryQuery: string): string[] {
   return ["Ganges", "Brahmaputra", "Yamuna", "Godavari", "Krishna", "Indus", "Narmada", "Mahanadi", "Kaveri", "Tapti"];
 }
 
+// MAINLAND OVERRIDES FOR COMPLEX GEOJSON COUNTRIES
 function getDynamicCountryCenter(countryName: string): [number, number] {
+  const norm = countryName.toLowerCase();
+  
+  if (norm.includes('france')) return [2.3522, 48.8566]; // Paris
+  if (norm.includes('united states') || norm === 'us' || norm === 'usa') return [-98.5795, 39.8283]; // USA Center
+  if (norm.includes('united kingdom') || norm === 'uk') return [-3.4359, 55.3781]; // UK Center
+
   try {
     const worldPath = path.resolve(__dirname, '..', 'world.json');
     if (fs.existsSync(worldPath)) {
       const data = JSON.parse(fs.readFileSync(worldPath, 'utf8'));
-      const norm = countryName.toLowerCase();
       
       const feature = data.features.find((f: any) => {
         const p = f.properties || {};
@@ -190,9 +190,7 @@ function getDynamicCountryCenter(countryName: string): [number, number] {
         }
       }
     }
-  } catch (e) {
-    console.error('[Geocoding] Failed to dynamically calculate center:', e);
-  }
+  } catch (e) { }
   return [0, 0]; 
 }
 
@@ -345,32 +343,18 @@ export async function parseSrtWithGemini(inputContent: string): Promise<Generate
     }
   }
 
-  const attackMatch = promptLower.match(/(.+?)\s+(?:invades|invading|attacks|attacking|captures|annexes|strikes)\s+(.+)/i);
-  if (attackMatch) {
-    const invader = attackMatch[1].trim();
-    const target = attackMatch[2].replace(/but.*$/i, '').trim();
-    const [centerLng, centerLat] = getDynamicCountryCenter(target);
+  const prompt = `
+    You are an expert cinematic map animator.
+    Convert this narrative into a precise cinematic timeline: "${inputContent}"
+    
+    INSTRUCTIONS FOR MULTI-STOP TRAVEL ROUTES (e.g., "I travelled from Texas to France to Delhi"):
+    1. Set totalFrames to at least 450 to allow time for multiple hops.
+    2. Sequentially highlight countries/states using startFrame and endFrame. Set revealStyle to "ink".
+    3. Generate Arrows for EVERY flight path (e.g., Texas->France, then France->Delhi). ALWAYS set "isFlight": true for travel arrows.
+    4. Keyframe the camera accurately across the globe to follow the journey.
+    5. Add Labels for origin, connections, and destination.
+  `;
 
-    return {
-      title: `${invader} Tactical Offensive on ${target}`,
-      totalFrames: 300,
-      cameraKeyframes: [
-        { frame: 0, lng: centerLng, lat: centerLat - 5, zoom: 2.5, pitch: 10 },
-        { frame: 300, lng: centerLng, lat: centerLat, zoom: 4.8, pitch: 45 }
-      ],
-      highlightCountries: [
-        { name: invader, startFrame: 0, endFrame: 300, color: customColor, isPrimary: true, revealStyle: "ink", blendMode: "screen", enableGlow: true, strokeWidth: 2 },
-        { name: target, startFrame: 0, endFrame: 300, color: "#3b82f6", isPrimary: false, revealStyle: "fade", blendMode: "screen", enableGlow: true, strokeWidth: 2 }
-      ],
-      takeovers: [
-        { invader: invader, target: target, startFrame: 45, duration: 180, color: customColor, origin: [centerLng, centerLat] }
-      ],
-      arrows: [],
-      labels: [{ text: "Conflict Zone", lat: centerLat, lng: centerLng, startFrame: 30, duration: 250, glow: true, pinned: true, style: 'geo-pin' }]
-    };
-  }
-
-  const prompt = `Convert this narrative into a precise 300-frame cinematic timeline: "${inputContent}"`;
   const response = await ai.models.generateContent({
     model: 'gemini-3.5-flash',
     contents: prompt,
@@ -423,6 +407,21 @@ export async function parseSrtWithGemini(inputContent: string): Promise<Generate
               }, 
               required: ['invader', 'target', 'startFrame', 'duration', 'color'] 
             } 
+          },
+          arrows: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                sourceName: { type: Type.STRING },
+                targetName: { type: Type.STRING },
+                startFrame: { type: Type.INTEGER },
+                duration: { type: Type.INTEGER },
+                color: { type: Type.STRING },
+                isFlight: { type: Type.BOOLEAN }
+              },
+              required: ['sourceName', 'targetName', 'startFrame', 'duration']
+            }
           },
           labels: {
             type: Type.ARRAY,

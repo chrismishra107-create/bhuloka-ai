@@ -1,395 +1,200 @@
 {
-  "title": "States and Union Territories of India",
-  "totalFrames": 600,
-  "cameraKeyframes": [
-    {
-      "frame": 0,
-      "lng": 78.9629,
-      "lat": 20.5937,
-      "zoom": 3.5,
-      "pitch": 15
-    },
-    {
-      "frame": 600,
-      "lng": 78.9629,
-      "lat": 20.5937,
-      "zoom": 4.2,
-      "pitch": 35
-    }
-  ],
+  "title": "Texas to France to Delhi",
+  "totalFrames": 450,
   "highlightCountries": [
     {
-      "name": "Andhra Pradesh",
+      "name": "United States",
+      "color": "#1e3a8a",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "blendMode": "normal",
       "startFrame": 0,
-      "endFrame": 40,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
+      "endFrame": 120,
+      "revealStyle": "fade"
     },
     {
-      "name": "Arunachal Pradesh",
-      "startFrame": 12,
-      "endFrame": 52,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
+      "name": "Texas",
+      "color": "#3b82f6",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "blendMode": "normal",
+      "startFrame": 30,
+      "endFrame": 180,
+      "revealStyle": "ink"
     },
     {
-      "name": "Assam",
-      "startFrame": 24,
-      "endFrame": 64,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Bihar",
-      "startFrame": 36,
-      "endFrame": 76,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Chhattisgarh",
-      "startFrame": 48,
-      "endFrame": 88,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Goa",
-      "startFrame": 60,
-      "endFrame": 100,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Gujarat",
-      "startFrame": 72,
-      "endFrame": 112,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Haryana",
-      "startFrame": 84,
-      "endFrame": 124,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Himachal Pradesh",
-      "startFrame": 96,
-      "endFrame": 136,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Jharkhand",
-      "startFrame": 108,
-      "endFrame": 148,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Karnataka",
+      "name": "France",
+      "color": "#ef4444",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "blendMode": "normal",
       "startFrame": 120,
-      "endFrame": 160,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
+      "endFrame": 270,
+      "revealStyle": "ink"
     },
     {
-      "name": "Kerala",
-      "startFrame": 132,
-      "endFrame": 172,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Madhya Pradesh",
-      "startFrame": 144,
-      "endFrame": 184,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Maharashtra",
-      "startFrame": 156,
-      "endFrame": 196,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Manipur",
-      "startFrame": 168,
-      "endFrame": 208,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Meghalaya",
-      "startFrame": 180,
-      "endFrame": 220,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Mizoram",
-      "startFrame": 192,
-      "endFrame": 232,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Nagaland",
-      "startFrame": 204,
-      "endFrame": 244,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Odisha",
-      "startFrame": 216,
-      "endFrame": 256,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Punjab",
-      "startFrame": 228,
-      "endFrame": 268,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Rajasthan",
+      "name": "India",
+      "color": "#10b981",
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "blendMode": "normal",
       "startFrame": 240,
-      "endFrame": 280,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Sikkim",
-      "startFrame": 252,
-      "endFrame": 292,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Tamil Nadu",
-      "startFrame": 264,
-      "endFrame": 304,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Telangana",
-      "startFrame": 276,
-      "endFrame": 316,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Tripura",
-      "startFrame": 288,
-      "endFrame": 328,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Uttar Pradesh",
-      "startFrame": 300,
-      "endFrame": 340,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Uttarakhand",
-      "startFrame": 312,
-      "endFrame": 352,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "West Bengal",
-      "startFrame": 324,
-      "endFrame": 364,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Andaman and Nicobar Islands",
-      "startFrame": 336,
-      "endFrame": 376,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Chandigarh",
-      "startFrame": 348,
-      "endFrame": 388,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Dadra and Nagar Haveli and Daman and Diu",
-      "startFrame": 360,
-      "endFrame": 400,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
+      "endFrame": 450,
+      "revealStyle": "ink"
     },
     {
       "name": "Delhi",
-      "startFrame": 372,
-      "endFrame": 412,
       "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Jammu and Kashmir",
-      "startFrame": 384,
-      "endFrame": 424,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Ladakh",
-      "startFrame": 396,
-      "endFrame": 436,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Lakshadweep",
-      "startFrame": 408,
-      "endFrame": 448,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
-    },
-    {
-      "name": "Puducherry",
-      "startFrame": 420,
-      "endFrame": 460,
-      "color": "#f59e0b",
-      "isPrimary": false,
-      "revealStyle": "fade",
-      "blendMode": "screen",
-      "enableGlow": true
+      "strokeColor": "#ffffff",
+      "strokeWidth": 2,
+      "blendMode": "normal",
+      "startFrame": 270,
+      "endFrame": 450,
+      "revealStyle": "ink"
     }
   ],
   "takeovers": [],
-  "arrows": [],
+  "arrows": [
+    {
+      "sourceName": "Texas",
+      "targetName": "France",
+      "startFrame": 90,
+      "duration": 60,
+      "color": "#ffffff",
+      "isFlight": true
+    },
+    {
+      "sourceName": "France",
+      "targetName": "Delhi",
+      "startFrame": 210,
+      "duration": 60,
+      "color": "#ffffff",
+      "isFlight": true
+    }
+  ],
   "labels": [
     {
-      "text": "INDIA STATES & UTS",
-      "lat": 20.5937,
-      "lng": 78.9629,
-      "startFrame": 0,
-      "duration": 600,
-      "glow": true,
+      "id": "l1",
+      "text": "TEXAS DEPARTURE",
+      "lng": -99,
+      "lat": 31,
+      "startFrame": 60,
+      "duration": 90,
+      "color": "#fff",
+      "bg": "#3b82f6",
+      "size": 24,
+      "style": "geo-pin",
+      "pinned": true
+    },
+    {
+      "id": "l2",
+      "text": "PARIS CONNECTION",
+      "lng": 2.3,
+      "lat": 48.8,
+      "startFrame": 180,
+      "duration": 90,
+      "color": "#fff",
+      "bg": "#ef4444",
+      "size": 24,
+      "style": "geo-pin",
+      "pinned": true
+    },
+    {
+      "id": "l3",
+      "text": "DELHI ARRIVAL",
+      "lng": 77.2,
+      "lat": 28.6,
+      "startFrame": 300,
+      "duration": 150,
+      "color": "#000",
+      "bg": "#10b981",
+      "size": 24,
+      "style": "callout",
       "pinned": true
     }
-  ]
+  ],
+  "shakes": [
+    {
+      "startFrame": 0,
+      "duration": 15,
+      "intensity": 10
+    },
+    {
+      "startFrame": 120,
+      "duration": 15,
+      "intensity": 15
+    },
+    {
+      "startFrame": 240,
+      "duration": 15,
+      "intensity": 20
+    }
+  ],
+  "cameraKeyframes": [
+    {
+      "frame": 0,
+      "zoom": 2.5,
+      "lat": 38,
+      "lng": -95,
+      "pitch": 0,
+      "bearing": 0
+    },
+    {
+      "frame": 60,
+      "zoom": 4.5,
+      "lat": 31,
+      "lng": -99,
+      "pitch": 45,
+      "bearing": -15
+    },
+    {
+      "frame": 100,
+      "lat": 41.74640803719428,
+      "lng": -18.747635171265415,
+      "zoom": 3.7106522549617353,
+      "pitch": 9.024999999999999,
+      "bearing": 356.9916666666667
+    },
+    {
+      "frame": 120,
+      "zoom": 3.5,
+      "lat": 45,
+      "lng": -40,
+      "pitch": 0,
+      "bearing": 0
+    },
+    {
+      "frame": 180,
+      "zoom": 5,
+      "lat": 46,
+      "lng": 2,
+      "pitch": 60,
+      "bearing": 20
+    },
+    {
+      "frame": 240,
+      "zoom": 3,
+      "lat": 40,
+      "lng": 40,
+      "pitch": 0,
+      "bearing": 0
+    },
+    {
+      "frame": 300,
+      "zoom": 5.5,
+      "lat": 25,
+      "lng": 80,
+      "pitch": 50,
+      "bearing": -25
+    },
+    {
+      "frame": 450,
+      "zoom": 6.5,
+      "lat": 28.6,
+      "lng": 77.2,
+      "pitch": 60,
+      "bearing": -40
+    }
+  ],
+  "assets": []
 }
